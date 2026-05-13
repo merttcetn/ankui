@@ -1,4 +1,5 @@
 import type { Finding, ScanResult } from "../types.js";
+import { relativizeHome } from "./paths.js";
 
 type Category = Finding["category"];
 
@@ -89,16 +90,6 @@ function countByCategory(findings: readonly Finding[]): Array<[Category, number]
   }
   entries.sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]));
   return entries;
-}
-
-function relativizeHome(filePath: string, homeDir: string): string {
-  if (homeDir && filePath.startsWith(homeDir + "/")) {
-    return `~${filePath.slice(homeDir.length)}`;
-  }
-  if (homeDir && filePath === homeDir) {
-    return "~";
-  }
-  return filePath;
 }
 
 const ALL_CATEGORIES: ReadonlyArray<Category> = CATEGORY_ORDER.map((s) => s.category);
