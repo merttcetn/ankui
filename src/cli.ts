@@ -3,6 +3,7 @@ import { Command } from "commander";
 
 import { runAccessCommand } from "./commands/access.js";
 import { runCapsCommand } from "./commands/caps.js";
+import { runDiscoverCommand } from "./commands/discover.js";
 import { runDoctorCommand } from "./commands/doctor.js";
 import { runListCommand } from "./commands/list.js";
 import { runMcpCommand } from "./commands/mcp.js";
@@ -110,6 +111,19 @@ program
     const globalOptions = program.opts<GlobalOptions>();
     await runShowCommand({
       toolId,
+      json: Boolean(globalOptions.json),
+      write: (chunk) => process.stdout.write(chunk)
+    });
+  });
+
+program
+  .command("discover")
+  .description("Crawl ~ for AI projects and propose dev roots for ~/.config/ankui/config.json.")
+  .option("--apply", "write the default-ON dev roots into the config file", false)
+  .action(async (cmdOpts: { apply?: boolean }) => {
+    const globalOptions = program.opts<GlobalOptions>();
+    await runDiscoverCommand({
+      apply: Boolean(cmdOpts.apply),
       json: Boolean(globalOptions.json),
       write: (chunk) => process.stdout.write(chunk)
     });
