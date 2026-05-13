@@ -6,6 +6,7 @@ import { runCapsCommand } from "./commands/caps.js";
 import { runDoctorCommand } from "./commands/doctor.js";
 import { runListCommand } from "./commands/list.js";
 import { runMcpCommand } from "./commands/mcp.js";
+import { runShowCommand } from "./commands/show.js";
 import { scan } from "./scanner/index.js";
 import { formatError } from "./utils/errors.js";
 import { formatJson, formatScanSummary } from "./utils/format.js";
@@ -98,6 +99,18 @@ program
       json: Boolean(globalOptions.json),
       kind: cmdOpts.kind,
       tool: cmdOpts.tool,
+      write: (chunk) => process.stdout.write(chunk)
+    });
+  });
+
+program
+  .command("show <tool>")
+  .description("Print one tool's detected paths and skills.")
+  .action(async (toolId: string) => {
+    const globalOptions = program.opts<GlobalOptions>();
+    await runShowCommand({
+      toolId,
+      json: Boolean(globalOptions.json),
       write: (chunk) => process.stdout.write(chunk)
     });
   });
