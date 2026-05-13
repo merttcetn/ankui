@@ -2,6 +2,7 @@
 import { Command } from "commander";
 
 import { runAccessCommand } from "./commands/access.js";
+import { runDoctorCommand } from "./commands/doctor.js";
 import { runMcpCommand } from "./commands/mcp.js";
 import { scan } from "./scanner/index.js";
 import { formatError } from "./utils/errors.js";
@@ -57,6 +58,17 @@ program
   .action(async () => {
     const globalOptions = program.opts<GlobalOptions>();
     await runMcpCommand({
+      json: Boolean(globalOptions.json),
+      write: (chunk) => process.stdout.write(chunk)
+    });
+  });
+
+program
+  .command("doctor")
+  .description("Print detection status and scanner warnings.")
+  .action(async () => {
+    const globalOptions = program.opts<GlobalOptions>();
+    await runDoctorCommand({
       json: Boolean(globalOptions.json),
       write: (chunk) => process.stdout.write(chunk)
     });
