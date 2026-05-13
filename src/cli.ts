@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 import { Command } from "commander";
 
+import { runAccessCommand } from "./commands/access.js";
 import { scan } from "./scanner/index.js";
 import { formatError } from "./utils/errors.js";
 import { formatJson, formatScanSummary } from "./utils/format.js";
@@ -35,6 +36,17 @@ program
   .action(async () => {
     await runScanCommand({
       showTuiPlaceholder: true
+    });
+  });
+
+program
+  .command("access")
+  .description("Print findings and review recommendations from the scan.")
+  .action(async () => {
+    const globalOptions = program.opts<GlobalOptions>();
+    await runAccessCommand({
+      json: Boolean(globalOptions.json),
+      write: (chunk) => process.stdout.write(chunk)
     });
   });
 
