@@ -7,6 +7,7 @@ import { runDiscoverCommand } from "./commands/discover.js";
 import { runDoctorCommand } from "./commands/doctor.js";
 import { runListCommand } from "./commands/list.js";
 import { runMcpCommand } from "./commands/mcp.js";
+import { runScanAllCommand } from "./commands/scan-all.js";
 import { runShowCommand } from "./commands/show.js";
 import { scan } from "./scanner/index.js";
 import { formatError } from "./utils/errors.js";
@@ -73,6 +74,17 @@ program
   .action(async () => {
     const globalOptions = program.opts<GlobalOptions>();
     await runDoctorCommand({
+      json: Boolean(globalOptions.json),
+      write: (chunk) => process.stdout.write(chunk)
+    });
+  });
+
+program
+  .command("scan-all")
+  .description("Run scans across every project in every registered dev root.")
+  .action(async () => {
+    const globalOptions = program.opts<GlobalOptions>();
+    await runScanAllCommand({
       json: Boolean(globalOptions.json),
       write: (chunk) => process.stdout.write(chunk)
     });

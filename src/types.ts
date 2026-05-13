@@ -136,6 +136,41 @@ export interface ScanResult {
   summary: ScanSummary;
 }
 
+export interface MultiProjectTotals {
+  projectCount: number;
+  skillsAcrossProjects: number;
+  userScopeSkills: number;
+}
+
+export interface ProjectScan {
+  projectPath: string;
+  displayPath: string;
+  scan: ScanResult;
+}
+
+export interface MultiProjectScanResult {
+  scannedAt: string;
+  cwd: string;
+  homeDir: string;
+  devRoots: string[];
+  userScope: ScanResult;
+  projects: ProjectScan[];
+  warnings: Warning[];
+  totals: MultiProjectTotals;
+}
+
+export function createMultiProjectTotals(input: {
+  userScopeSkillCount: number;
+  projectSkillCounts: readonly number[];
+}): MultiProjectTotals {
+  const skillsAcrossProjects = input.projectSkillCounts.reduce((sum, n) => sum + n, 0);
+  return {
+    projectCount: input.projectSkillCounts.length,
+    skillsAcrossProjects,
+    userScopeSkills: input.userScopeSkillCount
+  };
+}
+
 export const TOOL_DEFINITIONS = [
   {
     id: "claude",
