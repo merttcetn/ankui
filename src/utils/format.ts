@@ -6,6 +6,7 @@ export function formatScanSummary(result: ScanResult): string {
     "",
     `Detected tools: ${result.summary.detectedTools}`,
     `MCP servers: ${result.summary.totalMcpServers} configured, ${result.summary.uniqueMcpServers} unique`,
+    `Agent skills: ${result.summary.agentSkills + result.summary.skillsShSkills}`,
     `Commands/prompts/agents/rules/tools: ${countCommandLikeItems(result.tools)}`,
     `Memory files: ${result.summary.memoryFiles}`,
     `Access findings: ${result.summary.totalFindings}`,
@@ -26,6 +27,8 @@ function formatToolSummary(tool: AITool): string {
   const status = tool.detected ? "✓" : "-";
   const details = [
     countLabel(tool.stats.mcpServers, "MCP"),
+    countLabel(tool.stats.agentSkills, "agent skills"),
+    countLabel(tool.stats.skillsShSkills, "skills.sh skills"),
     countLabel(tool.stats.customCommands, "commands"),
     countLabel(tool.stats.customPrompts, "prompts"),
     countLabel(tool.stats.customAgents, "agents"),
