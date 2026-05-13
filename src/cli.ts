@@ -4,6 +4,7 @@ import { Command } from "commander";
 import { runAccessCommand } from "./commands/access.js";
 import { runCapsCommand } from "./commands/caps.js";
 import { runDoctorCommand } from "./commands/doctor.js";
+import { runListCommand } from "./commands/list.js";
 import { runMcpCommand } from "./commands/mcp.js";
 import { scan } from "./scanner/index.js";
 import { formatError } from "./utils/errors.js";
@@ -82,6 +83,21 @@ program
     const globalOptions = program.opts<GlobalOptions>();
     await runCapsCommand({
       json: Boolean(globalOptions.json),
+      write: (chunk) => process.stdout.write(chunk)
+    });
+  });
+
+program
+  .command("list")
+  .description("List skills, optionally filtered by --kind and --tool.")
+  .option("--kind <kind>", "filter by skill kind (e.g., mcp_server, agent_skill)")
+  .option("--tool <tool>", "filter by tool id (e.g., claude, codex)")
+  .action(async (cmdOpts: { kind?: string; tool?: string }) => {
+    const globalOptions = program.opts<GlobalOptions>();
+    await runListCommand({
+      json: Boolean(globalOptions.json),
+      kind: cmdOpts.kind,
+      tool: cmdOpts.tool,
       write: (chunk) => process.stdout.write(chunk)
     });
   });
