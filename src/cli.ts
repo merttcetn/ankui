@@ -9,9 +9,12 @@ import { runListCommand } from "./commands/list.js";
 import { runMcpCommand } from "./commands/mcp.js";
 import { runScanAllCommand } from "./commands/scan-all.js";
 import { runShowCommand } from "./commands/show.js";
+import { loadAllScans, readDevRootsConfig } from "./scanner/multi-project.js";
 import { scan } from "./scanner/index.js";
+import { renderTui } from "./tui/render.js";
 import { formatError } from "./utils/errors.js";
 import { formatJson, formatScanSummary } from "./utils/format.js";
+import os from "node:os";
 
 interface GlobalOptions {
   json?: boolean;
@@ -25,9 +28,12 @@ program
   .option("--json", "print the full sanitized scan result as JSON")
   .option("--no-color", "disable ANSI colors")
   .action(async () => {
-    await runScanCommand({
-      showTuiPlaceholder: true
-    });
+    const globalOptions = program.opts<GlobalOptions>();
+    if (globalOptions.json) {
+      await runScanCommand();
+      return;
+    }
+    await launchTui();
   });
 
 program
@@ -41,9 +47,7 @@ program
   .command("tui")
   .description("Open the interactive terminal UI.")
   .action(async () => {
-    await runScanCommand({
-      showTuiPlaceholder: true
-    });
+    await launchTui();
   });
 
 program
@@ -155,6 +159,17 @@ async function runScanCommand(options: { showTuiPlaceholder?: boolean } = {}): P
   }
 
   process.stdout.write(`${formatScanSummary(result)}\n`);
+}
+
+async function launchTui(): Promise<void> {
+  const homeDir = os.homedir();
+  const config = await readDevRootsConfig(homeDir);
+  const result = await loadAllScans({
+    devRoots: config.devRoots,
+    homeDir,
+    env: process.env
+  });
+  await renderTui(result);
 }
 
 try {
