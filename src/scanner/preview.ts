@@ -35,7 +35,7 @@ export function createSanitizedPreview(
   sourcePath: string,
   maxLines = DEFAULT_PREVIEW_LINES
 ): Preview {
-  const normalizedLines = text.replace(/\r\n/g, "\n").replace(/\r/g, "\n").split("\n");
+  const normalizedLines = splitNormalizedLines(text);
   const previewLines = normalizedLines.slice(0, maxLines).map((line) => maskSecretText(line));
 
   return {
@@ -43,4 +43,12 @@ export function createSanitizedPreview(
     lines: previewLines,
     truncated: normalizedLines.length > maxLines
   };
+}
+
+export function countTextLines(text: string): number {
+  return splitNormalizedLines(text).length;
+}
+
+function splitNormalizedLines(text: string): string[] {
+  return text.replace(/\r\n/g, "\n").replace(/\r/g, "\n").split("\n");
 }

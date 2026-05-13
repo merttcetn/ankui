@@ -28,6 +28,7 @@ export interface DiscoveryResult {
   paths: DiscoveredPath[];
   skippedPaths: SkippedPath[];
   warnings: Warning[];
+  gitignorePatterns: string[];
 }
 
 export interface DiscoveryOptions {
@@ -67,12 +68,13 @@ const USER_PATHS: Array<Omit<KnownPathCandidate, "basePath" | "scope" | "source"
 
 const PROJECT_FILE_PATHS: Array<Omit<KnownPathCandidate, "basePath" | "scope" | "source">> = [
   { toolIds: ["claude"], relativePath: "CLAUDE.md", entryType: "file" },
+  { toolIds: ["claude"], relativePath: "CLAUDE.local.md", entryType: "file" },
   { toolIds: ["codex", "opencode"], relativePath: "AGENTS.md", entryType: "file" },
   { toolIds: ["gemini"], relativePath: "GEMINI.md", entryType: "file" },
   { toolIds: ["opencode"], relativePath: "opencode.json", entryType: "file" },
   { toolIds: ["opencode"], relativePath: "opencode.jsonc", entryType: "file" },
   { toolIds: ["cursor"], relativePath: ".cursorrules", entryType: "file" },
-  { toolIds: ["cursor"], relativePath: ".mcp.json", entryType: "file" }
+  { toolIds: ["claude", "cursor"], relativePath: ".mcp.json", entryType: "file" }
 ];
 
 const PROJECT_DIRECTORY_PATHS: Array<
@@ -87,6 +89,11 @@ const PROJECT_DIRECTORY_PATHS: Array<
 ];
 
 const PROJECT_FILE_NAMES = PROJECT_FILE_PATHS.map((candidate) => candidate.relativePath);
+
+const PROJECT_KNOWN_FILE_PATHS: Array<Omit<KnownPathCandidate, "basePath" | "scope" | "source">> = [
+  { toolIds: ["claude"], relativePath: ".claude/settings.json", entryType: "file" },
+  { toolIds: ["claude"], relativePath: ".claude/settings.local.json", entryType: "file" }
+];
 
 const PROJECT_DISCOVERY_EXCLUDES = [
   "**/.git/**",
@@ -130,6 +137,16 @@ export async function discover(options: DiscoveryOptions): Promise<DiscoveryResu
     })).filter((candidate) => !isIgnoredByRootGitignore(candidate.relativePath, gitignore.patterns))
   );
 
+  await addKnownCandidates(
+    state,
+    PROJECT_KNOWN_FILE_PATHS.map((candidate) => ({
+      ...candidate,
+      basePath: cwd,
+      scope: "project" as const,
+      source: "known_project_path" as const
+    })).filter((candidate) => !isIgnoredByRootGitignore(candidate.relativePath, gitignore.patterns))
+  );
+
   await discoverOpenCodeEnvPaths(state, {
     cwd,
     homeDir,
@@ -139,7 +156,8 @@ export async function discover(options: DiscoveryOptions): Promise<DiscoveryResu
   return {
     paths: state.paths,
     skippedPaths: state.skippedPaths,
-    warnings: state.warnings
+    warnings: state.warnings,
+    gitignorePatterns: gitignore.patterns
   };
 }
 
@@ -392,7 +410,7 @@ async function readRootGitignore(cwd: string): Promise<{ patterns: string[]; war
   };
 }
 
-function isIgnoredByRootGitignore(relativePath: string, patterns: string[]): boolean {
+export function isIgnoredByRootGitignore(relativePath: string, patterns: string[]): boolean {
   let ignored = false;
 
   for (const rawPattern of patterns) {

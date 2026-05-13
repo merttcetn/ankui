@@ -173,20 +173,27 @@ export const TOOL_DEFINITIONS = [
   description: string;
 }>;
 
-export function createEmptyStats(): ToolStats {
+export function createToolStats(
+  skills: readonly Skill[] = [],
+  findings: readonly Finding[] = []
+): ToolStats {
   return {
-    mcpServers: 0,
-    customCommands: 0,
-    customAgents: 0,
-    customPrompts: 0,
-    customTools: 0,
-    plugins: 0,
-    rules: 0,
-    memoryFiles: 0,
-    agentSkills: 0,
-    skillsShSkills: 0,
-    findings: 0
+    mcpServers: countSkills(skills, "mcp_server"),
+    customCommands: countSkills(skills, "custom_commands"),
+    customAgents: countSkills(skills, "custom_agents"),
+    customPrompts: countSkills(skills, "custom_prompts"),
+    customTools: countSkills(skills, "custom_tools"),
+    plugins: countSkills(skills, "plugins"),
+    rules: countSkills(skills, "rules"),
+    memoryFiles: countSkills(skills, "memory_file"),
+    agentSkills: countSkills(skills, "agent_skill"),
+    skillsShSkills: countSkills(skills, "skills_sh_skill"),
+    findings: findings.length
   };
+}
+
+export function createEmptyStats(): ToolStats {
+  return createToolStats();
 }
 
 export function createEmptyTool(toolId: ToolId): AITool {
@@ -264,4 +271,8 @@ function normalizeId(parts: string[]): string {
     .replace(/[^a-z0-9._/-]+/g, "-")
     .replace(/-+/g, "-")
     .replace(/^-|-$/g, "");
+}
+
+function countSkills(skills: readonly Skill[], kind: SkillKind): number {
+  return skills.filter((skill) => skill.kind === kind).length;
 }

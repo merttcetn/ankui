@@ -1,5 +1,6 @@
 import { parse as parseJsonc, printParseErrorCode, type ParseError } from "jsonc-parser";
 import { parse as parseToml } from "smol-toml";
+import { parse as parseYaml } from "yaml";
 
 import { createWarning } from "../types.js";
 import {
@@ -143,6 +144,18 @@ export function parseTomlText(text: string, sourcePath: string): SafeResult<unkn
     return {
       ok: true,
       value: maskSecrets(parseToml(text) as unknown),
+      warnings: []
+    };
+  } catch (error) {
+    return createParseFailure(sourcePath, error);
+  }
+}
+
+export function parseYamlText(text: string, sourcePath: string): SafeResult<unknown> {
+  try {
+    return {
+      ok: true,
+      value: maskSecrets(parseYaml(text) as unknown),
       warnings: []
     };
   } catch (error) {
