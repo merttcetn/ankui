@@ -22,6 +22,7 @@ export type SafeResult<T> =
 export interface SafetyCheckOptions {
   expectedType?: "file" | "directory" | "any";
   maxBytes?: number;
+  sensitivePath?: string;
   warnOnMissing?: boolean;
 }
 
@@ -34,7 +35,7 @@ export async function checkSafePath(
   filePath: string,
   options: SafetyCheckOptions = {}
 ): Promise<SafeResult<SafePathInfo>> {
-  const sensitiveWarning = createSensitivePathWarning(filePath);
+  const sensitiveWarning = createSensitivePathWarning(options.sensitivePath ?? filePath, filePath);
 
   if (sensitiveWarning) {
     return safeFailure([sensitiveWarning]);
@@ -181,15 +182,18 @@ export function maskSecretText(text: string): string {
     .replace(/\bsk-[A-Za-z0-9]{16,}\b/g, MASKED_SECRET);
 }
 
-function createSensitivePathWarning(filePath: string): Warning | undefined {
-  if (!hasSensitivePathSegment(filePath)) {
+function createSensitivePathWarning(
+  sensitivePath: string,
+  warningPath = sensitivePath
+): Warning | undefined {
+  if (!hasSensitivePathSegment(sensitivePath)) {
     return undefined;
   }
 
   return createWarning({
     reason: "sensitive_file_skipped",
-    path: filePath,
-    message: `Skipped sensitive path: ${filePath}`
+    path: warningPath,
+    message: `Skipped sensitive path: ${warningPath}`
   });
 }
 

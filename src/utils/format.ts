@@ -37,7 +37,7 @@ function formatToolSummary(tool: AITool): string {
   ].filter(Boolean);
 
   return `${status} ${tool.name.padEnd(9)} ${
-    details.length > 0 ? details.join(" · ") : "not detected"
+    details.length > 0 ? details.join(" · ") : tool.detected ? "detected" : "not detected"
   }`;
 }
 
