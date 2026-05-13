@@ -229,6 +229,28 @@ export function createWarning(input: Omit<Warning, "id"> & { id?: string }): War
   };
 }
 
+export function createFinding(input: Omit<Finding, "id"> & { id?: string }): Finding {
+  return {
+    id:
+      input.id ??
+      normalizeId([
+        "finding",
+        input.category,
+        input.title,
+        ...input.toolIds
+      ]),
+    toolIds: input.toolIds,
+    title: input.title,
+    message: input.message,
+    category: input.category,
+    accessLevel: input.accessLevel,
+    scope: input.scope,
+    sourcePaths: input.sourcePaths,
+    relatedSkillIds: input.relatedSkillIds,
+    recommendation: input.recommendation
+  };
+}
+
 export function createSkillId(input: {
   toolId: ToolId;
   kind: SkillKind;

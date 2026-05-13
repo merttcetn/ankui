@@ -5,9 +5,12 @@ import {
   createScanSummary,
   createToolStats,
   type AITool,
+  type Finding,
   type ScanResult,
   type Warning
 } from "../types.js";
+import { enrichSkill } from "./capability-map.js";
+import { reviewTools } from "./access-review.js";
 import { claudeAdapter } from "./adapters/claude.js";
 import { codexAdapter } from "./adapters/codex.js";
 import { cursorAdapter } from "./adapters/cursor.js";
@@ -86,10 +89,26 @@ export async function scan(options: ScanOptions = {}): Promise<ScanResult> {
   }
 
   for (const tool of tools) {
+    for (const skill of tool.skills) {
+      enrichSkill(skill);
+    }
+  }
+
+  const reviewFindings = reviewTools(tools);
+  for (const finding of reviewFindings) {
+    for (const toolId of finding.toolIds) {
+      const tool = findTool(tools, toolId);
+      if (tool && !tool.findings.some((existing) => existing.id === finding.id)) {
+        tool.findings.push(finding);
+      }
+    }
+  }
+
+  for (const tool of tools) {
     tool.stats = createToolStats(tool.skills, tool.findings);
   }
 
-  const findings = tools.flatMap((tool) => tool.findings);
+  const findings = dedupeFindings(tools.flatMap((tool) => tool.findings));
   const warnings = dedupeWarnings([
     ...discovery.warnings,
     ...tools.flatMap((tool) => tool.warnings)
@@ -121,6 +140,22 @@ function addWarnings(target: Warning[], warnings: readonly Warning[]): void {
     seen.add(warning.id);
     target.push(warning);
   }
+}
+
+function dedupeFindings(findings: readonly Finding[]): Finding[] {
+  const seen = new Set<string>();
+  const deduped: Finding[] = [];
+
+  for (const finding of findings) {
+    if (seen.has(finding.id)) {
+      continue;
+    }
+
+    seen.add(finding.id);
+    deduped.push(finding);
+  }
+
+  return deduped;
 }
 
 function dedupeWarnings(warnings: readonly Warning[]): Warning[] {

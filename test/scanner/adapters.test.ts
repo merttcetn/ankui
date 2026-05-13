@@ -138,8 +138,8 @@ test("Claude adapter extracts MCP, memory, agents, commands, skills, settings, a
   assert.equal(claude.stats.rules, 1);
   assert.equal(claude.stats.plugins, 1);
 
-  assert.ok(skill(claude.skills, "mcp_server", "github"));
-  assert.ok(skill(claude.skills, "mcp_server", "postgres"));
+  assert.ok(skill(claude.skills, "mcp_server", "GitHub"));
+  assert.ok(skill(claude.skills, "mcp_server", "Postgres"));
   assert.ok(skill(claude.skills, "custom_agents", "code-reviewer"));
   assert.ok(skill(claude.skills, "custom_agents", "broken"));
   assert.ok(skill(claude.skills, "custom_commands", "git/status"));
@@ -156,7 +156,7 @@ test("Claude adapter extracts MCP, memory, agents, commands, skills, settings, a
   assert.equal(memoryDetails?.preview?.lines?.length, 10);
   assert.equal(memoryDetails?.preview?.lines?.[3], `GITHUB_TOKEN=${MASKED_SECRET}`);
 
-  const mcpDetails = skill(claude.skills, "mcp_server", "github")?.details as
+  const mcpDetails = skill(claude.skills, "mcp_server", "GitHub")?.details as
     | { preview?: unknown }
     | undefined;
   assert.equal(mcpDetails?.preview, undefined);
@@ -324,8 +324,8 @@ test("Codex adapter extracts MCP servers, prompts, and memory file", async () =>
   assert.equal(codex.stats.mcpServers, 2);
   assert.equal(codex.stats.memoryFiles, 1);
   assert.equal(codex.stats.customPrompts, 1);
-  assert.ok(skill(codex.skills, "mcp_server", "github"));
-  assert.ok(skill(codex.skills, "mcp_server", "filesystem"));
+  assert.ok(skill(codex.skills, "mcp_server", "GitHub"));
+  assert.ok(skill(codex.skills, "mcp_server", "Filesystem"));
   assert.ok(skill(codex.skills, "custom_prompts", "code-review"));
   assert.ok(skill(codex.skills, "memory_file", "AGENTS.md"));
   assert.equal(JSON.stringify(result).includes("ghp_fakefakefake"), false);
@@ -357,7 +357,7 @@ test("Cursor adapter extracts MCP servers, rules, and cursorrules memory file", 
   assert.equal(cursor.stats.mcpServers, 1);
   assert.equal(cursor.stats.rules, 1);
   assert.equal(cursor.stats.memoryFiles, 1);
-  assert.ok(skill(cursor.skills, "mcp_server", "postgres"));
+  assert.ok(skill(cursor.skills, "mcp_server", "Postgres"));
   assert.ok(skill(cursor.skills, "rules", "typescript"));
   assert.ok(skill(cursor.skills, "memory_file", ".cursorrules"));
   assert.equal(JSON.stringify(result).includes("pass"), false);
@@ -390,7 +390,7 @@ test("Gemini adapter extracts MCP servers, commands, and memory file", async () 
   assert.equal(gemini.stats.mcpServers, 1);
   assert.equal(gemini.stats.customCommands, 1);
   assert.equal(gemini.stats.memoryFiles, 1);
-  assert.ok(skill(gemini.skills, "mcp_server", "github"));
+  assert.ok(skill(gemini.skills, "mcp_server", "GitHub"));
   assert.ok(skill(gemini.skills, "custom_commands", "review"));
   assert.ok(skill(gemini.skills, "memory_file", "GEMINI.md"));
 });
@@ -494,7 +494,7 @@ test("OpenCode adapter extracts MCP, agents, commands, skills, plugins, and memo
   assert.equal(opencode.stats.customCommands, 1);
   assert.equal(opencode.stats.agentSkills, 1);
   assert.equal(opencode.stats.memoryFiles, 1);
-  assert.ok(skill(opencode.skills, "mcp_server", "postgres"));
+  assert.ok(skill(opencode.skills, "mcp_server", "Postgres"));
   assert.ok(skill(opencode.skills, "plugins", "review-plugin"));
   assert.ok(skill(opencode.skills, "rules", "Project OpenCode tools"));
   assert.ok(skill(opencode.skills, "custom_agents", "issue-triage"));
@@ -525,6 +525,52 @@ test("skills-sh adapter extracts skills from SKILL.md and README.md", async () =
   assert.equal(skillsSh.stats.skillsShSkills, 2);
   assert.ok(skill(skillsSh.skills, "skills_sh_skill", "code-review"));
   assert.ok(skill(skillsSh.skills, "skills_sh_skill", "deploy"));
+});
+
+test("scan enriches MCP server skills with capability + access level", async () => {
+  const cwd = await makeTempWorkspace("ankui-enrich-cwd-");
+  const homeDir = await makeTempWorkspace("ankui-enrich-home-");
+
+  await fs.mkdir(path.join(homeDir, ".cursor"), { recursive: true });
+  await fs.writeFile(
+    path.join(homeDir, ".cursor", "mcp.json"),
+    JSON.stringify({
+      mcpServers: {
+        "postgres-mcp": { command: "pg" },
+        "internal-mystery": { command: "x" }
+      }
+    })
+  );
+
+  const result = await scan({ cwd, homeDir, env: {} });
+  const cursor = tool(result, "cursor");
+
+  const postgres = cursor.skills.find((s) => s.kind === "mcp_server" && s.name === "Postgres");
+  assert.ok(postgres, "expected Postgres MCP to be canonicalized");
+  assert.deepEqual(postgres.capabilityCategories, ["database"]);
+  assert.equal(postgres.accessLevel, "broad");
+
+  const unknown = cursor.skills.find(
+    (s) => s.kind === "mcp_server" && s.name === "internal-mystery"
+  );
+  assert.ok(unknown, "expected the unknown MCP to keep its raw name");
+  assert.deepEqual(unknown.capabilityCategories, ["unknown"]);
+  assert.equal(unknown.accessLevel, "unknown");
+
+  const cursorFindings = cursor.findings.map((f) => f.category);
+  assert.ok(
+    cursorFindings.includes("unknown_capability"),
+    "expected unknown_capability finding for internal-mystery"
+  );
+  assert.ok(
+    result.findings.some((f) => f.category === "unknown_capability"),
+    "expected the same finding to bubble up to result.findings"
+  );
+  assert.equal(
+    cursor.stats.findings,
+    cursor.findings.length,
+    "tool stats must reflect findings count after enrichment"
+  );
 });
 
 async function makeTempWorkspace(prefix: string): Promise<string> {
