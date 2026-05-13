@@ -2,6 +2,7 @@
 import { Command } from "commander";
 
 import { runAccessCommand } from "./commands/access.js";
+import { runCapsCommand } from "./commands/caps.js";
 import { runDoctorCommand } from "./commands/doctor.js";
 import { runMcpCommand } from "./commands/mcp.js";
 import { scan } from "./scanner/index.js";
@@ -69,6 +70,17 @@ program
   .action(async () => {
     const globalOptions = program.opts<GlobalOptions>();
     await runDoctorCommand({
+      json: Boolean(globalOptions.json),
+      write: (chunk) => process.stdout.write(chunk)
+    });
+  });
+
+program
+  .command("caps")
+  .description("Print MCP capability categories overview.")
+  .action(async () => {
+    const globalOptions = program.opts<GlobalOptions>();
+    await runCapsCommand({
       json: Boolean(globalOptions.json),
       write: (chunk) => process.stdout.write(chunk)
     });
