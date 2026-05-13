@@ -39,6 +39,7 @@ test("discovers project-level config files and directories", async () => {
   const homeDir = await makeTempWorkspace("ankui-discovery-home-");
 
   await fs.writeFile(path.join(cwd, "CLAUDE.md"), "# Claude");
+  await fs.writeFile(path.join(cwd, "CLAUDE.local.md"), "# Local Claude");
   await fs.writeFile(path.join(cwd, "AGENTS.md"), "# Agents");
   await fs.writeFile(path.join(cwd, "GEMINI.md"), "# Gemini");
   await fs.writeFile(path.join(cwd, "opencode.json"), "{}");
@@ -55,12 +56,14 @@ test("discovers project-level config files and directories", async () => {
   const result = await discover({ cwd, homeDir, env: {} });
 
   assertToolPath(result.paths, "claude", path.join(cwd, "CLAUDE.md"));
+  assertToolPath(result.paths, "claude", path.join(cwd, "CLAUDE.local.md"));
   assertToolPath(result.paths, "codex", path.join(cwd, "AGENTS.md"));
   assertToolPath(result.paths, "opencode", path.join(cwd, "AGENTS.md"));
   assertToolPath(result.paths, "gemini", path.join(cwd, "GEMINI.md"));
   assertToolPath(result.paths, "opencode", path.join(cwd, "opencode.json"));
   assertToolPath(result.paths, "opencode", path.join(cwd, "opencode.jsonc"));
   assertToolPath(result.paths, "cursor", path.join(cwd, ".cursorrules"));
+  assertToolPath(result.paths, "claude", path.join(cwd, ".mcp.json"));
   assertToolPath(result.paths, "cursor", path.join(cwd, ".mcp.json"));
   assertToolPath(result.paths, "skills-sh", path.join(cwd, ".skills"));
 });
@@ -76,6 +79,7 @@ test("project file discovery respects gitignore", async () => {
   const result = await discover({ cwd, homeDir, env: {} });
 
   assertNoToolPath(result.paths, "cursor", path.join(cwd, ".mcp.json"));
+  assertNoToolPath(result.paths, "claude", path.join(cwd, ".mcp.json"));
   assertNoToolPath(result.paths, "opencode", path.join(cwd, ".opencode"));
 });
 
@@ -116,7 +120,7 @@ test("sensitive parent directory names do not hide safe candidates", async () =>
 });
 
 test(
-  "symlinked known paths are skipped without following them",
+  "symlinked known paths resolving within the home directory are followed",
   {
     skip: process.platform === "win32" ? "Symlink creation is environment-dependent on Windows" : false
   },
@@ -131,8 +135,11 @@ test(
 
     const result = await discover({ cwd, homeDir, env: {} });
 
-    assertNoToolPath(result.paths, "claude", symlinkPath);
-    assert.equal(result.warnings[0]?.reason, "symlink_skipped");
+    assertToolPath(result.paths, "claude", symlinkPath);
+    assert.equal(
+      result.warnings.some((warning) => warning.reason === "symlink_skipped"),
+      false
+    );
   }
 );
 

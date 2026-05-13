@@ -1,12 +1,28 @@
 import type { Dirent, Stats } from "node:fs";
 import fs from "node:fs/promises";
+import os from "node:os";
 import path from "node:path";
 
 import { createWarning, type Warning } from "../types.js";
-import { splitPathSegments } from "./paths.js";
+import { isPathInside, splitPathSegments } from "./paths.js";
 
 export const MAX_SAFE_FILE_BYTES = 1024 * 1024;
 export const MASKED_SECRET = "......";
+
+const allowedRootCache = new Map<string, Promise<string>>();
+
+function resolveRootCached(root: string): Promise<string> {
+  const normalized = path.resolve(root);
+  const cached = allowedRootCache.get(normalized);
+
+  if (cached) {
+    return cached;
+  }
+
+  const promise = fs.realpath(normalized).catch(() => normalized);
+  allowedRootCache.set(normalized, promise);
+  return promise;
+}
 
 export type SafeResult<T> =
   | {
@@ -24,11 +40,14 @@ export interface SafetyCheckOptions {
   maxBytes?: number;
   sensitivePath?: string;
   warnOnMissing?: boolean;
+  allowedRoots?: string[];
 }
 
 export interface SafePathInfo {
   path: string;
   stat: Stats;
+  linked: boolean;
+  linkTarget?: string;
 }
 
 export async function checkSafePath(
@@ -41,23 +60,53 @@ export async function checkSafePath(
     return safeFailure([sensitiveWarning]);
   }
 
-  let stat: Stats;
+  let resolvedPath: string;
 
   try {
-    stat = await fs.lstat(filePath);
+    resolvedPath = await fs.realpath(filePath);
   } catch (error) {
     const warning = createFsWarning(error, filePath, options.warnOnMissing ?? true);
     return warning ? safeFailure([warning]) : safeFailure([]);
   }
 
-  if (stat.isSymbolicLink()) {
-    return safeFailure([
-      createWarning({
-        reason: "symlink_skipped",
-        path: filePath,
-        message: `Skipped symlink: ${filePath}`
-      })
-    ]);
+  const normalizedPath = path.resolve(filePath);
+  const linked =
+    normalizedPath !== resolvedPath &&
+    !resolvedPath.endsWith(normalizedPath) &&
+    !normalizedPath.endsWith(resolvedPath);
+
+  if (linked) {
+    const allowedRoots = options.allowedRoots ?? [os.homedir(), os.tmpdir()];
+    const resolvedRoots = await Promise.all(allowedRoots.map(resolveRootCached));
+
+    if (!resolvedRoots.some((root) => isPathInside(resolvedPath, root))) {
+      return safeFailure([
+        createWarning({
+          reason: "symlink_skipped",
+          path: filePath,
+          message: `Skipped symlink whose target is outside allowed roots: ${filePath} -> ${resolvedPath}`
+        })
+      ]);
+    }
+
+    if (hasSensitivePathSegment(resolvedPath)) {
+      return safeFailure([
+        createWarning({
+          reason: "symlink_skipped",
+          path: filePath,
+          message: `Skipped symlink whose target hits a sensitive path: ${filePath} -> ${resolvedPath}`
+        })
+      ]);
+    }
+  }
+
+  let stat: Stats;
+
+  try {
+    stat = await fs.stat(resolvedPath);
+  } catch (error) {
+    const warning = createFsWarning(error, filePath, options.warnOnMissing ?? true);
+    return warning ? safeFailure([warning]) : safeFailure([]);
   }
 
   if (options.expectedType === "file" && !stat.isFile()) {
@@ -90,7 +139,33 @@ export async function checkSafePath(
     ]);
   }
 
-  return safeSuccess({ path: filePath, stat });
+  return safeSuccess({
+    path: filePath,
+    stat,
+    linked,
+    linkTarget: linked ? resolvedPath : undefined
+  });
+}
+
+export async function getLinkInfo(
+  filePath: string
+): Promise<{ linked: boolean; linkTarget?: string }> {
+  try {
+    const resolved = await fs.realpath(filePath);
+    const normalized = path.resolve(filePath);
+
+    if (
+      normalized === resolved ||
+      resolved.endsWith(normalized) ||
+      normalized.endsWith(resolved)
+    ) {
+      return { linked: false };
+    }
+
+    return { linked: true, linkTarget: resolved };
+  } catch {
+    return { linked: false };
+  }
 }
 
 export async function safeReadTextFile(
@@ -164,6 +239,22 @@ export function isSecretLikeKey(key: string): boolean {
 
 export function maskSecrets<T>(value: T): T {
   return sanitizeValue(value, false) as T;
+}
+
+export function maskUrl(value: string): string {
+  try {
+    const parsed = new URL(value);
+
+    if (parsed.username || parsed.password) {
+      parsed.username = MASKED_SECRET;
+      parsed.password = MASKED_SECRET;
+      return parsed.toString();
+    }
+  } catch {
+    // not a URL — fall through
+  }
+
+  return maskSecretText(value);
 }
 
 export function maskSecretText(text: string): string {

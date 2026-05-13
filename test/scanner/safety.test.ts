@@ -6,6 +6,8 @@ import test from "node:test";
 
 import {
   MAX_SAFE_FILE_BYTES,
+  checkSafePath,
+  getLinkInfo,
   isSensitivePath,
   safeReadTextFile
 } from "../../src/scanner/safety.js";
@@ -47,14 +49,43 @@ test("normal config filenames with key in the name are not blocked", async () =>
   assert.equal(result.ok, true);
 });
 
-test("symlinks are skipped without following them", async () => {
+test("symlinks within allowed roots are followed and marked linked", async () => {
   const workspace = await makeTempWorkspace();
   const targetPath = path.join(workspace, "safe.md");
   const symlinkPath = path.join(workspace, "linked.md");
   await fs.writeFile(targetPath, "safe");
   await fs.symlink(targetPath, symlinkPath);
 
-  const result = await safeReadTextFile(symlinkPath);
+  const result = await safeReadTextFile(symlinkPath, { allowedRoots: [workspace] });
+
+  assert.equal(result.ok, true);
+  assert.equal(result.value, "safe");
+});
+
+test("symlinks pointing outside allowed roots are skipped", async () => {
+  const workspace = await makeTempWorkspace();
+  const outsideTarget = await makeTempWorkspace();
+  const targetPath = path.join(outsideTarget, "outside.md");
+  const symlinkPath = path.join(workspace, "linked.md");
+  await fs.writeFile(targetPath, "outside");
+  await fs.symlink(targetPath, symlinkPath);
+
+  const result = await safeReadTextFile(symlinkPath, { allowedRoots: [workspace] });
+
+  assert.equal(result.ok, false);
+  assert.equal(result.warnings[0]?.reason, "symlink_skipped");
+});
+
+test("symlinks whose resolved target hits a sensitive segment are skipped", async () => {
+  const workspace = await makeTempWorkspace();
+  const sensitiveDir = path.join(workspace, "sessions");
+  const targetPath = path.join(sensitiveDir, "data.md");
+  const symlinkPath = path.join(workspace, "linked.md");
+  await fs.mkdir(sensitiveDir, { recursive: true });
+  await fs.writeFile(targetPath, "session-data");
+  await fs.symlink(targetPath, symlinkPath);
+
+  const result = await safeReadTextFile(symlinkPath, { allowedRoots: [workspace] });
 
   assert.equal(result.ok, false);
   assert.equal(result.warnings[0]?.reason, "symlink_skipped");
@@ -95,6 +126,68 @@ test(
     }
   }
 );
+
+test("checkSafePath marks linked: true for symlinks within the allowlist", async () => {
+  const workspace = await makeTempWorkspace();
+  const targetDir = path.join(workspace, "src");
+  const linkDir = path.join(workspace, "via-link");
+  await fs.mkdir(targetDir, { recursive: true });
+  await fs.symlink(targetDir, linkDir, "dir");
+
+  const result = await checkSafePath(linkDir, {
+    expectedType: "directory",
+    allowedRoots: [workspace]
+  });
+
+  assert.equal(result.ok, true);
+  if (result.ok) {
+    assert.equal(result.value.linked, true);
+    assert.equal(typeof result.value.linkTarget, "string");
+  }
+});
+
+test("checkSafePath surfaces linked: true when an ancestor is a symlink", async () => {
+  const workspace = await makeTempWorkspace();
+  const realParent = path.join(workspace, "real-parent");
+  const linkParent = path.join(workspace, "linked-parent");
+  await fs.mkdir(realParent, { recursive: true });
+  const realFile = path.join(realParent, "child.md");
+  await fs.writeFile(realFile, "data");
+  await fs.symlink(realParent, linkParent, "dir");
+
+  const result = await checkSafePath(path.join(linkParent, "child.md"), {
+    expectedType: "file",
+    allowedRoots: [workspace]
+  });
+
+  assert.equal(result.ok, true);
+  if (result.ok) {
+    assert.equal(result.value.linked, true);
+  }
+});
+
+test("getLinkInfo returns linked: false for a regular file", async () => {
+  const workspace = await makeTempWorkspace();
+  const filePath = path.join(workspace, "regular.md");
+  await fs.writeFile(filePath, "ok");
+
+  const info = await getLinkInfo(filePath);
+
+  assert.equal(info.linked, false);
+});
+
+test("getLinkInfo reports linked + linkTarget for a real symlink", async () => {
+  const workspace = await makeTempWorkspace();
+  const targetPath = path.join(workspace, "real.md");
+  const symlinkPath = path.join(workspace, "linked.md");
+  await fs.writeFile(targetPath, "ok");
+  await fs.symlink(targetPath, symlinkPath);
+
+  const info = await getLinkInfo(symlinkPath);
+
+  assert.equal(info.linked, true);
+  assert.equal(typeof info.linkTarget, "string");
+});
 
 async function makeTempWorkspace(): Promise<string> {
   return fs.mkdtemp(path.join(os.tmpdir(), "ankui-safety-"));
