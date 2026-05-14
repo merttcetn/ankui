@@ -9,7 +9,8 @@ import { runListCommand } from "./commands/list.js";
 import { runMcpCommand } from "./commands/mcp.js";
 import { runScanAllCommand } from "./commands/scan-all.js";
 import { runShowCommand } from "./commands/show.js";
-import { loadAllScans, readDevRootsConfig } from "./scanner/multi-project.js";
+import { runWatchCommand } from "./commands/watch.js";
+import { buildLaunchTuiResult } from "./commands/launch-tui.js";
 import { scan } from "./scanner/index.js";
 import { renderTui } from "./tui/render.js";
 import { formatError } from "./utils/errors.js";
@@ -48,6 +49,14 @@ program
   .description("Open the interactive terminal UI.")
   .action(async () => {
     await launchTui();
+  });
+
+program
+  .command("watch")
+  .description("Open the TUI and live-rescan when config files change.")
+  .action(async () => {
+    const handle = await runWatchCommand();
+    await handle.exitPromise;
   });
 
 program
@@ -162,11 +171,8 @@ async function runScanCommand(options: { showTuiPlaceholder?: boolean } = {}): P
 }
 
 async function launchTui(): Promise<void> {
-  const homeDir = os.homedir();
-  const config = await readDevRootsConfig(homeDir);
-  const result = await loadAllScans({
-    devRoots: config.devRoots,
-    homeDir,
+  const result = await buildLaunchTuiResult({
+    homeDir: os.homedir(),
     env: process.env
   });
   await renderTui(result);
