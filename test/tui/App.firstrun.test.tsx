@@ -38,7 +38,7 @@ test("App in mode='firstRun' renders FirstRunScan and does not render tab bar", 
       crawlImplForFirstRun={stubCrawl}
     />
   );
-  await new Promise((r) => setTimeout(r, 30));
+  await new Promise((r) => setTimeout(r, 100));
   const frame = inst.lastFrame() ?? "";
   // Splash visible.
   assert.match(frame, /ankui/);
@@ -59,7 +59,7 @@ test("App in firstRun mode triggers onConfigChange with selected roots on Enter"
       crawlImplForFirstRun={stubCrawl}
     />
   );
-  await new Promise((r) => setTimeout(r, 30));
+  await new Promise((r) => setTimeout(r, 100));
   await flush();
   inst.stdin.write("\r"); // confirm default selection
   await flush();

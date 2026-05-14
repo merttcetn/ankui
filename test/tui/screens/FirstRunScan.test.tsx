@@ -74,8 +74,10 @@ test("FirstRunScan transitions to selecting phase with default-on roots checked"
       crawlImpl={makeStubCrawler({ projects: SAMPLE_PROJECTS, pathsVisited: 12345 })}
     />
   );
-  // Crawler resolves on next tick; let microtasks flush.
-  await new Promise((r) => setTimeout(r, 20));
+  // Crawler resolves on next tick; let microtasks flush. Under heavy
+  // concurrent test load (full `npm test` run), 20ms is occasionally too
+  // tight — give the React effect chain more room.
+  await new Promise((r) => setTimeout(r, 100));
   const frame = inst.lastFrame() ?? "";
   assert.match(frame, /F O U N D   D E V   R O O T S/);
   // Developer parent has 3 projects → default-ON → "●"
@@ -103,7 +105,7 @@ test("FirstRunScan shows live 'N paths · M projects' counters during crawl", as
       }
     />
   );
-  await new Promise((r) => setTimeout(r, 20));
+  await new Promise((r) => setTimeout(r, 100));
   const frame = inst.lastFrame() ?? "";
   // Two projects already counted, even though crawl hasn't resolved.
   assert.match(frame, /2 projects found/);
@@ -113,7 +115,7 @@ test("FirstRunScan shows live 'N paths · M projects' counters during crawl", as
     warnings: [],
     stats: { pathsVisited: 200, durationMs: 30 }
   });
-  await new Promise((r) => setTimeout(r, 20));
+  await new Promise((r) => setTimeout(r, 50));
   inst.unmount();
 });
 
@@ -128,7 +130,7 @@ test("FirstRunScan toggles selection with space and confirms with enter", async 
       crawlImpl={makeStubCrawler({ projects: SAMPLE_PROJECTS })}
     />
   );
-  await new Promise((r) => setTimeout(r, 30));
+  await new Promise((r) => setTimeout(r, 100));
   // Press space on the first (Developer, default-on) row to toggle OFF.
   inst.stdin.write(" ");
   await flush();
@@ -173,7 +175,7 @@ test("FirstRunScan shows 'No projects found.' when crawl finds zero", async () =
       crawlImpl={makeStubCrawler({ projects: [] })}
     />
   );
-  await new Promise((r) => setTimeout(r, 20));
+  await new Promise((r) => setTimeout(r, 100));
   const frame = inst.lastFrame() ?? "";
   assert.match(frame, /No projects found/);
   inst.unmount();
