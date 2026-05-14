@@ -3,7 +3,9 @@ import { Box, useApp } from "ink";
 
 import type { MultiProjectScanResult } from "../types.js";
 import { Frame } from "./components/Frame.js";
+import { IdleWhisper } from "./components/IdleWhisper.js";
 import { TabBar, type TabItem } from "./components/TabBar.js";
+import { useIdleWhisper } from "./hooks/use-idle-whisper.js";
 import { useKeys } from "./input/use-keys.js";
 import {
   createInitialState,
@@ -40,6 +42,7 @@ export function App(props: AppProps): React.ReactElement {
   const initialResult = props.dataSource ? props.dataSource.initial : props.result;
   const [state, dispatch] = useReducer(tuiReducer, initialResult, createInitialState);
   const { exit } = useApp();
+  const { whisper, bump } = useIdleWhisper({ enabled: true });
 
   useEffect(() => {
     if (!props.dataSource?.subscribe) return;
@@ -59,10 +62,64 @@ export function App(props: AppProps): React.ReactElement {
   ];
 
   useKeys({
-    onTabNext: () => dispatch({ type: "cycleTab", direction: "next", tabs: tabIds }),
-    onTabPrev: () => dispatch({ type: "cycleTab", direction: "prev", tabs: tabIds }),
-    onEscape: () => dispatch({ type: "drillOut" }),
-    onQuit: () => exit()
+    onTabNext: () => {
+      bump();
+      dispatch({ type: "cycleTab", direction: "next", tabs: tabIds });
+    },
+    onTabPrev: () => {
+      bump();
+      dispatch({ type: "cycleTab", direction: "prev", tabs: tabIds });
+    },
+    onEnter: () => {
+      bump();
+      // Phase 8g: minimal Enter binding — drill into the active tool's user
+      // scope when a tool tab is active and no drill is currently active.
+      if (state.drillStack.length > 0) return;
+      if (state.activeTab === "overview") return;
+      if (
+        state.activeTab === "mcps" ||
+        state.activeTab === "access" ||
+        state.activeTab === "doctor" ||
+        state.activeTab === "settings"
+      ) {
+        return;
+      }
+      dispatch({
+        type: "drillIn",
+        frame: { kind: "userScope", toolId: state.activeTab }
+      });
+    },
+    onEscape: () => {
+      bump();
+      if (state.searchOpen) {
+        dispatch({ type: "searchClose" });
+        return;
+      }
+      dispatch({ type: "drillOut" });
+    },
+    onSlash: () => {
+      bump();
+      if (!state.searchOpen) dispatch({ type: "searchOpen" });
+    },
+    onTextInput: (ch) => {
+      bump();
+      if (state.searchOpen) {
+        dispatch({ type: "searchSetQuery", query: state.searchQuery + ch });
+      }
+    },
+    onBackspace: () => {
+      bump();
+      if (state.searchOpen && state.searchQuery.length > 0) {
+        dispatch({
+          type: "searchSetQuery",
+          query: state.searchQuery.slice(0, -1)
+        });
+      }
+    },
+    onQuit: () => {
+      bump();
+      exit();
+    }
   });
 
   return (
@@ -72,6 +129,7 @@ export function App(props: AppProps): React.ReactElement {
         <Box marginTop={1} flexDirection="column">
           {renderScreen(state, result, dispatch)}
         </Box>
+        <IdleWhisper whisper={whisper} />
       </Box>
     </Frame>
   );
@@ -98,7 +156,14 @@ function renderScreen(
   if (state.drillStack.length > 0) {
     const top = state.drillStack[state.drillStack.length - 1];
     if (top.kind === "userScope") {
-      return <UserScopeDrillIn toolId={top.toolId} result={result} />;
+      return (
+        <UserScopeDrillIn
+          toolId={top.toolId}
+          result={result}
+          searchOpen={state.searchOpen}
+          searchQuery={state.searchQuery}
+        />
+      );
     }
     return (
       <ProjectDrillIn
