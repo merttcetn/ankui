@@ -216,12 +216,33 @@ test("loadAllScans wraps each project scan in a per-project timeout", async () =
 
 import { readDevRootsConfig } from "../../src/scanner/multi-project.js";
 
-test("readDevRootsConfig returns empty devRoots + warning when file missing", async () => {
+test("readDevRootsConfig returns empty devRoots + not_found warning when file missing", async () => {
   const home = await makeTempWorkspace("ankui-cfg-missing-");
   const result = await readDevRootsConfig(home);
   assert.deepEqual(result.devRoots, []);
   assert.equal(result.warnings.length, 1);
-  assert.equal(result.warnings[0]!.reason, "permission_denied");
+  assert.equal(result.warnings[0]!.reason, "not_found");
+  assert.match(result.warnings[0]!.message, /config\.json/);
+});
+
+test("readDevRootsConfig still emits permission_denied for EACCES", async () => {
+  const home = await makeTempWorkspace("ankui-cfg-eacces-");
+  const cfgDir = path.join(home, ".config", "ankui");
+  await fs.mkdir(cfgDir, { recursive: true });
+  const configPath = path.join(cfgDir, "config.json");
+  await fs.writeFile(configPath, JSON.stringify({ version: 1, devRoots: [] }));
+  // Strip read permission. Tests running as root will not exercise this branch.
+  await fs.chmod(configPath, 0o000);
+
+  try {
+    const result = await readDevRootsConfig(home);
+    assert.deepEqual(result.devRoots, []);
+    if (result.warnings.length > 0) {
+      assert.equal(result.warnings[0]!.reason, "permission_denied");
+    }
+  } finally {
+    await fs.chmod(configPath, 0o644).catch(() => undefined);
+  }
 });
 
 test("readDevRootsConfig parses a valid config", async () => {

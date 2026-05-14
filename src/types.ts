@@ -79,6 +79,7 @@ export interface Warning {
     | "parse_failed"
     | "adapter_timeout"
     | "permission_denied"
+    | "not_found"
     | "remote_reference_skipped"
     | "non_disk_config_skipped"
     | "symlink_skipped"

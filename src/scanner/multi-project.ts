@@ -110,6 +110,15 @@ function formatErrorMessage(error: unknown): string {
   return String(error);
 }
 
+function isMissingFileError(error: unknown): boolean {
+  return Boolean(
+    error &&
+      typeof error === "object" &&
+      "code" in (error as Record<string, unknown>) &&
+      (error as { code?: string }).code === "ENOENT"
+  );
+}
+
 export interface LoadAllScansOptions {
   devRoots: readonly string[];
   homeDir: string;
@@ -249,15 +258,14 @@ export async function readDevRootsConfig(homeDir: string): Promise<DevRootsConfi
   try {
     raw = await fs.readFile(configPath, "utf8");
   } catch (error) {
+    const missing = isMissingFileError(error);
+    const reason: Warning["reason"] = missing ? "not_found" : "permission_denied";
+    const message = missing
+      ? `No Ankui config at ${configPath} yet — run \`ankui discover --apply\` to create one.`
+      : `Cannot read ${configPath}: ${formatErrorMessage(error)}`;
     return {
       devRoots: [],
-      warnings: [
-        createWarning({
-          reason: "permission_denied",
-          path: configPath,
-          message: `Cannot read ${configPath}: ${formatErrorMessage(error)}`
-        })
-      ]
+      warnings: [createWarning({ reason, path: configPath, message })]
     };
   }
 
