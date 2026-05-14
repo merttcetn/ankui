@@ -2,6 +2,10 @@ import React, { useEffect, useReducer } from "react";
 import { Box, useApp } from "ink";
 
 import type { MultiProjectScanResult } from "../types.js";
+import type {
+  CrawlOptions,
+  CrawlResult
+} from "../scanner/filesystem-crawler.js";
 import { Frame } from "./components/Frame.js";
 import { IdleWhisper } from "./components/IdleWhisper.js";
 import { TabBar, type TabItem } from "./components/TabBar.js";
@@ -22,6 +26,10 @@ import { ProjectDrillIn } from "./screens/ProjectDrillIn.js";
 import { McpsTab } from "./screens/McpsTab.js";
 import { AccessTab } from "./screens/AccessTab.js";
 import { DoctorTab } from "./screens/DoctorTab.js";
+import { Settings } from "./screens/Settings.js";
+import { FirstRunScan } from "./screens/FirstRunScan.js";
+
+export type AppMode = "firstRun" | "main";
 
 export interface DataSource {
   initial: MultiProjectScanResult;
@@ -29,17 +37,71 @@ export interface DataSource {
 }
 
 export type AppProps =
-  | { result: MultiProjectScanResult; dataSource?: never }
-  | { dataSource: DataSource; result?: never };
+  | {
+      mode?: "main";
+      result: MultiProjectScanResult;
+      dataSource?: never;
+      homeDir?: string;
+      onConfigChange?: (devRoots: string[]) => Promise<void>;
+      crawlImplForFirstRun?: (options: CrawlOptions) => Promise<CrawlResult>;
+    }
+  | {
+      mode?: "main";
+      dataSource: DataSource;
+      result?: never;
+      homeDir?: string;
+      onConfigChange?: (devRoots: string[]) => Promise<void>;
+      crawlImplForFirstRun?: (options: CrawlOptions) => Promise<CrawlResult>;
+    }
+  | {
+      mode: "firstRun";
+      result?: null;
+      dataSource?: never;
+      homeDir: string;
+      onConfigChange: (devRoots: string[]) => Promise<void>;
+      crawlImplForFirstRun?: (options: CrawlOptions) => Promise<CrawlResult>;
+    };
 
 const CROSS_TOOL_TABS: ReadonlyArray<TabItem> = [
   { id: "mcps", label: "MCPs" },
   { id: "access", label: "Access" },
-  { id: "doctor", label: "Doctor" }
+  { id: "doctor", label: "Doctor" },
+  { id: "settings", label: "Settings" }
 ];
 
 export function App(props: AppProps): React.ReactElement {
-  const initialResult = props.dataSource ? props.dataSource.initial : props.result;
+  if (props.mode === "firstRun") {
+    return (
+      <Frame>
+        <FirstRunScan
+          mode="firstRun"
+          homeDir={props.homeDir}
+          onConfirm={(roots) => {
+            void props.onConfigChange(roots);
+          }}
+          onCancel={() => {
+            // Esc in first run = exit immediately. The CLI process will
+            // terminate after Ink unmounts.
+            process.exit(0);
+          }}
+          crawlImpl={props.crawlImplForFirstRun}
+        />
+      </Frame>
+    );
+  }
+
+  return <MainShell {...(props as MainShellProps)} />;
+}
+
+interface MainShellProps {
+  result?: MultiProjectScanResult;
+  dataSource?: DataSource;
+  homeDir?: string;
+  onConfigChange?: (devRoots: string[]) => Promise<void>;
+}
+
+function MainShell(props: MainShellProps): React.ReactElement {
+  const initialResult = props.dataSource ? props.dataSource.initial : (props.result as MultiProjectScanResult);
   const [state, dispatch] = useReducer(tuiReducer, initialResult, createInitialState);
   const { exit } = useApp();
   const { whisper, bump } = useIdleWhisper({ enabled: true });
@@ -127,7 +189,7 @@ export function App(props: AppProps): React.ReactElement {
       <Box flexDirection="column">
         <TabBar rows={[tools, crossTool]} activeId={state.activeTab} />
         <Box marginTop={1} flexDirection="column">
-          {renderScreen(state, result, dispatch)}
+          {renderScreen(state, result, dispatch, props.onConfigChange)}
         </Box>
         <IdleWhisper whisper={whisper} />
       </Box>
@@ -151,7 +213,8 @@ function buildTabList(result: MultiProjectScanResult): TabRows {
 function renderScreen(
   state: TuiState,
   result: MultiProjectScanResult,
-  dispatch: React.Dispatch<TuiAction>
+  dispatch: React.Dispatch<TuiAction>,
+  onConfigChange: ((devRoots: string[]) => Promise<void>) | undefined
 ): React.ReactElement {
   if (state.drillStack.length > 0) {
     const top = state.drillStack[state.drillStack.length - 1];
@@ -183,8 +246,24 @@ function renderScreen(
     case "doctor":
       return <DoctorTab result={result} />;
     case "settings":
-      // Phase 8f.
-      return <Overview result={result} />;
+      return (
+        <Settings
+          result={result}
+          onConfigChange={
+            onConfigChange ??
+            (async () => {
+              // 8f keeps Settings purely presentational when no callback was
+              // wired. The CLI always provides one in production.
+            })
+          }
+          onRescan={() => {
+            // 8f keeps re-scan as a placeholder: dispatch back to overview so
+            // the parent's onConfigChange path can re-render. Inline re-scan
+            // UI is Phase 8g.
+            dispatch({ type: "setTab", id: "overview" });
+          }}
+        />
+      );
     default:
       return <ToolTab toolId={state.activeTab} result={result} dispatch={dispatch} />;
   }
