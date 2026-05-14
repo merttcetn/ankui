@@ -111,6 +111,13 @@ test("DoctorTab shows 'No warnings.' when result.warnings is empty", () => {
   inst.unmount();
 });
 
+test("DoctorTab renders the noWarnings whisper when warnings array is empty", () => {
+  const inst = render(<DoctorTab result={fixture({})} />);
+  const frame = inst.lastFrame() ?? "";
+  assert.match(frame, /quiet tonight\./);
+  inst.unmount();
+});
+
 test("DoctorTab groups warnings by reason with count and path", () => {
   const inst = render(
     <DoctorTab

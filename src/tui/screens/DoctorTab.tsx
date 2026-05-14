@@ -2,7 +2,9 @@ import React, { Fragment } from "react";
 import { Box, Text } from "ink";
 
 import type { MultiProjectScanResult } from "../../types.js";
+import { EmptyStateWhisper } from "../components/EmptyStateWhisper.js";
 import { SectionHeader } from "../components/SectionHeader.js";
+import { EMPTY_STATE_WHISPERS } from "../messages.js";
 import { relativizeHome } from "../../utils/paths.js";
 import {
   buildDoctorBoard,
@@ -36,7 +38,12 @@ export function DoctorTab({ result }: DoctorTabProps): React.ReactElement {
 
       <Box marginTop={1} flexDirection="column">
         {warningGroups.length === 0 ? (
-          <Text dimColor>No warnings.</Text>
+          <Box flexDirection="column">
+            <Text dimColor>No warnings.</Text>
+            <Box marginTop={1}>
+              <EmptyStateWhisper text={EMPTY_STATE_WHISPERS.noWarnings} />
+            </Box>
+          </Box>
         ) : (
           <WarningsSection groups={warningGroups} homeDir={result.homeDir} />
         )}

@@ -2,7 +2,9 @@ import React, { Fragment } from "react";
 import { Box, Text } from "ink";
 
 import type { Finding, MultiProjectScanResult } from "../../types.js";
+import { EmptyStateWhisper } from "../components/EmptyStateWhisper.js";
 import { SectionHeader } from "../components/SectionHeader.js";
+import { EMPTY_STATE_WHISPERS } from "../messages.js";
 import { relativizeHome } from "../../utils/paths.js";
 import {
   aggregateFindings,
@@ -21,6 +23,9 @@ export function AccessTab({ result }: AccessTabProps): React.ReactElement {
       <Box flexDirection="column">
         <SectionHeader label="ACCESS" />
         <Text dimColor>No findings.</Text>
+        <Box marginTop={1}>
+          <EmptyStateWhisper text={EMPTY_STATE_WHISPERS.noFindings} />
+        </Box>
       </Box>
     );
   }

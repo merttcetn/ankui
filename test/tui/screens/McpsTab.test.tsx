@@ -147,6 +147,13 @@ test("McpsTab shows the empty-state message when no MCPs are configured", () => 
   inst.unmount();
 });
 
+test("McpsTab renders the noMcps whisper when no MCPs are configured", () => {
+  const inst = render(<McpsTab result={fixture({ userSkills: [] })} />);
+  const frame = inst.lastFrame() ?? "";
+  assert.match(frame, /no servers configured\. you haven't asked for help yet\./);
+  inst.unmount();
+});
+
 test("McpsTab renders one row per configuration with tool id and path", () => {
   const inst = render(
     <McpsTab

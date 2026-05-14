@@ -126,3 +126,10 @@ test("AccessTab shows the empty-state message when no findings exist", () => {
   assert.match(frame, /no findings|No findings/i);
   inst.unmount();
 });
+
+test("AccessTab renders the noFindings whisper when findings array is empty", () => {
+  const inst = render(<AccessTab result={resultWith([])} />);
+  const frame = inst.lastFrame() ?? "";
+  assert.match(frame, /the talismans are holding\./);
+  inst.unmount();
+});

@@ -2,9 +2,11 @@ import React, { Fragment } from "react";
 import { Box, Text } from "ink";
 
 import type { MultiProjectScanResult, ToolId } from "../../types.js";
+import { EmptyStateWhisper } from "../components/EmptyStateWhisper.js";
 import { SectionHeader } from "../components/SectionHeader.js";
 import { DotLeaderRow } from "../components/DotLeaderRow.js";
 import { StatusPill } from "../components/StatusPill.js";
+import { EMPTY_STATE_WHISPERS } from "../messages.js";
 import { relativizeHome } from "../../utils/paths.js";
 import {
   aggregateMcps,
@@ -26,6 +28,9 @@ export function McpsTab({ result }: McpsTabProps): React.ReactElement {
       <Box flexDirection="column">
         <SectionHeader label="MCPS" />
         <Text dimColor>No MCP servers configured.</Text>
+        <Box marginTop={1}>
+          <EmptyStateWhisper text={EMPTY_STATE_WHISPERS.noMcps} />
+        </Box>
       </Box>
     );
   }

@@ -3,7 +3,9 @@ import { Box, Text } from "ink";
 
 import type { MultiProjectScanResult, Skill, SkillKind, ToolId } from "../../types.js";
 import { Breadcrumb } from "../components/Breadcrumb.js";
+import { EmptyStateWhisper } from "../components/EmptyStateWhisper.js";
 import { SectionHeader } from "../components/SectionHeader.js";
+import { EMPTY_STATE_WHISPERS } from "../messages.js";
 import { groupSkillsByKind } from "../util/skill-grouping.js";
 
 export interface ProjectDrillInProps {
@@ -41,8 +43,11 @@ export function ProjectDrillIn({
       </Box>
 
       {groups.size === 0 ? (
-        <Box marginTop={1}>
+        <Box marginTop={1} flexDirection="column">
           <Text dimColor>No skills for this tool in this project.</Text>
+          <Box marginTop={1}>
+            <EmptyStateWhisper text={EMPTY_STATE_WHISPERS.noProjectSkills} />
+          </Box>
         </Box>
       ) : (
         [...groups.entries()].map(([kind, list]) => renderKindSection(kind, list))
