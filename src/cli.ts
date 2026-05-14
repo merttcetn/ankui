@@ -11,10 +11,16 @@ import { runScanAllCommand } from "./commands/scan-all.js";
 import { runShowCommand } from "./commands/show.js";
 import { runWatchCommand } from "./commands/watch.js";
 import { buildLaunchTuiResult } from "./commands/launch-tui.js";
+import {
+  getAnkuiConfigPath,
+  mergeDevRoots,
+  writeAnkuiConfig
+} from "./config/ankui-config.js";
 import { scan } from "./scanner/index.js";
 import { renderTui } from "./tui/render.js";
 import { formatError } from "./utils/errors.js";
 import { formatJson, formatScanSummary } from "./utils/format.js";
+import fs from "node:fs/promises";
 import os from "node:os";
 
 interface GlobalOptions {
@@ -171,13 +177,45 @@ async function runScanCommand(options: { showTuiPlaceholder?: boolean } = {}): P
 }
 
 async function launchTui(): Promise<void> {
+  const homeDir = os.homedir();
+  const configPath = getAnkuiConfigPath(homeDir);
+
+  if (!(await fileExists(configPath))) {
+    // First-run mode: render the FirstRunScan wizard. The user picks dev roots;
+    // onConfigChange writes the config file and we exit so the next `ankui`
+    // invocation launches into main mode against a freshly populated config.
+    await renderTui({
+      mode: "firstRun",
+      homeDir,
+      onConfigChange: async (devRoots) => {
+        const merged = mergeDevRoots([], devRoots);
+        await writeAnkuiConfig({ version: 1, devRoots: merged }, homeDir);
+        // Exit Ink so the developer can re-launch into main mode. Re-rendering
+        // in the same process would require Ink lifecycle plumbing that 8f
+        // intentionally defers; the next `ankui` invocation is the cheapest
+        // and most predictable path back.
+        process.exit(0);
+      }
+    });
+    return;
+  }
+
   await renderTui({
     loadScan: () =>
       buildLaunchTuiResult({
-        homeDir: os.homedir(),
+        homeDir,
         env: process.env
       })
   });
+}
+
+async function fileExists(filePath: string): Promise<boolean> {
+  try {
+    await fs.access(filePath);
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 try {

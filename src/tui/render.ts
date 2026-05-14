@@ -10,8 +10,14 @@ export interface RenderTuiLoadScanOptions {
   loadScan: () => Promise<MultiProjectScanResult>;
 }
 
+export interface RenderTuiFirstRunOptions {
+  mode: "firstRun";
+  homeDir: string;
+  onConfigChange: (devRoots: string[]) => Promise<void>;
+}
+
 /**
- * Mount the TUI. Accepts one of three shapes:
+ * Mount the TUI. Accepts one of four shapes:
  *
  *   1. `{ loadScan }` (Phase 8g): mount {@link LoadingSplash} immediately, swap
  *      to {@link App} when the promise resolves. Use this on the CLI launch
@@ -21,10 +27,28 @@ export interface RenderTuiLoadScanOptions {
  *      pre-loaded result. Used by tests and callers that have already scanned.
  *   3. {@link DataSource} (Phase 10): mount {@link App} with a subscribable
  *      data source for watch-mode rescans.
+ *   4. `{ mode: "firstRun", … }` (Phase 8f): mount {@link App} in first-run
+ *      mode with no scan data — App renders the FirstRunScan wizard.
  */
 export async function renderTui(
-  input: RenderTuiLoadScanOptions | MultiProjectScanResult | DataSource
+  input:
+    | RenderTuiLoadScanOptions
+    | RenderTuiFirstRunOptions
+    | MultiProjectScanResult
+    | DataSource
 ): Promise<void> {
+  if (isFirstRunOptions(input)) {
+    const instance = render(
+      React.createElement(App, {
+        mode: "firstRun",
+        result: null,
+        homeDir: input.homeDir,
+        onConfigChange: input.onConfigChange
+      } as never)
+    );
+    await instance.waitUntilExit();
+    return;
+  }
   if (isLoadScanOptions(input)) {
     const instance = render(
       React.createElement(LauncherShell, { loadScan: input.loadScan })
@@ -40,8 +64,26 @@ export async function renderTui(
   await instance.waitUntilExit();
 }
 
+function isFirstRunOptions(
+  input:
+    | RenderTuiLoadScanOptions
+    | RenderTuiFirstRunOptions
+    | MultiProjectScanResult
+    | DataSource
+): input is RenderTuiFirstRunOptions {
+  return (
+    typeof input === "object" &&
+    input !== null &&
+    (input as RenderTuiFirstRunOptions).mode === "firstRun"
+  );
+}
+
 function isLoadScanOptions(
-  input: RenderTuiLoadScanOptions | MultiProjectScanResult | DataSource
+  input:
+    | RenderTuiLoadScanOptions
+    | RenderTuiFirstRunOptions
+    | MultiProjectScanResult
+    | DataSource
 ): input is RenderTuiLoadScanOptions {
   return (
     typeof input === "object" &&
