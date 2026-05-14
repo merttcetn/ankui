@@ -16,6 +16,10 @@ export interface TuiState {
    * `result.scannedAt` directly.
    */
   result: MultiProjectScanResult;
+  /** Phase 8g: true while the `/`-key search overlay is open. */
+  searchOpen: boolean;
+  /** Phase 8g: current incremental search query (lowercased compare done by consumers). */
+  searchQuery: string;
 }
 
 export type TuiAction =
@@ -24,20 +28,31 @@ export type TuiAction =
   | { type: "drillOut" }
   | { type: "cycleTab"; direction: "next" | "prev"; tabs: ReadonlyArray<TabId> }
   | { type: "setResult"; result: MultiProjectScanResult }
-  | { type: "reset" };
+  | { type: "reset" }
+  | { type: "searchOpen" }
+  | { type: "searchClose" }
+  | { type: "searchSetQuery"; query: string };
 
 export function createInitialState(result: MultiProjectScanResult): TuiState {
   return {
     activeTab: "overview",
     drillStack: [],
-    result
+    result,
+    searchOpen: false,
+    searchQuery: ""
   };
 }
 
 export function tuiReducer(state: TuiState, action: TuiAction): TuiState {
   switch (action.type) {
     case "setTab":
-      return { ...state, activeTab: action.id, drillStack: [] };
+      return {
+        ...state,
+        activeTab: action.id,
+        drillStack: [],
+        searchOpen: false,
+        searchQuery: ""
+      };
     case "drillIn":
       return { ...state, drillStack: [...state.drillStack, action.frame] };
     case "drillOut":
@@ -45,7 +60,13 @@ export function tuiReducer(state: TuiState, action: TuiAction): TuiState {
       return { ...state, drillStack: state.drillStack.slice(0, -1) };
     case "cycleTab": {
       const nextId = cycleTabId(state.activeTab, action.direction, action.tabs) as TabId;
-      return { ...state, activeTab: nextId, drillStack: [] };
+      return {
+        ...state,
+        activeTab: nextId,
+        drillStack: [],
+        searchOpen: false,
+        searchQuery: ""
+      };
     }
     case "setResult": {
       const trimmed = state.drillStack.filter((frame) => {
@@ -60,6 +81,12 @@ export function tuiReducer(state: TuiState, action: TuiAction): TuiState {
     }
     case "reset":
       return createInitialState(state.result);
+    case "searchOpen":
+      return { ...state, searchOpen: true, searchQuery: "" };
+    case "searchClose":
+      return { ...state, searchOpen: false, searchQuery: "" };
+    case "searchSetQuery":
+      return { ...state, searchQuery: action.query };
     default:
       return state;
   }

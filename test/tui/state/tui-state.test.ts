@@ -89,7 +89,9 @@ test("setTab replaces activeTab and clears drillStack", () => {
   const state: TuiState = {
     activeTab: "overview",
     drillStack: [{ kind: "userScope", toolId: "claude" }],
-    result: makeResult([])
+    result: makeResult([]),
+    searchOpen: false,
+    searchQuery: ""
   };
   const next = tuiReducer(state, { type: "setTab", id: "codex" });
   assert.equal(next.activeTab, "codex");
@@ -113,7 +115,9 @@ test("drillOut pops the top of drillStack", () => {
       { kind: "userScope", toolId: "claude" } as DrillFrame,
       { kind: "project", toolId: "claude", projectPath: "/p" } as DrillFrame
     ],
-    result: makeResult([])
+    result: makeResult([]),
+    searchOpen: false,
+    searchQuery: ""
   };
   const next = tuiReducer(state, { type: "drillOut" });
   assert.equal(next.drillStack.length, 1);
@@ -152,7 +156,9 @@ test("setResult replaces the held result and preserves activeTab", () => {
   const initial: TuiState = {
     activeTab: "claude",
     drillStack: [],
-    result: makeResult(["/p1"])
+    result: makeResult(["/p1"]),
+    searchOpen: false,
+    searchQuery: ""
   };
   const next = tuiReducer(initial, {
     type: "setResult",
@@ -167,7 +173,9 @@ test("setResult preserves a userScope drill frame", () => {
   const state: TuiState = {
     activeTab: "claude",
     drillStack: [{ kind: "userScope", toolId: "claude" }],
-    result: makeResult([])
+    result: makeResult([]),
+    searchOpen: false,
+    searchQuery: ""
   };
   const next = tuiReducer(state, {
     type: "setResult",
@@ -181,7 +189,9 @@ test("setResult preserves a project drill frame when the project is still presen
   const state: TuiState = {
     activeTab: "claude",
     drillStack: [{ kind: "project", toolId: "claude", projectPath: "/p1" }],
-    result: makeResult(["/p1"])
+    result: makeResult(["/p1"]),
+    searchOpen: false,
+    searchQuery: ""
   };
   const next = tuiReducer(state, {
     type: "setResult",
@@ -199,11 +209,76 @@ test("setResult drops a project drill frame whose project disappeared", () => {
   const state: TuiState = {
     activeTab: "claude",
     drillStack: [{ kind: "project", toolId: "claude", projectPath: "/p1" }],
-    result: makeResult(["/p1"])
+    result: makeResult(["/p1"]),
+    searchOpen: false,
+    searchQuery: ""
   };
   const next = tuiReducer(state, {
     type: "setResult",
     result: makeResult(["/p2"])
   });
   assert.deepEqual(next.drillStack, []);
+});
+
+test("createInitialState seeds searchOpen=false and searchQuery=''", () => {
+  const state = createInitialState(makeResult([]));
+  assert.equal(state.searchOpen, false);
+  assert.equal(state.searchQuery, "");
+});
+
+test("searchOpen action sets searchOpen=true and clears the query", () => {
+  const next = tuiReducer(INITIAL_STATE, { type: "searchOpen" });
+  assert.equal(next.searchOpen, true);
+  assert.equal(next.searchQuery, "");
+});
+
+test("searchClose action sets searchOpen=false and clears the query", () => {
+  const opened = tuiReducer(INITIAL_STATE, { type: "searchOpen" });
+  const withQuery = tuiReducer(opened, {
+    type: "searchSetQuery",
+    query: "deploy"
+  });
+  const closed = tuiReducer(withQuery, { type: "searchClose" });
+  assert.equal(closed.searchOpen, false);
+  assert.equal(closed.searchQuery, "");
+});
+
+test("searchSetQuery updates the query without changing searchOpen", () => {
+  const opened = tuiReducer(INITIAL_STATE, { type: "searchOpen" });
+  const next = tuiReducer(opened, {
+    type: "searchSetQuery",
+    query: "verify"
+  });
+  assert.equal(next.searchOpen, true);
+  assert.equal(next.searchQuery, "verify");
+});
+
+test("setTab clears search state alongside drillStack", () => {
+  const state: TuiState = {
+    activeTab: "overview",
+    drillStack: [],
+    result: makeResult([]),
+    searchOpen: true,
+    searchQuery: "deploy"
+  };
+  const next = tuiReducer(state, { type: "setTab", id: "codex" });
+  assert.equal(next.searchOpen, false);
+  assert.equal(next.searchQuery, "");
+});
+
+test("cycleTab clears search state alongside drillStack", () => {
+  const state: TuiState = {
+    activeTab: "overview",
+    drillStack: [],
+    result: makeResult([]),
+    searchOpen: true,
+    searchQuery: "x"
+  };
+  const next = tuiReducer(state, {
+    type: "cycleTab",
+    direction: "next",
+    tabs: ["overview", "claude"]
+  });
+  assert.equal(next.searchOpen, false);
+  assert.equal(next.searchQuery, "");
 });
