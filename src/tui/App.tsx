@@ -1,4 +1,4 @@
-import React, { useReducer } from "react";
+import React, { useEffect, useReducer } from "react";
 import { Box, useApp } from "ink";
 
 import type { MultiProjectScanResult } from "../types.js";
@@ -6,7 +6,7 @@ import { Frame } from "./components/Frame.js";
 import { TabBar, type TabItem } from "./components/TabBar.js";
 import { useKeys } from "./input/use-keys.js";
 import {
-  INITIAL_STATE,
+  createInitialState,
   tuiReducer,
   type TabId,
   type TuiAction,
@@ -21,9 +21,14 @@ import { McpsTab } from "./screens/McpsTab.js";
 import { AccessTab } from "./screens/AccessTab.js";
 import { DoctorTab } from "./screens/DoctorTab.js";
 
-export interface AppProps {
-  result: MultiProjectScanResult;
+export interface DataSource {
+  initial: MultiProjectScanResult;
+  subscribe?: (cb: (next: MultiProjectScanResult) => void) => () => void;
 }
+
+export type AppProps =
+  | { result: MultiProjectScanResult; dataSource?: never }
+  | { dataSource: DataSource; result?: never };
 
 const CROSS_TOOL_TABS: ReadonlyArray<TabItem> = [
   { id: "mcps", label: "MCPs" },
@@ -31,10 +36,20 @@ const CROSS_TOOL_TABS: ReadonlyArray<TabItem> = [
   { id: "doctor", label: "Doctor" }
 ];
 
-export function App({ result }: AppProps): React.ReactElement {
-  const [state, dispatch] = useReducer(tuiReducer, INITIAL_STATE);
+export function App(props: AppProps): React.ReactElement {
+  const initialResult = props.dataSource ? props.dataSource.initial : props.result;
+  const [state, dispatch] = useReducer(tuiReducer, initialResult, createInitialState);
   const { exit } = useApp();
 
+  useEffect(() => {
+    if (!props.dataSource?.subscribe) return;
+    const unsubscribe = props.dataSource.subscribe((next) => {
+      dispatch({ type: "setResult", result: next });
+    });
+    return unsubscribe;
+  }, [props.dataSource]);
+
+  const result = state.result;
   const { tools, crossTool } = buildTabList(result);
   // Flattened cycle order: tools row, then cross-tool row. Matches the
   // visual top-to-bottom, left-to-right reading of the two-row tab bar.
