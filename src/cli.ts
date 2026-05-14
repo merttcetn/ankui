@@ -171,11 +171,13 @@ async function runScanCommand(options: { showTuiPlaceholder?: boolean } = {}): P
 }
 
 async function launchTui(): Promise<void> {
-  const result = await buildLaunchTuiResult({
-    homeDir: os.homedir(),
-    env: process.env
+  await renderTui({
+    loadScan: () =>
+      buildLaunchTuiResult({
+        homeDir: os.homedir(),
+        env: process.env
+      })
   });
-  await renderTui(result);
 }
 
 try {
