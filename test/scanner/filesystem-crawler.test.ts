@@ -153,8 +153,12 @@ test("crawlForProjects skips directories whose basename is in the skip list", as
 
   const result = await crawlForProjects({ rootDir: root, maxDepth: 4 });
 
-  const names = result.projects.map((p) => path.basename(p.projectPath));
+  const names = result.projects.map((p) => path.basename(p.projectPath)).sort();
   assert.deepEqual(names, ["real"]);
+  // Defensive: also assert no `node_modules` or `Library` leaked into the projects list,
+  // independent of order.
+  assert.equal(result.projects.some((p) => p.projectPath.includes("node_modules")), false);
+  assert.equal(result.projects.some((p) => p.projectPath.includes("Library")), false);
 });
 
 test("crawlForProjects skips hidden directories that are NOT AI markers", async () => {
