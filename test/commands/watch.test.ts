@@ -4,7 +4,42 @@ import os from "node:os";
 import path from "node:path";
 import test from "node:test";
 
-import { collectWatchPaths } from "../../src/commands/watch.js";
+import { collectWatchPaths, runWatchCommand } from "../../src/commands/watch.js";
+import type { MultiProjectScanResult } from "../../src/types.js";
+
+function emptyResult(homeDir: string): MultiProjectScanResult {
+  return {
+    scannedAt: new Date().toISOString(),
+    cwd: homeDir,
+    homeDir,
+    devRoots: [],
+    userScope: {
+      scannedAt: new Date().toISOString(),
+      cwd: homeDir,
+      homeDir,
+      tools: [],
+      findings: [],
+      warnings: [],
+      summary: {
+        detectedTools: 0,
+        totalSkills: 0,
+        totalMcpServers: 0,
+        uniqueMcpServers: 0,
+        customCommands: 0,
+        customTools: 0,
+        plugins: 0,
+        memoryFiles: 0,
+        agentSkills: 0,
+        skillsShSkills: 0,
+        totalFindings: 0,
+        broadAccessFindings: 0
+      }
+    },
+    projects: [],
+    warnings: [],
+    totals: { projectCount: 0, skillsAcrossProjects: 0, userScopeSkills: 0 }
+  };
+}
 
 async function makeHome(): Promise<string> {
   return fs.mkdtemp(path.join(os.tmpdir(), "ankui-watch-home-"));
@@ -90,5 +125,132 @@ test("collectWatchPaths returns absolute paths only", async () => {
   for (const p of paths) {
     assert.ok(path.isAbsolute(p), `non-absolute path: ${p}`);
   }
+  await fs.rm(home, { recursive: true, force: true });
+});
+
+test("runWatchCommand rescans on file change and pushes via subscription", async () => {
+  const home = await fs.mkdtemp(path.join(os.tmpdir(), "ankui-watch-run-"));
+  await fs.mkdir(path.join(home, ".claude"), { recursive: true });
+  await fs.writeFile(path.join(home, ".claude", "CLAUDE.md"), "v1");
+
+  let scanCount = 0;
+  const loadAllScansStub = async (): Promise<MultiProjectScanResult> => {
+    scanCount += 1;
+    return emptyResult(home);
+  };
+  const pushed: MultiProjectScanResult[] = [];
+
+  const handle = await runWatchCommand({
+    homeDir: home,
+    env: {},
+    devRoots: [],
+    debounceMs: 80,
+    __loadAllScansForTesting: loadAllScansStub,
+    __mountTui: async (dataSource) => {
+      pushed.push(dataSource.initial);
+      const unsubscribe = dataSource.subscribe!((next) => {
+        pushed.push(next);
+      });
+      return {
+        async waitUntilExit() {
+          await new Promise((resolve) => setTimeout(resolve, 500));
+        },
+        unsubscribe
+      };
+    }
+  });
+
+  // Trigger a real fs event after the watcher is ready.
+  await new Promise((r) => setTimeout(r, 200));
+  await fs.writeFile(path.join(home, ".claude", "CLAUDE.md"), "v2");
+  await handle.exitPromise;
+  await handle.shutdown();
+
+  assert.ok(scanCount >= 2, `expected initial + 1 rescan, got ${scanCount}`);
+  assert.ok(pushed.length >= 2, `expected initial + 1 push, got ${pushed.length}`);
+  await fs.rm(home, { recursive: true, force: true });
+});
+
+test("runWatchCommand never invokes loadAllScans for a sensitive change", async () => {
+  const home = await fs.mkdtemp(path.join(os.tmpdir(), "ankui-watch-run-"));
+  await fs.mkdir(path.join(home, ".claude"), { recursive: true });
+  // Pre-create a sensitive file before the watcher starts so chokidar already
+  // knows about it. The watcher's ignored predicate should block events for it.
+  const sensitive = path.join(home, ".claude", "session.json");
+  await fs.writeFile(sensitive, "{}");
+
+  let scanCount = 0;
+  const loadAllScansStub = async (): Promise<MultiProjectScanResult> => {
+    scanCount += 1;
+    return emptyResult(home);
+  };
+
+  const handle = await runWatchCommand({
+    homeDir: home,
+    env: {},
+    devRoots: [],
+    debounceMs: 80,
+    __loadAllScansForTesting: loadAllScansStub,
+    __mountTui: async () => ({
+      async waitUntilExit() {
+        await new Promise((resolve) => setTimeout(resolve, 400));
+      },
+      unsubscribe: () => {}
+    })
+  });
+
+  await new Promise((r) => setTimeout(r, 150));
+  const initialCount = scanCount;
+  await fs.writeFile(sensitive, '{"changed":true}');
+  await handle.exitPromise;
+  await handle.shutdown();
+
+  assert.equal(
+    scanCount,
+    initialCount,
+    `expected no rescan for sensitive change; before=${initialCount} after=${scanCount}`
+  );
+  await fs.rm(home, { recursive: true, force: true });
+});
+
+test("runWatchCommand survives a scan failure and continues watching", async () => {
+  const home = await fs.mkdtemp(path.join(os.tmpdir(), "ankui-watch-run-"));
+  await fs.mkdir(path.join(home, ".claude"), { recursive: true });
+  await fs.writeFile(path.join(home, ".claude", "CLAUDE.md"), "v1");
+
+  let scanCount = 0;
+  let failNext = false;
+  const loadAllScansStub = async (): Promise<MultiProjectScanResult> => {
+    scanCount += 1;
+    if (failNext) {
+      failNext = false;
+      throw new Error("synthetic scan failure");
+    }
+    return emptyResult(home);
+  };
+
+  const handle = await runWatchCommand({
+    homeDir: home,
+    env: {},
+    devRoots: [],
+    debounceMs: 80,
+    __loadAllScansForTesting: loadAllScansStub,
+    __mountTui: async () => ({
+      async waitUntilExit() {
+        await new Promise((resolve) => setTimeout(resolve, 700));
+      },
+      unsubscribe: () => {}
+    })
+  });
+
+  await new Promise((r) => setTimeout(r, 150));
+  failNext = true;
+  await fs.writeFile(path.join(home, ".claude", "CLAUDE.md"), "v2");
+  await new Promise((r) => setTimeout(r, 300));
+  await fs.writeFile(path.join(home, ".claude", "CLAUDE.md"), "v3");
+  await handle.exitPromise;
+  await handle.shutdown();
+
+  assert.ok(scanCount >= 3, `expected initial + 2 rescans (one failed), got ${scanCount}`);
   await fs.rm(home, { recursive: true, force: true });
 });
