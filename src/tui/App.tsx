@@ -17,17 +17,31 @@ import { Overview } from "./screens/Overview.js";
 import { ToolTab } from "./screens/ToolTab.js";
 import { UserScopeDrillIn } from "./screens/UserScopeDrillIn.js";
 import { ProjectDrillIn } from "./screens/ProjectDrillIn.js";
+import { McpsTab } from "./screens/McpsTab.js";
+import { AccessTab } from "./screens/AccessTab.js";
+import { DoctorTab } from "./screens/DoctorTab.js";
 
 export interface AppProps {
   result: MultiProjectScanResult;
 }
 
+const CROSS_TOOL_TABS: ReadonlyArray<TabItem> = [
+  { id: "mcps", label: "MCPs" },
+  { id: "access", label: "Access" },
+  { id: "doctor", label: "Doctor" }
+];
+
 export function App({ result }: AppProps): React.ReactElement {
   const [state, dispatch] = useReducer(tuiReducer, INITIAL_STATE);
   const { exit } = useApp();
 
-  const tabs = buildTabList(result);
-  const tabIds = tabs.map((t) => t.id as TabId);
+  const { tools, crossTool } = buildTabList(result);
+  // Flattened cycle order: tools row, then cross-tool row. Matches the
+  // visual top-to-bottom, left-to-right reading of the two-row tab bar.
+  const tabIds: TabId[] = [
+    ...tools.map((t) => t.id as TabId),
+    ...crossTool.map((t) => t.id as TabId)
+  ];
 
   useKeys({
     onTabNext: () => dispatch({ type: "cycleTab", direction: "next", tabs: tabIds }),
@@ -39,7 +53,7 @@ export function App({ result }: AppProps): React.ReactElement {
   return (
     <Frame>
       <Box flexDirection="column">
-        <TabBar rows={[tabs]} activeId={state.activeTab} />
+        <TabBar rows={[tools, crossTool]} activeId={state.activeTab} />
         <Box marginTop={1} flexDirection="column">
           {renderScreen(state, result, dispatch)}
         </Box>
@@ -48,12 +62,17 @@ export function App({ result }: AppProps): React.ReactElement {
   );
 }
 
-function buildTabList(result: MultiProjectScanResult): TabItem[] {
-  const items: TabItem[] = [{ id: "overview", label: "Overview" }];
+interface TabRows {
+  tools: TabItem[];
+  crossTool: ReadonlyArray<TabItem>;
+}
+
+function buildTabList(result: MultiProjectScanResult): TabRows {
+  const tools: TabItem[] = [{ id: "overview", label: "Overview" }];
   for (const tool of result.userScope.tools) {
-    items.push({ id: tool.id, label: tool.name });
+    tools.push({ id: tool.id, label: tool.name });
   }
-  return items;
+  return { tools, crossTool: CROSS_TOOL_TABS };
 }
 
 function renderScreen(
@@ -74,16 +93,19 @@ function renderScreen(
       />
     );
   }
-  if (state.activeTab === "overview") {
-    return <Overview result={result} />;
+  switch (state.activeTab) {
+    case "overview":
+      return <Overview result={result} />;
+    case "mcps":
+      return <McpsTab result={result} />;
+    case "access":
+      return <AccessTab result={result} />;
+    case "doctor":
+      return <DoctorTab result={result} />;
+    case "settings":
+      // Phase 8f.
+      return <Overview result={result} />;
+    default:
+      return <ToolTab toolId={state.activeTab} result={result} dispatch={dispatch} />;
   }
-  if (
-    state.activeTab === "mcps" ||
-    state.activeTab === "access" ||
-    state.activeTab === "doctor" ||
-    state.activeTab === "settings"
-  ) {
-    return <Overview result={result} />;
-  }
-  return <ToolTab toolId={state.activeTab} result={result} dispatch={dispatch} />;
 }
