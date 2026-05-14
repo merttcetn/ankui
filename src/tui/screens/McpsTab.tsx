@@ -72,8 +72,8 @@ function McpGroupBlock({ group, homeDir }: McpGroupBlockProps): React.ReactEleme
           />
         )}
       </Box>
-      {group.configurations.map((config) => (
-        <Fragment key={`${config.toolId}:${config.sourcePath}`}>
+      {group.configurations.map((config, idx) => (
+        <Fragment key={`${idx}:${config.toolId}:${config.sourcePath}`}>
           <DotLeaderRow
             label={`   ${config.toolId}`}
             metadata={relativizeHome(config.sourcePath, homeDir)}

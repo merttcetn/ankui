@@ -164,3 +164,28 @@ test("aggregateMcps surfaces capabilityCategories + accessLevel from the first s
   assert.deepEqual(groups[0].capabilityCategories, ["database"]);
   assert.equal(groups[0].accessLevel, "broad");
 });
+
+test("aggregateMcps de-dupes identical (toolId, scope, sourcePath) configurations", () => {
+  // Real-world scenario: every project scan re-discovers `~/.cursor/mcp.json`
+  // once, so the same user-level cursor MCP appears N times across N projects.
+  const skill = makeMcpSkill("cursor", "shadcn", {
+    sourcePath: "/home/.cursor/mcp.json"
+  });
+  const projectCopy = makeMcpSkill("cursor", "shadcn", {
+    sourcePath: "/home/.cursor/mcp.json"
+  });
+  const anotherCopy = makeMcpSkill("cursor", "shadcn", {
+    sourcePath: "/home/.cursor/mcp.json"
+  });
+  const groups = aggregateMcps(
+    multiProjectResult({
+      userSkills: [{ toolId: "cursor", skill }],
+      projects: [
+        { displayPath: "p1", skills: [{ toolId: "cursor", skill: projectCopy }] },
+        { displayPath: "p2", skills: [{ toolId: "cursor", skill: anotherCopy }] }
+      ]
+    })
+  );
+  assert.equal(groups.length, 1);
+  assert.equal(groups[0].configurations.length, 1, "duplicates collapsed");
+});

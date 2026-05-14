@@ -99,7 +99,18 @@ function addSkill(
   };
   const existing = map.get(key);
   if (existing) {
-    existing.configurations.push(configuration);
+    // De-dupe: project scans frequently re-discover user-level MCP files
+    // (e.g. `~/.cursor/mcp.json`) once per project, producing many copies of
+    // the same (toolId, scope, sourcePath) tuple. Treat those as one config.
+    const isDuplicate = existing.configurations.some(
+      (c) =>
+        c.toolId === configuration.toolId &&
+        c.scope === configuration.scope &&
+        c.sourcePath === configuration.sourcePath
+    );
+    if (!isDuplicate) {
+      existing.configurations.push(configuration);
+    }
     return;
   }
   map.set(key, {
