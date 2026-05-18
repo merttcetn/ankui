@@ -6,9 +6,8 @@ import type {
   CrawlOptions,
   CrawlResult
 } from "../scanner/filesystem-crawler.js";
-import { Frame } from "./components/Frame.js";
 import { IdleWhisper } from "./components/IdleWhisper.js";
-import { KeyHint } from "./components/KeyHint.js";
+import { ShellWithHints } from "./components/ShellWithHints.js";
 import { TabBar, type TabItem } from "./components/TabBar.js";
 import { useIdleWhisper } from "./hooks/use-idle-whisper.js";
 import { useKeys } from "./input/use-keys.js";
@@ -87,22 +86,19 @@ function FirstRunShell(props: Extract<AppProps, { mode: "firstRun" }>): React.Re
   const { exit } = useApp();
 
   return (
-    <Box flexDirection="column">
-      <Frame>
-        <FirstRunScan
-          mode="firstRun"
-          homeDir={props.homeDir}
-          onConfirm={(roots) => {
-            void props.onConfigChange(roots).then(() => exit());
-          }}
-          onCancel={() => {
-            exit();
-          }}
-          crawlImpl={props.crawlImplForFirstRun}
-        />
-      </Frame>
-      <KeyHint hints={FIRST_RUN_KEY_HINTS} />
-    </Box>
+    <ShellWithHints hints={FIRST_RUN_KEY_HINTS}>
+      <FirstRunScan
+        mode="firstRun"
+        homeDir={props.homeDir}
+        onConfirm={(roots) => {
+          void props.onConfigChange(roots).then(() => exit());
+        }}
+        onCancel={() => {
+          exit();
+        }}
+        crawlImpl={props.crawlImplForFirstRun}
+      />
+    </ShellWithHints>
   );
 }
 
@@ -218,18 +214,17 @@ function MainShell(props: MainShellProps): React.ReactElement {
   });
 
   return (
-    <Box flexDirection="column">
-      <Frame>
-        <Box flexDirection="column">
-          <TabBar rows={[tools, crossTool]} activeId={state.activeTab} />
-          <Box marginTop={1} flexDirection="column">
-            {renderScreen(state, result, dispatch, props.onConfigChange)}
-          </Box>
-          <IdleWhisper whisper={whisper} />
+    <ShellWithHints
+      hints={deriveKeyHints(state, { canRefresh: Boolean(props.onRefresh) })}
+    >
+      <Box flexDirection="column">
+        <TabBar rows={[tools, crossTool]} activeId={state.activeTab} />
+        <Box marginTop={1} flexDirection="column">
+          {renderScreen(state, result, dispatch, props.onConfigChange)}
         </Box>
-      </Frame>
-      <KeyHint hints={deriveKeyHints(state)} />
-    </Box>
+        <IdleWhisper whisper={whisper} />
+      </Box>
+    </ShellWithHints>
   );
 }
 

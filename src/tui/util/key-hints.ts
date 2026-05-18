@@ -1,5 +1,11 @@
 import type { TuiState } from "../state/tui-state.js";
 
+export interface KeyHintsContext {
+  /** True when the shell exposes a refresh callback that `r` can invoke
+   *  (LauncherShell sets this; watch-mode dataSource does not). */
+  canRefresh: boolean;
+}
+
 /**
  * Derives the dim hint row shown beneath the Frame.
  *
@@ -8,19 +14,26 @@ import type { TuiState } from "../state/tui-state.js";
  * editorial footer rather than chrome competing with the content.
  *
  * Hints are state-aware: drill-in screens expose scroll/search/back,
- * cross-tool tabs hide ⏎ (Enter is a no-op there), and the search overlay
- * swaps navigation for input controls.
+ * cross-tool tabs hide ⏎ (Enter is a no-op there), the access tab swaps
+ * ⏎ for ↑↓ (card-paginated finding scroll), and the search overlay swaps
+ * navigation for input controls. `r rescan` is gated on `ctx.canRefresh`
+ * so the bar never advertises a key that would be a no-op.
  */
-export function deriveKeyHints(state: TuiState): ReadonlyArray<string> {
+export function deriveKeyHints(
+  state: TuiState,
+  ctx?: KeyHintsContext
+): ReadonlyArray<string> {
+  const r = ctx?.canRefresh ? ["r rescan"] : [];
+
   if (state.drillStack.length > 0) {
     if (state.searchOpen) {
-      return ["⌫ delete", "esc close", "r rescan", "q quit"];
+      return ["⌫ delete", "esc close", ...r, "q quit"];
     }
-    return ["↑↓ scroll", "/ search", "esc back", "r rescan", "q quit"];
+    return ["↑↓ scroll", "/ search", "esc back", ...r, "q quit"];
   }
 
   if (state.activeTab === "access") {
-    return ["←→ tabs", "↑↓ next finding", "r rescan", "q quit"];
+    return ["←→ tabs", "↑↓ next finding", ...r, "q quit"];
   }
 
   if (
@@ -28,10 +41,10 @@ export function deriveKeyHints(state: TuiState): ReadonlyArray<string> {
     state.activeTab === "doctor" ||
     state.activeTab === "settings"
   ) {
-    return ["←→ tabs", "r rescan", "q quit"];
+    return ["←→ tabs", ...r, "q quit"];
   }
 
-  return ["←→ tabs", "⏎ open", "r rescan", "q quit"];
+  return ["←→ tabs", "⏎ open", ...r, "q quit"];
 }
 
 /** Hints shown in the first-run dev-root picker. */
