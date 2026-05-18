@@ -12,9 +12,10 @@ export interface FrameProps {
  * variant — Ink maps that to ┏ ┓ ┗ ┛ ━ ┃ which is exactly what the
  * Archive Inspector spec requires.
  *
- * The Frame stretches to fill the available width (`width="100%"`) so
- * callers can drop it into a full-screen layout without computing terminal
- * columns.
+ * The Frame stretches to fill the available width (`width="100%"`) while
+ * keeping height content-driven. Ink handles redraw clearing; forcing the
+ * frame to terminal height causes overflowed drill-in screens to overlap
+ * stale rows instead of rendering as a clean, longer frame.
  */
 export function Frame({ children }: FrameProps): React.ReactElement {
   return (

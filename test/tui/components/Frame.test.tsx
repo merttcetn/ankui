@@ -28,6 +28,17 @@ test("Frame renders heavy corner glyphs and wraps children", () => {
   assert.ok(frame.includes("hello"), "expected child text inside frame");
 });
 
+test("Frame height follows content instead of terminal rows", () => {
+  const { lastFrame } = render(
+    <Frame>
+      <Text>hello</Text>
+    </Frame>
+  );
+  const frame = lastFrame() ?? "";
+
+  assert.equal(frame.split("\n").length, 3);
+});
+
 test("Frame renders without children (empty inner area)", () => {
   const { lastFrame } = render(<Frame>{null}</Frame>);
   const frame = lastFrame() ?? "";
