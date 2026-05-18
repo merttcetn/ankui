@@ -14,6 +14,7 @@ import {
   isDiscovered,
   parseMarkdownFrontmatter,
   safeReadOptions,
+  scanMarkdownSkillTree,
   type AdapterState
 } from "./shared.js";
 import type { AdapterContext, AdapterResult, ScannerAdapter } from "./index.js";
@@ -60,7 +61,26 @@ async function scanSkillsDirectory(
       continue;
     }
 
+    // .disabled/ is handled separately via scanMarkdownSkillTree below
+    if (entry.name === ".disabled") {
+      continue;
+    }
+
     await scanSkillEntry(state, context, path.join(dirPath, entry.name), entry.name, scope);
+  }
+
+  // Surface disabled skills from .disabled/ (SKILL.md only, no README.md fallback)
+  const tree = await scanMarkdownSkillTree({
+    parent: dirPath,
+    context,
+    toolId: "skills-sh",
+    kind: "skills_sh_skill",
+    scope
+  });
+  addWarningsToState(state, tree.warnings);
+
+  for (const s of tree.disabled) {
+    addSkillToState(state, s);
   }
 }
 

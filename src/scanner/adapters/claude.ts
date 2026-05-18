@@ -2,7 +2,7 @@ import path from "node:path";
 
 import { type Scope, type SkillKind, type SkillSource } from "../../types.js";
 import { readJsonFile } from "../parsing.js";
-import { maskSecretText, safeReadDirectory } from "../safety.js";
+import { maskSecretText } from "../safety.js";
 import {
   addSkillToState,
   addWarningsToState,
@@ -17,6 +17,7 @@ import {
   isRecord,
   readRecord,
   safeReadOptions,
+  scanMarkdownSkillTree,
   buildSkill,
   type AdapterState
 } from "./shared.js";
@@ -222,29 +223,17 @@ async function scanSkillDirectories(state: ClaudeState, context: AdapterContext)
       continue;
     }
 
-    const entries = await safeReadDirectory(directory.path, safeReadOptions(directory.path, context));
-    addWarningsToState(state, entries.warnings);
+    const tree = await scanMarkdownSkillTree({
+      parent: directory.path,
+      context,
+      toolId: "claude",
+      kind: "agent_skill",
+      scope: directory.scope
+    });
+    addWarningsToState(state, tree.warnings);
 
-    if (!entries.ok) {
-      continue;
-    }
-
-    for (const entry of entries.value) {
-      if (!entry.isDirectory() && !entry.isSymbolicLink()) {
-        continue;
-      }
-
-      const skillPath = path.join(directory.path, entry.name, "SKILL.md");
-
-      await scanMarkdownBackedSkill(state, context, {
-        filePath: skillPath,
-        scope: directory.scope,
-        kind: "agent_skill",
-        source: "directory",
-        fallbackName: entry.name,
-        summaryFallback: "Claude agent skill.",
-        warnOnMissing: false
-      });
+    for (const s of [...tree.active, ...tree.disabled]) {
+      addSkillToState(state, s);
     }
   }
 }

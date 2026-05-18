@@ -17,6 +17,7 @@ import {
   readMaskedUrl,
   readRecord,
   safeReadOptions,
+  scanMarkdownSkillTree,
   type AdapterState
 } from "./shared.js";
 import type { AdapterContext, AdapterResult, ScannerAdapter } from "./index.js";
@@ -244,25 +245,22 @@ async function scanSkillDirectories(
     return;
   }
 
-  const entries = await safeReadDirectory(skillsDir, safeReadOptions(skillsDir, context));
-  addWarningsToState(state, entries.warnings);
+  const tree = await scanMarkdownSkillTree({
+    parent: skillsDir,
+    context,
+    toolId: "opencode",
+    kind: "agent_skill",
+    scope
+  });
+  addWarningsToState(state, tree.warnings);
 
-  if (!entries.ok) {
-    return;
-  }
-
-  for (const entry of entries.value) {
-    if ((!entry.isDirectory() && !entry.isSymbolicLink()) || OPENCODE_EXCLUDED_DIRS.has(entry.name)) {
+  for (const s of [...tree.active, ...tree.disabled]) {
+    // Preserve the OPENCODE_EXCLUDED_DIRS filter for active entries
+    if (!s.details?.disabled && isExcludedOpenCodePath(s.sourcePath)) {
       continue;
     }
 
-    const skillPath = path.join(skillsDir, entry.name, "SKILL.md");
-    await scanMarkdownSkill(state, context, {
-      filePath: skillPath,
-      scope,
-      kind: "agent_skill",
-      fallbackName: entry.name
-    });
+    addSkillToState(state, s);
   }
 }
 

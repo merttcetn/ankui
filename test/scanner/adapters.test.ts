@@ -573,6 +573,86 @@ test("scan enriches MCP server skills with capability + access level", async () 
   );
 });
 
+test("Claude adapter surfaces .disabled/ markdown skills with details.disabled=true", async () => {
+  const cwd = await makeTempWorkspace("ankui-claude-disabled-cwd-");
+  const homeDir = await makeTempWorkspace("ankui-claude-disabled-home-");
+  await fs.mkdir(path.join(homeDir, ".claude", "skills", ".disabled", "off-skill"), { recursive: true });
+  await fs.writeFile(
+    path.join(homeDir, ".claude", "skills", ".disabled", "off-skill", "SKILL.md"),
+    "# off"
+  );
+
+  const result = await scan({ cwd, homeDir, env: {} });
+  const claude = tool(result, "claude");
+  const off = claude.skills.find((s) => s.name === "off-skill");
+  assert.ok(off, "off-skill present");
+  assert.equal(off.details?.disabled, true);
+});
+
+test("Codex adapter surfaces .disabled/ markdown skills with details.disabled=true", async () => {
+  const cwd = await makeTempWorkspace("ankui-codex-disabled-cwd-");
+  const homeDir = await makeTempWorkspace("ankui-codex-disabled-home-");
+  await fs.mkdir(path.join(homeDir, ".codex", "skills", ".disabled", "off-skill"), { recursive: true });
+  await fs.writeFile(
+    path.join(homeDir, ".codex", "skills", ".disabled", "off-skill", "SKILL.md"),
+    "# off"
+  );
+
+  const result = await scan({ cwd, homeDir, env: {} });
+  const codex = tool(result, "codex");
+  const off = codex.skills.find((s) => s.name === "off-skill");
+  assert.ok(off, "off-skill present");
+  assert.equal(off.details?.disabled, true);
+});
+
+test("Gemini adapter surfaces .disabled/ markdown skills with details.disabled=true", async () => {
+  const cwd = await makeTempWorkspace("ankui-gemini-disabled-cwd-");
+  const homeDir = await makeTempWorkspace("ankui-gemini-disabled-home-");
+  await fs.mkdir(path.join(homeDir, ".gemini", "skills", ".disabled", "off-skill"), { recursive: true });
+  await fs.writeFile(
+    path.join(homeDir, ".gemini", "skills", ".disabled", "off-skill", "SKILL.md"),
+    "# off"
+  );
+
+  const result = await scan({ cwd, homeDir, env: {} });
+  const gemini = tool(result, "gemini");
+  const off = gemini.skills.find((s) => s.name === "off-skill");
+  assert.ok(off, "off-skill present");
+  assert.equal(off.details?.disabled, true);
+});
+
+test("OpenCode adapter surfaces .disabled/ markdown skills with details.disabled=true", async () => {
+  const cwd = await makeTempWorkspace("ankui-opencode-disabled-cwd-");
+  const homeDir = await makeTempWorkspace("ankui-opencode-disabled-home-");
+  await fs.mkdir(path.join(homeDir, ".config", "opencode", "skills", ".disabled", "off-skill"), { recursive: true });
+  await fs.writeFile(
+    path.join(homeDir, ".config", "opencode", "skills", ".disabled", "off-skill", "SKILL.md"),
+    "# off"
+  );
+
+  const result = await scan({ cwd, homeDir, env: {} });
+  const opencode = tool(result, "opencode");
+  const off = opencode.skills.find((s) => s.name === "off-skill");
+  assert.ok(off, "off-skill present");
+  assert.equal(off.details?.disabled, true);
+});
+
+test("skills-sh adapter surfaces .disabled/ markdown skills with details.disabled=true", async () => {
+  const cwd = await makeTempWorkspace("ankui-skillssh-disabled-cwd-");
+  const homeDir = await makeTempWorkspace("ankui-skillssh-disabled-home-");
+  await fs.mkdir(path.join(homeDir, ".skills", ".disabled", "off-skill"), { recursive: true });
+  await fs.writeFile(
+    path.join(homeDir, ".skills", ".disabled", "off-skill", "SKILL.md"),
+    "# off"
+  );
+
+  const result = await scan({ cwd, homeDir, env: {} });
+  const skillsSh = tool(result, "skills-sh");
+  const off = skillsSh.skills.find((s) => s.name === "off-skill");
+  assert.ok(off, "off-skill present");
+  assert.equal(off.details?.disabled, true);
+});
+
 async function makeTempWorkspace(prefix: string): Promise<string> {
   return fs.mkdtemp(path.join(os.tmpdir(), prefix));
 }

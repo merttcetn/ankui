@@ -18,6 +18,7 @@ import {
   parseMarkdownFrontmatter,
   readRecord,
   safeReadOptions,
+  scanMarkdownSkillTree,
   type AdapterState
 } from "./shared.js";
 import type { AdapterContext, AdapterResult, ScannerAdapter } from "./index.js";
@@ -146,55 +147,17 @@ async function scanSkillDirectory(
     return;
   }
 
-  const entries = await safeReadDirectory(dirPath, safeReadOptions(dirPath, context));
-  addWarningsToState(state, entries.warnings);
+  const tree = await scanMarkdownSkillTree({
+    parent: dirPath,
+    context,
+    toolId: "gemini",
+    kind: "agent_skill",
+    scope
+  });
+  addWarningsToState(state, tree.warnings);
 
-  if (!entries.ok) {
-    return;
-  }
-
-  for (const entry of entries.value) {
-    if (!entry.isDirectory() && !entry.isSymbolicLink()) {
-      continue;
-    }
-
-    const skillPath = path.join(dirPath, entry.name, "SKILL.md");
-    const result = await readMarkdownFile(skillPath, safeReadOptions(skillPath, context));
-    addWarningsToState(state, result.warnings);
-
-    if (!result.ok) {
-      continue;
-    }
-
-    const frontmatter = parseMarkdownFrontmatter(result.value, skillPath);
-    addWarningsToState(state, frontmatter.warnings);
-
-    const name =
-      firstString(frontmatter.metadata.name, frontmatter.metadata.title) ?? entry.name;
-    const summary =
-      firstString(frontmatter.metadata.description, frontmatter.metadata.summary) ??
-      extractFirstHeading(result.value) ??
-      "Gemini agent skill.";
-
-    const linkDetails = await buildLinkDetails(skillPath, context);
-
-    addSkillToState(
-      state,
-      buildSkill({
-        toolId: "gemini",
-        kind: "agent_skill",
-        name,
-        summary,
-        scope,
-        sourcePath: skillPath,
-        source: "directory",
-        details: {
-          preview: createSanitizedPreview(result.value, skillPath),
-          lineCount: countTextLines(result.value),
-          ...linkDetails
-        }
-      })
-    );
+  for (const s of [...tree.active, ...tree.disabled]) {
+    addSkillToState(state, s);
   }
 }
 

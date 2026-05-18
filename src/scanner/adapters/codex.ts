@@ -17,6 +17,7 @@ import {
   isDiscovered,
   parseMarkdownFrontmatter,
   safeReadOptions,
+  scanMarkdownSkillTree,
   type AdapterState
 } from "./shared.js";
 import type { AdapterContext, AdapterResult, ScannerAdapter } from "./index.js";
@@ -117,26 +118,17 @@ async function scanSkillDirectory(
     return;
   }
 
-  const entries = await safeReadDirectory(dirPath, safeReadOptions(dirPath, context));
-  addWarningsToState(state, entries.warnings);
+  const tree = await scanMarkdownSkillTree({
+    parent: dirPath,
+    context,
+    toolId: "codex",
+    kind: "agent_skill",
+    scope
+  });
+  addWarningsToState(state, tree.warnings);
 
-  if (!entries.ok) {
-    return;
-  }
-
-  for (const entry of entries.value) {
-    if (!entry.isDirectory() && !entry.isSymbolicLink()) {
-      continue;
-    }
-
-    const skillPath = path.join(dirPath, entry.name, "SKILL.md");
-    await scanMarkdownSkill(state, context, {
-      filePath: skillPath,
-      scope,
-      kind: "agent_skill",
-      fallbackName: entry.name,
-      summaryFallback: "Codex agent skill."
-    });
+  for (const s of [...tree.active, ...tree.disabled]) {
+    addSkillToState(state, s);
   }
 }
 
