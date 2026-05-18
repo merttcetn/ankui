@@ -201,3 +201,25 @@ test("App invokes onRefresh prop when r is pressed in main mode", async () => {
   assert.equal(refreshCount, 1);
   inst.unmount();
 });
+
+test("App reflects a new result prop after a LauncherShell-style refresh", async () => {
+  const initial = multiProjectResultWithManyClaudeSkills(1);
+  const updated = multiProjectResultWithManyClaudeSkills(2);
+
+  const inst = render(<App result={initial} />);
+  // Right-arrow to the Actions tab. Cycle order from tabIds is
+  // [overview, claude, codex, cursor, gemini, opencode, skills.sh,
+  //  mcps, access, doctor, actions, settings] — all tools are in the
+  //  tab bar regardless of detection. Actions is at index 10.
+  const presses = Array.from({ length: 10 }, () => "\x1B[C");
+  await writeKeys(inst.stdin, presses);
+  const before = inst.lastFrame() ?? "";
+  // SectionHeader spaces every glyph: "SKILLS (1)" → "S K I L L S   ( 1 )"
+  assert.match(before, /S K I L L S   \( 1 \)/, "initial render shows 1 skill");
+
+  inst.rerender(<App result={updated} />);
+  await new Promise((r) => setImmediate(r));
+  const after = inst.lastFrame() ?? "";
+  assert.match(after, /S K I L L S   \( 2 \)/, "after rerender shows 2 skills");
+  inst.unmount();
+});

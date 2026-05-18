@@ -128,6 +128,12 @@ function MainShell(props: MainShellProps): React.ReactElement {
     return unsubscribe;
   }, [props.dataSource]);
 
+  useEffect(() => {
+    if (!props.result) return;
+    if (props.result === state.result) return;
+    dispatch({ type: "setResult", result: props.result });
+  }, [props.result]);
+
   const result = state.result;
   const { tools, crossTool } = buildTabList(result);
   // Flattened cycle order: tools row, then cross-tool row. Matches the
