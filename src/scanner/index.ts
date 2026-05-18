@@ -11,6 +11,7 @@ import {
 } from "../types.js";
 import { enrichSkill } from "./capability-map.js";
 import { reviewTools } from "./access-review.js";
+import { expandBuiltinsForTool } from "./builtins.js";
 import { claudeAdapter } from "./adapters/claude.js";
 import { codexAdapter } from "./adapters/codex.js";
 import { cursorAdapter } from "./adapters/cursor.js";
@@ -25,6 +26,7 @@ export interface ScanOptions {
   homeDir?: string;
   env?: Record<string, string | undefined>;
   now?: Date;
+  showBuiltins?: boolean;
 }
 
 export async function scan(options: ScanOptions = {}): Promise<ScanResult> {
@@ -86,6 +88,17 @@ export async function scan(options: ScanOptions = {}): Promise<ScanResult> {
     tool.skills.push(...adapterResult.skills);
     tool.findings.push(...adapterResult.findings);
     addWarnings(tool.warnings, adapterResult.warnings);
+  }
+
+  if (options.showBuiltins) {
+    for (const tool of tools) {
+      const builtins = expandBuiltinsForTool(tool.id);
+      if (builtins.length === 0) {
+        continue;
+      }
+      tool.detected = true;
+      tool.skills.push(...builtins);
+    }
   }
 
   for (const tool of tools) {

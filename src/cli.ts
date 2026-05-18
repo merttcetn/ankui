@@ -46,8 +46,12 @@ program
 program
   .command("scan")
   .description("Run a local scan and print a summary.")
-  .action(async () => {
-    await runScanCommand();
+  .option(
+    "--show-builtins",
+    "include CLI-bundled defaults (init, review, debug, …) for Claude, Codex, Gemini"
+  )
+  .action(async (cmdOpts: { showBuiltins?: boolean }) => {
+    await runScanCommand({ showBuiltins: Boolean(cmdOpts.showBuiltins) });
   });
 
 program
@@ -160,8 +164,10 @@ program
     });
   });
 
-async function runScanCommand(options: { showTuiPlaceholder?: boolean } = {}): Promise<void> {
-  const result = await scan();
+async function runScanCommand(
+  options: { showTuiPlaceholder?: boolean; showBuiltins?: boolean } = {}
+): Promise<void> {
+  const result = await scan({ showBuiltins: options.showBuiltins });
   const globalOptions = program.opts<GlobalOptions>();
 
   if (globalOptions.json) {

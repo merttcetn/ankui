@@ -18,7 +18,7 @@ export type SkillKind =
   | "agent_skill"
   | "skills_sh_skill";
 
-export type SkillSource = "config" | "directory";
+export type SkillSource = "config" | "directory" | "builtin";
 export type Scope = "user" | "project";
 export type FindingScope = Scope | "cross_tool";
 export type AccessLevel = "limited" | "moderate" | "broad" | "unknown";
