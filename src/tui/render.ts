@@ -2,12 +2,14 @@ import React, { useEffect, useState } from "react";
 import { render } from "ink";
 
 import type { MultiProjectScanResult } from "../types.js";
+import type { SessionAction } from "../utils/session-summary.js";
 import { App, type DataSource } from "./App.js";
 import { LoadingSplash } from "./components/LoadingSplash.js";
 
 export interface RenderTuiLoadScanOptions {
   /** Function that resolves with the scan result. Called once on mount. */
   loadScan: () => Promise<MultiProjectScanResult>;
+  onExit?: (actions: ReadonlyArray<SessionAction>) => void;
 }
 
 export interface RenderTuiFirstRunOptions {
@@ -76,7 +78,7 @@ export async function renderTui(
   if (isLoadScanOptions(input)) {
     await withAltScreenBuffer(async () => {
       const instance = render(
-        React.createElement(LauncherShell, { loadScan: input.loadScan })
+        React.createElement(LauncherShell, { loadScan: input.loadScan, onExit: input.onExit })
       );
       await instance.waitUntilExit();
     });
@@ -122,9 +124,10 @@ function isLoadScanOptions(
 
 interface LauncherShellProps {
   loadScan: () => Promise<MultiProjectScanResult>;
+  onExit?: (actions: ReadonlyArray<SessionAction>) => void;
 }
 
-function LauncherShell({ loadScan }: LauncherShellProps): React.ReactElement {
+function LauncherShell({ loadScan, onExit }: LauncherShellProps): React.ReactElement {
   const [result, setResult] = useState<MultiProjectScanResult | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -158,5 +161,5 @@ function LauncherShell({ loadScan }: LauncherShellProps): React.ReactElement {
   if (result === null) {
     return React.createElement(LoadingSplash, { active: true });
   }
-  return React.createElement(App, { result, onRefresh: handleRefresh } as never);
+  return React.createElement(App, { result, onRefresh: handleRefresh, onExit } as never);
 }

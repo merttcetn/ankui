@@ -18,6 +18,11 @@ import {
 } from "./config/ankui-config.js";
 import { scan } from "./scanner/index.js";
 import { renderTui } from "./tui/render.js";
+import {
+  computeSessionSummary,
+  formatSessionSummary,
+  type SessionAction
+} from "./utils/session-summary.js";
 import { formatError } from "./utils/errors.js";
 import { formatJson, formatScanSummary } from "./utils/format.js";
 import fs from "node:fs/promises";
@@ -201,13 +206,21 @@ async function launchTui(): Promise<void> {
     return;
   }
 
+  let capturedActions: ReadonlyArray<SessionAction> = [];
   await renderTui({
     loadScan: () =>
       buildLaunchTuiResult({
         homeDir,
         env: process.env
-      })
+      }),
+    onExit: (actions) => {
+      capturedActions = actions;
+    }
   });
+  const text = formatSessionSummary(computeSessionSummary(capturedActions));
+  if (text) {
+    console.log(text);
+  }
 }
 
 async function fileExists(filePath: string): Promise<boolean> {

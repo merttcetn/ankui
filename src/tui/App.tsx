@@ -1,8 +1,9 @@
-import React, { useEffect, useReducer } from "react";
+import React, { useEffect, useReducer, useRef } from "react";
 import { Box, useApp } from "ink";
 import os from "node:os";
 
 import type { MultiProjectScanResult, Skill } from "../types.js";
+import type { SessionAction } from "../utils/session-summary.js";
 import { disableSkill, enableSkill } from "../writer/index.js";
 import type {
   CrawlOptions,
@@ -51,6 +52,7 @@ export type AppProps =
       onConfigChange?: (devRoots: string[]) => Promise<void>;
       crawlImplForFirstRun?: (options: CrawlOptions) => Promise<CrawlResult>;
       onRefresh?: () => Promise<void>;
+      onExit?: (actions: ReadonlyArray<SessionAction>) => void;
     }
   | {
       mode?: "main";
@@ -60,6 +62,7 @@ export type AppProps =
       onConfigChange?: (devRoots: string[]) => Promise<void>;
       crawlImplForFirstRun?: (options: CrawlOptions) => Promise<CrawlResult>;
       onRefresh?: () => Promise<void>;
+      onExit?: (actions: ReadonlyArray<SessionAction>) => void;
     }
   | {
       mode: "firstRun";
@@ -112,6 +115,7 @@ interface MainShellProps {
   homeDir?: string;
   onConfigChange?: (devRoots: string[]) => Promise<void>;
   onRefresh?: () => Promise<void>;
+  onExit?: (actions: ReadonlyArray<SessionAction>) => void;
 }
 
 function MainShell(props: MainShellProps): React.ReactElement {
@@ -119,6 +123,7 @@ function MainShell(props: MainShellProps): React.ReactElement {
   const [state, dispatch] = useReducer(tuiReducer, initialResult, createInitialState);
   const { exit } = useApp();
   const { whisper, bump } = useIdleWhisper({ enabled: true });
+  const sessionActionsRef = useRef<SessionAction[]>([]);
 
   useEffect(() => {
     if (!props.dataSource?.subscribe) return;
@@ -142,6 +147,42 @@ function MainShell(props: MainShellProps): React.ReactElement {
     ...tools.map((t) => t.id as TabId),
     ...crossTool.map((t) => t.id as TabId)
   ];
+
+  const runSkillAction = async (action: "disable" | "enable"): Promise<void> => {
+    const rows: Skill[] = [];
+    for (const tool of result.userScope.tools) {
+      if (!tool.detected) continue;
+      rows.push(
+        ...tool.skills.filter(
+          (s) => s.kind === "agent_skill" || s.kind === "skills_sh_skill"
+        )
+      );
+    }
+    const target = rows[state.listCursor];
+    if (!target) return;
+
+    const isCurrentlyDisabled = target.details?.disabled === true;
+    if (action === "disable" && isCurrentlyDisabled) return;
+    if (action === "enable" && !isCurrentlyDisabled) return;
+
+    const context = {
+      homeDir: props.homeDir ?? os.homedir(),
+      cwd: result.cwd
+    };
+    const op = action === "disable" ? disableSkill : enableSkill;
+    const writerResult = await op(target, context);
+
+    if (writerResult.ok) {
+      sessionActionsRef.current.push({
+        toolId: target.toolId,
+        name: target.name,
+        action
+      });
+      if (props.onRefresh) {
+        await props.onRefresh();
+      }
+    }
+  };
 
   useKeys({
     onArrowDown: () => {
@@ -206,8 +247,8 @@ function MainShell(props: MainShellProps): React.ReactElement {
       }
       // Screen-scoped hotkeys live here so search-overlay input always wins.
       if (state.activeTab === "actions") {
-        if (ch === "d") void runSkillAction(state, result, "disable", props);
-        else if (ch === "e") void runSkillAction(state, result, "enable", props);
+        if (ch === "d") void runSkillAction("disable");
+        else if (ch === "e") void runSkillAction("enable");
       }
     },
     onBackspace: () => {
@@ -221,6 +262,9 @@ function MainShell(props: MainShellProps): React.ReactElement {
     },
     onQuit: () => {
       bump();
+      if (props.onExit) {
+        props.onExit(sessionActionsRef.current);
+      }
       exit();
     },
     onRefresh: () => {
@@ -359,38 +403,3 @@ function getListMax(state: TuiState, result: MultiProjectScanResult): number {
   return 0;
 }
 
-async function runSkillAction(
-  state: TuiState,
-  result: MultiProjectScanResult,
-  action: "disable" | "enable",
-  props: { onRefresh?: () => Promise<void>; homeDir?: string }
-): Promise<void> {
-  const rows: Skill[] = [];
-  for (const tool of result.userScope.tools) {
-    if (!tool.detected) continue;
-    rows.push(
-      ...tool.skills.filter(
-        (s) => s.kind === "agent_skill" || s.kind === "skills_sh_skill"
-      )
-    );
-  }
-  const target = rows[state.listCursor];
-  if (!target) return;
-
-  const isCurrentlyDisabled = target.details?.disabled === true;
-  if (action === "disable" && isCurrentlyDisabled) return;
-  if (action === "enable" && !isCurrentlyDisabled) return;
-
-  const context = {
-    homeDir: props.homeDir ?? os.homedir(),
-    cwd: result.cwd
-  };
-  const op = action === "disable" ? disableSkill : enableSkill;
-  const writerResult = await op(target, context);
-
-  if (writerResult.ok && props.onRefresh) {
-    await props.onRefresh();
-  }
-  // Failed writes are silent in this iteration — the user will see the
-  // unchanged state on the next render. Error surface is deferred.
-}
