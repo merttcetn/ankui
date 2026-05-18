@@ -45,6 +45,7 @@ export type AppProps =
       homeDir?: string;
       onConfigChange?: (devRoots: string[]) => Promise<void>;
       crawlImplForFirstRun?: (options: CrawlOptions) => Promise<CrawlResult>;
+      onRefresh?: () => Promise<void>;
     }
   | {
       mode?: "main";
@@ -53,6 +54,7 @@ export type AppProps =
       homeDir?: string;
       onConfigChange?: (devRoots: string[]) => Promise<void>;
       crawlImplForFirstRun?: (options: CrawlOptions) => Promise<CrawlResult>;
+      onRefresh?: () => Promise<void>;
     }
   | {
       mode: "firstRun";
@@ -103,6 +105,7 @@ interface MainShellProps {
   dataSource?: DataSource;
   homeDir?: string;
   onConfigChange?: (devRoots: string[]) => Promise<void>;
+  onRefresh?: () => Promise<void>;
 }
 
 function MainShell(props: MainShellProps): React.ReactElement {
@@ -206,6 +209,11 @@ function MainShell(props: MainShellProps): React.ReactElement {
     onQuit: () => {
       bump();
       exit();
+    },
+    onRefresh: () => {
+      bump();
+      if (!props.onRefresh) return;
+      void props.onRefresh();
     }
   });
 

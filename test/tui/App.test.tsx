@@ -184,3 +184,20 @@ test("App does not throw on q (quit binding still wired)", async () => {
   assert.ok(true);
   inst.unmount();
 });
+
+test("App invokes onRefresh prop when r is pressed in main mode", async () => {
+  let refreshCount = 0;
+  const inst = render(
+    <App
+      result={multiProjectResult()}
+      onRefresh={async () => {
+        refreshCount += 1;
+      }}
+    />
+  );
+  await writeKeys(inst.stdin, ["r"]);
+  // Let the async refresh callback settle.
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.equal(refreshCount, 1);
+  inst.unmount();
+});

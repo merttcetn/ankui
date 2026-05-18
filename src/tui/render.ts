@@ -144,6 +144,11 @@ function LauncherShell({ loadScan }: LauncherShellProps): React.ReactElement {
     };
   }, [loadScan]);
 
+  const handleRefresh = React.useCallback(async () => {
+    const next = await loadScan();
+    setResult(next);
+  }, [loadScan]);
+
   if (error !== null) {
     return React.createElement(LoadingSplash, {
       active: false,
@@ -153,5 +158,5 @@ function LauncherShell({ loadScan }: LauncherShellProps): React.ReactElement {
   if (result === null) {
     return React.createElement(LoadingSplash, { active: true });
   }
-  return React.createElement(App, { result });
+  return React.createElement(App, { result, onRefresh: handleRefresh } as never);
 }
