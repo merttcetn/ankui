@@ -48,8 +48,10 @@ Tools:
 Add `--json` to get the full sanitized scan result as JSON:
 
 ```bash
-ankui --json | jq '.tools.claude.skills | length'
+ankui --json | jq '[.tools[] | select(.id == "claude") | .skills[]] | length'
 ```
+
+`.tools` is an array of `{ id, skills, findings, ... }` objects, not an object keyed by tool id.
 
 ## Privacy and safety
 
@@ -73,7 +75,7 @@ Ankui sends no data anywhere and calls no external APIs.
 
 **Symlinks.** Symlinks whose resolved targets fall inside `$HOME` or `$CWD` are followed and reported with `details.linked: true` and `details.linkTarget`. Symlinks pointing outside those roots, or whose resolved target hits a sensitive path segment, produce a `symlink_skipped` warning and are not read.
 
-**Secret masking.** MCP server env blocks have all values replaced with `......`. Any value under a key matching `token`, `secret`, `credential`, `password`, `apikey`, `private_key`, `access_token`, `refresh_token`, `auth_token`, or `client_secret` is masked before the result is returned. Credential URLs (Basic auth username/password) are masked in MCP command args.
+**Secret masking.** MCP server env blocks have all values replaced with `......`. Any value under a key matching `auth`, `authorization`, `token`, `secret`, `credential`, `password`, `passwd`, `apikey`, `private_key`, `access_token`, `refresh_token`, `auth_token`, or `client_secret` is masked before the result is returned. Credential URLs (Basic auth username/password) are masked in MCP command args.
 
 **Session, history, auth, log, and database files are never read.** The directory exclusions above cover OpenCode's runtime database, session store, share store, auth store, and log directories. No conversation data or model response history is ever accessed.
 
