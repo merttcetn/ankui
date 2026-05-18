@@ -1,10 +1,10 @@
 import { useInput } from "ink";
 
 export interface KeyHandlers {
-  onTabNext?: () => void;
-  onTabPrev?: () => void;
   onArrowUp?: () => void;
   onArrowDown?: () => void;
+  onArrowLeft?: () => void;
+  onArrowRight?: () => void;
   onEnter?: () => void;
   onEscape?: () => void;
   onQuit?: () => void;
@@ -18,10 +18,12 @@ export interface KeyHandlers {
 
 export function useKeys(handlers: KeyHandlers): void {
   useInput((input, key) => {
-    if (key.tab && !key.shift) return handlers.onTabNext?.();
-    if (key.tab && key.shift) return handlers.onTabPrev?.();
+    // Reserved for future focus navigation; tab does not cycle app tabs.
+    if (key.tab) return;
     if (key.upArrow) return handlers.onArrowUp?.();
     if (key.downArrow) return handlers.onArrowDown?.();
+    if (key.leftArrow) return handlers.onArrowLeft?.();
+    if (key.rightArrow) return handlers.onArrowRight?.();
     if (key.return) return handlers.onEnter?.();
     if (key.escape) return handlers.onEscape?.();
     if (key.backspace || key.delete) return handlers.onBackspace?.();

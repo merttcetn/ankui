@@ -18,6 +18,7 @@ import {
   type TuiAction,
   type TuiState
 } from "./state/tui-state.js";
+import { filterSkillsByQuery } from "./util/skill-filter.js";
 
 import { Overview } from "./screens/Overview.js";
 import { ToolTab } from "./screens/ToolTab.js";
@@ -128,11 +129,31 @@ function MainShell(props: MainShellProps): React.ReactElement {
   ];
 
   useKeys({
-    onTabNext: () => {
+    onArrowDown: () => {
+      bump();
+      if (state.drillStack.length > 0) {
+        dispatch({
+          type: "listMove",
+          direction: "down",
+          max: getDrillSkillCount(state, result)
+        });
+      }
+    },
+    onArrowUp: () => {
+      bump();
+      if (state.drillStack.length > 0) {
+        dispatch({
+          type: "listMove",
+          direction: "up",
+          max: getDrillSkillCount(state, result)
+        });
+      }
+    },
+    onArrowRight: () => {
       bump();
       dispatch({ type: "cycleTab", direction: "next", tabs: tabIds });
     },
-    onTabPrev: () => {
+    onArrowLeft: () => {
       bump();
       dispatch({ type: "cycleTab", direction: "prev", tabs: tabIds });
     },
@@ -227,6 +248,7 @@ function renderScreen(
         <UserScopeDrillIn
           toolId={top.toolId}
           result={result}
+          cursor={state.listCursor}
           searchOpen={state.searchOpen}
           searchQuery={state.searchQuery}
         />
@@ -237,6 +259,7 @@ function renderScreen(
         toolId={top.toolId}
         projectPath={top.projectPath}
         result={result}
+        cursor={state.listCursor}
       />
     );
   }
@@ -271,4 +294,18 @@ function renderScreen(
     default:
       return <ToolTab toolId={state.activeTab} result={result} dispatch={dispatch} />;
   }
+}
+
+function getDrillSkillCount(state: TuiState, result: MultiProjectScanResult): number {
+  const top = state.drillStack[state.drillStack.length - 1];
+  if (!top) return 0;
+
+  if (top.kind === "userScope") {
+    const tool = result.userScope.tools.find((t) => t.id === top.toolId);
+    return filterSkillsByQuery(tool?.skills ?? [], state.searchQuery).length;
+  }
+
+  const project = result.projects.find((p) => p.projectPath === top.projectPath);
+  const tool = project?.scan.tools.find((t) => t.id === top.toolId);
+  return tool?.skills.length ?? 0;
 }

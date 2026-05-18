@@ -88,6 +88,32 @@ function multiProjectResult(): MultiProjectScanResult {
   };
 }
 
+function multiProjectResultWithManyClaudeSkills(count: number): MultiProjectScanResult {
+  let userScope = emptyScanResult();
+  userScope = withDetectedTool(userScope, "claude", ["/home/.claude"]);
+  for (let index = 0; index < count; index += 1) {
+    userScope = withAgentSkill(
+      userScope,
+      "claude",
+      `skill-${String(index).padStart(2, "0")}`
+    );
+  }
+  return {
+    scannedAt: "2026-05-14T00:00:00.000Z",
+    cwd: "/cwd",
+    homeDir: "/home",
+    devRoots: [],
+    userScope,
+    projects: [],
+    warnings: [],
+    totals: {
+      projectCount: 0,
+      skillsAcrossProjects: 0,
+      userScopeSkills: count
+    }
+  };
+}
+
 async function flush(): Promise<void> {
   await new Promise<void>((resolve) => setImmediate(resolve));
 }
@@ -103,10 +129,18 @@ async function writeKeys(
   }
 }
 
+test("App reserves Tab without cycling top-level tabs", async () => {
+  const inst = render(<App result={multiProjectResult()} />);
+  await writeKeys(inst.stdin, ["\t"]);
+  const frame = inst.lastFrame() ?? "";
+  assert.match(frame, /OVERVIEW/);
+  inst.unmount();
+});
+
 test("App opens search on / inside a drilled-in user-scope view and renders the SearchBox", async () => {
   const inst = render(<App result={multiProjectResult()} />);
-  // Tab → switch to Claude, then Enter → drill into user scope, then /
-  await writeKeys(inst.stdin, ["\t", "\r", "/"]);
+  // Right arrow -> switch to Claude, then Enter -> drill into user scope, then /
+  await writeKeys(inst.stdin, ["\x1B[C", "\r", "/"]);
   const frame = inst.lastFrame() ?? "";
   assert.match(frame, /type to filter|esc to close/);
   inst.unmount();
@@ -114,7 +148,7 @@ test("App opens search on / inside a drilled-in user-scope view and renders the 
 
 test("App appends typed characters to the search query inside a drill-in", async () => {
   const inst = render(<App result={multiProjectResult()} />);
-  await writeKeys(inst.stdin, ["\t", "\r", "/", "d", "e", "p"]);
+  await writeKeys(inst.stdin, ["\x1B[C", "\r", "/", "d", "e", "p"]);
   const frame = inst.lastFrame() ?? "";
   assert.match(frame, /\/dep/);
   inst.unmount();
@@ -122,9 +156,23 @@ test("App appends typed characters to the search query inside a drill-in", async
 
 test("App closes search on Esc inside a drill-in", async () => {
   const inst = render(<App result={multiProjectResult()} />);
-  await writeKeys(inst.stdin, ["\t", "\r", "/", "\x1B"]);
+  await writeKeys(inst.stdin, ["\x1B[C", "\r", "/", "\x1B"]);
   const frame = inst.lastFrame() ?? "";
   assert.doesNotMatch(frame, /type to filter|esc to close/);
+  inst.unmount();
+});
+
+test("App scrolls the drill-in skill viewport with down arrow", async () => {
+  const inst = render(<App result={multiProjectResultWithManyClaudeSkills(16)} />);
+  await writeKeys(inst.stdin, [
+    "\x1B[C",
+    "\r",
+    ...Array.from({ length: 15 }, () => "\x1B[B")
+  ]);
+  const frame = inst.lastFrame() ?? "";
+  assert.doesNotMatch(frame, /skill-00/);
+  assert.match(frame, /skill-15/);
+  assert.match(frame, /16\/16/);
   inst.unmount();
 });
 

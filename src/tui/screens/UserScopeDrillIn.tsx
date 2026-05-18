@@ -1,15 +1,17 @@
 import React from "react";
 import { Box, Text } from "ink";
 
-import type { MultiProjectScanResult, Skill, SkillKind, ToolId } from "../../types.js";
+import type { MultiProjectScanResult, ToolId } from "../../types.js";
 import { Breadcrumb } from "../components/Breadcrumb.js";
 import { SearchBox } from "../components/SearchBox.js";
-import { SectionHeader } from "../components/SectionHeader.js";
-import { groupSkillsByKind } from "../util/skill-grouping.js";
+import { SkillViewport } from "../components/SkillViewport.js";
+import { filterSkillsByQuery } from "../util/skill-filter.js";
 
 export interface UserScopeDrillInProps {
   toolId: ToolId;
   result: MultiProjectScanResult;
+  /** Cursor into the filtered, grouped skill list. */
+  cursor?: number;
   /** When provided, filters skill names case-insensitively. */
   searchQuery?: string;
   /** When true, renders SearchBox above the skill list. */
@@ -19,13 +21,13 @@ export interface UserScopeDrillInProps {
 export function UserScopeDrillIn({
   toolId,
   result,
+  cursor = 0,
   searchQuery,
   searchOpen
 }: UserScopeDrillInProps): React.ReactElement {
   const tool = result.userScope.tools.find((t) => t.id === toolId);
   const allSkills = tool?.skills ?? [];
-  const filtered = applyFilter(allSkills, searchQuery);
-  const groups = groupSkillsByKind(filtered);
+  const filtered = filterSkillsByQuery(allSkills, searchQuery);
 
   return (
     <Box flexDirection="column">
@@ -42,7 +44,7 @@ export function UserScopeDrillIn({
         </Box>
       )}
 
-      {groups.size === 0 ? (
+      {filtered.length === 0 ? (
         <Box marginTop={1}>
           <Text dimColor>
             {searchQuery && searchQuery.length > 0
@@ -51,28 +53,10 @@ export function UserScopeDrillIn({
           </Text>
         </Box>
       ) : (
-        [...groups.entries()].map(([kind, list]) => renderKindSection(kind, list))
+        <Box marginTop={1}>
+          <SkillViewport skills={filtered} cursor={cursor} />
+        </Box>
       )}
-    </Box>
-  );
-}
-
-function applyFilter(
-  skills: ReadonlyArray<Skill>,
-  query: string | undefined
-): ReadonlyArray<Skill> {
-  if (!query || query.length === 0) return skills;
-  const needle = query.toLowerCase();
-  return skills.filter((skill) => skill.name.toLowerCase().includes(needle));
-}
-
-function renderKindSection(kind: SkillKind, skills: ReadonlyArray<Skill>): React.ReactElement {
-  return (
-    <Box key={kind} marginTop={1} flexDirection="column">
-      <SectionHeader label={`${kind.toUpperCase()} (${skills.length})`} />
-      {skills.map((skill) => (
-        <Text key={skill.id}>{`  ${skill.name}`}</Text>
-      ))}
     </Box>
   );
 }

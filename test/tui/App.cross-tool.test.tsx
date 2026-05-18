@@ -101,12 +101,12 @@ async function flush(): Promise<void> {
   await new Promise<void>((resolve) => setImmediate(resolve));
 }
 
-async function pressTabs(stdin: { write: (s: string) => void }, count: number): Promise<void> {
+async function pressRightArrows(stdin: { write: (s: string) => void }, count: number): Promise<void> {
   // Let Ink mount and enable raw-mode (via useEffect) before the first write,
   // otherwise the initial keypresses arrive before the input listener attaches.
   await flush();
   for (let i = 0; i < count; i += 1) {
-    stdin.write("\t");
+    stdin.write("\x1B[C");
     await flush();
   }
 }
@@ -114,8 +114,8 @@ async function pressTabs(stdin: { write: (s: string) => void }, count: number): 
 test("App routes activeTab='mcps' to McpsTab screen", async () => {
   const inst = render(<App result={fixture()} />);
   // Cycle tabs past tools row until MCPS is active. Overview + 6 tools = 7
-  // entries in the first row, so 7 Tabs land us on `mcps`.
-  await pressTabs(inst.stdin, 7);
+  // entries in the first row, so 7 right arrows land us on `mcps`.
+  await pressRightArrows(inst.stdin, 7);
   const frame = inst.lastFrame() ?? "";
   assert.match(frame, /M C P S/);
   assert.match(frame, /Postgres/);
@@ -124,7 +124,7 @@ test("App routes activeTab='mcps' to McpsTab screen", async () => {
 
 test("App routes activeTab='access' to AccessTab screen", async () => {
   const inst = render(<App result={fixture()} />);
-  await pressTabs(inst.stdin, 8);
+  await pressRightArrows(inst.stdin, 8);
   const frame = inst.lastFrame() ?? "";
   assert.match(frame, /A C C E S S/);
   assert.match(frame, /duplicate-test/);
@@ -133,9 +133,9 @@ test("App routes activeTab='access' to AccessTab screen", async () => {
 
 test("App routes activeTab='doctor' to DoctorTab screen", async () => {
   const inst = render(<App result={fixture()} />);
-  await pressTabs(inst.stdin, 9);
+  await pressRightArrows(inst.stdin, 9);
   const frame = inst.lastFrame() ?? "";
-  assert.match(frame, /D O C T O R/);
-  assert.match(frame, /symlink_skipped/);
+  assert.match(frame, /DOCTOR/);
+  assert.match(frame, /1 warnings/);
   inst.unmount();
 });

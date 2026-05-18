@@ -37,10 +37,10 @@ async function flush(): Promise<void> {
   await new Promise<void>((resolve) => setImmediate(resolve));
 }
 
-async function pressTabs(stdin: { write: (s: string) => void }, count: number): Promise<void> {
+async function pressRightArrows(stdin: { write: (s: string) => void }, count: number): Promise<void> {
   await flush();
   for (let i = 0; i < count; i += 1) {
-    stdin.write("\t");
+    stdin.write("\x1B[C");
     await flush();
   }
 }
@@ -59,8 +59,8 @@ test("App routes activeTab='settings' to the Settings screen", async () => {
     <App mode="main" result={fixture()} homeDir="/h" onConfigChange={async () => {}} />
   );
   // Tools row: overview + 6 tools = 7. Cross-tool row: mcps, access, doctor, settings.
-  // Tab 10 times to land on Settings.
-  await pressTabs(inst.stdin, 10);
+  // Right arrow 10 times to land on Settings.
+  await pressRightArrows(inst.stdin, 10);
   const frame = inst.lastFrame() ?? "";
   // The TabBar renders the active tab uppercased without inter-letter spacing,
   // so look for the uppercased "SETTINGS" in the tab row.
