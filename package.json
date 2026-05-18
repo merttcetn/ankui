@@ -15,7 +15,7 @@
     "dev": "tsx src/cli.ts",
     "build": "tsc -p tsconfig.json",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "test": "node --import tsx --test test/scanner/*.test.ts test/scanner/adapters/*.test.ts test/utils/*.test.ts test/commands/*.test.ts test/config/*.test.ts test/tui/**/*.test.ts test/tui/**/*.test.tsx test/writer/*.test.ts",
+    "test": "node --import tsx --test test/scanner/*.test.ts test/scanner/adapters/*.test.ts test/utils/*.test.ts test/commands/*.test.ts test/config/*.test.ts test/tui/*.test.ts test/tui/*.test.tsx test/tui/**/*.test.ts test/tui/**/*.test.tsx test/writer/*.test.ts",
     "start": "node dist/cli.js",
     "prepublishOnly": "npm run build"
   },

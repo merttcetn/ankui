@@ -196,6 +196,12 @@ function MainShell(props: MainShellProps): React.ReactElement {
       bump();
       if (state.searchOpen) {
         dispatch({ type: "searchSetQuery", query: state.searchQuery + ch });
+        return;
+      }
+      // Screen-scoped hotkeys live here so search-overlay input always wins.
+      if (state.activeTab === "actions") {
+        if (ch === "d") void runSkillAction(state, result, "disable", props);
+        else if (ch === "e") void runSkillAction(state, result, "enable", props);
       }
     },
     onBackspace: () => {
@@ -215,16 +221,6 @@ function MainShell(props: MainShellProps): React.ReactElement {
       bump();
       if (!props.onRefresh) return;
       void props.onRefresh();
-    },
-    onDisable: () => {
-      bump();
-      if (state.activeTab !== "actions") return;
-      void runSkillAction(state, result, "disable", props);
-    },
-    onEnable: () => {
-      bump();
-      if (state.activeTab !== "actions") return;
-      void runSkillAction(state, result, "enable", props);
     }
   });
 
