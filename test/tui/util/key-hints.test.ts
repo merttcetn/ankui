@@ -133,3 +133,29 @@ test("deriveKeyHints omits 'r rescan' when canRefresh is false or context is mis
 test("FIRST_RUN_KEY_HINTS exposes confirm/cancel/quit", () => {
   assert.deepEqual(FIRST_RUN_KEY_HINTS, ["⏎ confirm", "esc cancel", "q quit"]);
 });
+
+test("deriveKeyHints exposes ↑↓/[d]/[e] hotkeys on the Actions tab", () => {
+  const withRefresh = deriveKeyHints(
+    baseState({ activeTab: "actions" }),
+    { canRefresh: true }
+  );
+  assert.deepEqual(withRefresh, [
+    "←→ tabs",
+    "↑↓ select",
+    "[d] disable",
+    "[e] enable",
+    "r rescan",
+    "q quit"
+  ]);
+
+  const withoutRefresh = deriveKeyHints(
+    baseState({ activeTab: "actions" })
+  );
+  assert.deepEqual(withoutRefresh, [
+    "←→ tabs",
+    "↑↓ select",
+    "[d] disable",
+    "[e] enable",
+    "q quit"
+  ]);
+});
