@@ -1,26 +1,23 @@
 import path from "node:path";
 
 import { type Scope, type SkillKind, type SkillSource } from "../../types.js";
-import { readJsonFile, readMarkdownFile } from "../parsing.js";
-import { countTextLines, createSanitizedPreview } from "../preview.js";
+import { readJsonFile } from "../parsing.js";
 import { maskSecretText, safeReadDirectory } from "../safety.js";
 import {
   addSkillToState,
   addWarningsToState,
-  buildLinkDetails,
-  buildSkill,
+  buildMarkdownSkill,
   collectMarkdownFiles,
   createAdapterState,
   createMcpDetails,
-  extractFirstHeading,
   extractMcpEntries,
   firstString,
   hasMeaningfulValue,
   isDiscovered,
   isRecord,
-  parseMarkdownFrontmatter,
   readRecord,
   safeReadOptions,
+  buildSkill,
   type AdapterState
 } from "./shared.js";
 import type { AdapterContext, AdapterResult, ScannerAdapter } from "./index.js";
@@ -265,45 +262,21 @@ async function scanMarkdownBackedSkill(
     warnOnMissing: boolean;
   }
 ): Promise<void> {
-  const result = await readMarkdownFile(
-    options.filePath,
-    safeReadOptions(options.filePath, context, { warnOnMissing: options.warnOnMissing })
-  );
-  addWarningsToState(state, result.warnings);
+  const built = await buildMarkdownSkill(context, {
+    filePath: options.filePath,
+    toolId: "claude",
+    kind: options.kind,
+    scope: options.scope,
+    source: options.source,
+    fallbackName: options.fallbackName,
+    summaryFallback: options.summaryFallback,
+    warnOnMissing: options.warnOnMissing
+  });
+  addWarningsToState(state, built.warnings);
 
-  if (!result.ok) {
-    return;
+  if (built.skill) {
+    addSkillToState(state, built.skill);
   }
-
-  const frontmatter = parseMarkdownFrontmatter(result.value, options.filePath);
-  addWarningsToState(state, frontmatter.warnings);
-
-  const name =
-    firstString(frontmatter.metadata.name, frontmatter.metadata.title) ?? options.fallbackName;
-  const summary =
-    firstString(frontmatter.metadata.description, frontmatter.metadata.summary) ??
-    extractFirstHeading(result.value) ??
-    options.summaryFallback;
-
-  const linkDetails = await buildLinkDetails(options.filePath, context);
-
-  addSkillToState(
-    state,
-    buildSkill({
-      toolId: "claude",
-      kind: options.kind,
-      name,
-      summary,
-      scope: options.scope,
-      sourcePath: options.filePath,
-      source: options.source,
-      details: {
-        preview: createSanitizedPreview(result.value, options.filePath),
-        lineCount: countTextLines(result.value),
-        ...linkDetails
-      }
-    })
-  );
 }
 
 function addSettingsSkills(

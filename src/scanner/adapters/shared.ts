@@ -11,7 +11,8 @@ import {
   type Warning
 } from "../../types.js";
 import { isPathInside, toDisplayPath } from "../paths.js";
-import { parseYamlText } from "../parsing.js";
+import { parseYamlText, readMarkdownFile } from "../parsing.js";
+import { countTextLines, createSanitizedPreview } from "../preview.js";
 import { getLinkInfo, maskSecretText, maskUrl, safeReadDirectory } from "../safety.js";
 import type { AdapterContext } from "./index.js";
 
@@ -373,4 +374,175 @@ export async function collectMarkdownFiles(
   }
 
   return files;
+}
+
+// ─── Markdown-backed skill builder ────────────────────────────────────────────
+
+export interface BuildMarkdownSkillOptions {
+  filePath: string;
+  toolId: ToolId;
+  scope: Scope;
+  kind: SkillKind;
+  source: SkillSource;
+  fallbackName: string;
+  summaryFallback: string;
+  warnOnMissing: boolean;
+  /** Extra fields merged into the skill's details object. */
+  extraDetails?: Record<string, unknown>;
+}
+
+export interface BuildMarkdownSkillResult {
+  skill: Skill | undefined;
+  warnings: Warning[];
+}
+
+export async function buildMarkdownSkill(
+  context: Pick<AdapterContext, "cwd" | "homeDir">,
+  options: BuildMarkdownSkillOptions
+): Promise<BuildMarkdownSkillResult> {
+  const warnings: Warning[] = [];
+
+  const result = await readMarkdownFile(
+    options.filePath,
+    safeReadOptions(options.filePath, context, { warnOnMissing: options.warnOnMissing })
+  );
+  warnings.push(...result.warnings);
+
+  if (!result.ok) {
+    return { skill: undefined, warnings };
+  }
+
+  const frontmatter = parseMarkdownFrontmatter(result.value, options.filePath);
+  warnings.push(...frontmatter.warnings);
+
+  const name =
+    firstString(frontmatter.metadata.name, frontmatter.metadata.title) ?? options.fallbackName;
+  const summary =
+    firstString(frontmatter.metadata.description, frontmatter.metadata.summary) ??
+    extractFirstHeading(result.value) ??
+    options.summaryFallback;
+
+  const linkDetails = await buildLinkDetails(options.filePath, context);
+
+  const skill = buildSkill({
+    toolId: options.toolId,
+    kind: options.kind,
+    name,
+    summary,
+    scope: options.scope,
+    sourcePath: options.filePath,
+    source: options.source,
+    details: {
+      preview: createSanitizedPreview(result.value, options.filePath),
+      lineCount: countTextLines(result.value),
+      ...linkDetails,
+      ...options.extraDetails
+    }
+  });
+
+  return { skill, warnings };
+}
+
+// ─── Markdown-skill tree walker ───────────────────────────────────────────────
+
+export interface ScanMarkdownSkillTreeOptions {
+  parent: string;
+  context: Pick<AdapterContext, "cwd" | "homeDir">;
+  /** Tool id stamped on each emitted skill. Defaults to "claude". */
+  toolId?: ToolId;
+  /** Kind stamped on each emitted skill. Defaults to "agent_skill". */
+  kind?: SkillKind;
+  /** Scope stamped on each emitted skill. Defaults to "user". */
+  scope?: Scope;
+}
+
+export interface ScanMarkdownSkillTreeResult {
+  active: Skill[];
+  disabled: Skill[];
+  warnings: Warning[];
+}
+
+export async function scanMarkdownSkillTree(
+  options: ScanMarkdownSkillTreeOptions
+): Promise<ScanMarkdownSkillTreeResult> {
+  const { parent, context } = options;
+  const toolId: ToolId = options.toolId ?? "claude";
+  const kind: SkillKind = options.kind ?? "agent_skill";
+  const scope: Scope = options.scope ?? "user";
+
+  const active: Skill[] = [];
+  const disabled: Skill[] = [];
+  const warnings: Warning[] = [];
+
+  // Walk active children (skip .disabled/)
+  const activeEntries = await safeReadDirectory(
+    parent,
+    safeReadOptions(parent, context, { warnOnMissing: false })
+  );
+  warnings.push(...activeEntries.warnings);
+
+  if (activeEntries.ok) {
+    for (const entry of activeEntries.value) {
+      if (!entry.isDirectory() && !entry.isSymbolicLink()) {
+        continue;
+      }
+
+      if (entry.name === ".disabled") {
+        continue;
+      }
+
+      const skillPath = path.join(parent, entry.name, "SKILL.md");
+      const built = await buildMarkdownSkill(context, {
+        filePath: skillPath,
+        toolId,
+        kind,
+        scope,
+        source: "directory",
+        fallbackName: entry.name,
+        summaryFallback: "Agent skill.",
+        warnOnMissing: false
+      });
+      warnings.push(...built.warnings);
+
+      if (built.skill) {
+        active.push(built.skill);
+      }
+    }
+  }
+
+  // Walk .disabled/ children
+  const disabledDir = path.join(parent, ".disabled");
+  const disabledEntries = await safeReadDirectory(
+    disabledDir,
+    safeReadOptions(disabledDir, context, { warnOnMissing: false })
+  );
+  warnings.push(...disabledEntries.warnings);
+
+  if (disabledEntries.ok) {
+    for (const entry of disabledEntries.value) {
+      if (!entry.isDirectory() && !entry.isSymbolicLink()) {
+        continue;
+      }
+
+      const skillPath = path.join(disabledDir, entry.name, "SKILL.md");
+      const built = await buildMarkdownSkill(context, {
+        filePath: skillPath,
+        toolId,
+        kind,
+        scope,
+        source: "directory",
+        fallbackName: entry.name,
+        summaryFallback: "Agent skill.",
+        warnOnMissing: false,
+        extraDetails: { disabled: true }
+      });
+      warnings.push(...built.warnings);
+
+      if (built.skill) {
+        disabled.push(built.skill);
+      }
+    }
+  }
+
+  return { active, disabled, warnings };
 }
