@@ -1,6 +1,6 @@
 {
   "name": "ankui",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "description": "Local-first TUI/CLI for inspecting AI coding tool configurations.",
   "type": "module",
   "bin": {
@@ -16,7 +16,8 @@
     "build": "tsc -p tsconfig.json",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "node --import tsx --test test/scanner/*.test.ts test/utils/*.test.ts test/commands/*.test.ts test/config/*.test.ts test/tui/**/*.test.ts test/tui/**/*.test.tsx",
-    "start": "node dist/cli.js"
+    "start": "node dist/cli.js",
+    "prepublishOnly": "npm run build"
   },
   "keywords": [
     "ai",
@@ -25,7 +26,15 @@
     "mcp",
     "agents"
   ],
-  "author": "",
+  "author": "Mert Cetin",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/merttcetn/ankui.git"
+  },
+  "homepage": "https://github.com/merttcetn/ankui#readme",
+  "bugs": {
+    "url": "https://github.com/merttcetn/ankui/issues"
+  },
   "license": "MIT",
   "engines": {
     "node": ">=20"
