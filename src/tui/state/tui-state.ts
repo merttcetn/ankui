@@ -20,6 +20,8 @@ export interface TuiState {
   searchOpen: boolean;
   /** Phase 8g: current incremental search query (lowercased compare done by consumers). */
   searchQuery: string;
+  /** Cursor for bounded drill-in skill lists. */
+  listCursor: number;
 }
 
 export type TuiAction =
@@ -31,7 +33,8 @@ export type TuiAction =
   | { type: "reset" }
   | { type: "searchOpen" }
   | { type: "searchClose" }
-  | { type: "searchSetQuery"; query: string };
+  | { type: "searchSetQuery"; query: string }
+  | { type: "listMove"; direction: "up" | "down"; max: number };
 
 export function createInitialState(result: MultiProjectScanResult): TuiState {
   return {
@@ -39,7 +42,8 @@ export function createInitialState(result: MultiProjectScanResult): TuiState {
     drillStack: [],
     result,
     searchOpen: false,
-    searchQuery: ""
+    searchQuery: "",
+    listCursor: 0
   };
 }
 
@@ -51,13 +55,22 @@ export function tuiReducer(state: TuiState, action: TuiAction): TuiState {
         activeTab: action.id,
         drillStack: [],
         searchOpen: false,
-        searchQuery: ""
+        searchQuery: "",
+        listCursor: 0
       };
     case "drillIn":
-      return { ...state, drillStack: [...state.drillStack, action.frame] };
+      return {
+        ...state,
+        drillStack: [...state.drillStack, action.frame],
+        listCursor: 0
+      };
     case "drillOut":
       if (state.drillStack.length === 0) return state;
-      return { ...state, drillStack: state.drillStack.slice(0, -1) };
+      return {
+        ...state,
+        drillStack: state.drillStack.slice(0, -1),
+        listCursor: 0
+      };
     case "cycleTab": {
       const nextId = cycleTabId(state.activeTab, action.direction, action.tabs) as TabId;
       return {
@@ -65,7 +78,8 @@ export function tuiReducer(state: TuiState, action: TuiAction): TuiState {
         activeTab: nextId,
         drillStack: [],
         searchOpen: false,
-        searchQuery: ""
+        searchQuery: "",
+        listCursor: 0
       };
     }
     case "setResult": {
@@ -76,18 +90,32 @@ export function tuiReducer(state: TuiState, action: TuiAction): TuiState {
       return {
         ...state,
         result: action.result,
-        drillStack: trimmed
+        drillStack: trimmed,
+        listCursor: clampCursor(state.listCursor, Number.POSITIVE_INFINITY)
       };
     }
     case "reset":
       return createInitialState(state.result);
     case "searchOpen":
-      return { ...state, searchOpen: true, searchQuery: "" };
+      return { ...state, searchOpen: true, searchQuery: "", listCursor: 0 };
     case "searchClose":
-      return { ...state, searchOpen: false, searchQuery: "" };
+      return { ...state, searchOpen: false, searchQuery: "", listCursor: 0 };
     case "searchSetQuery":
-      return { ...state, searchQuery: action.query };
+      return { ...state, searchQuery: action.query, listCursor: 0 };
+    case "listMove": {
+      const max = Math.max(0, action.max);
+      const step = action.direction === "down" ? 1 : -1;
+      return {
+        ...state,
+        listCursor: clampCursor(state.listCursor + step, max)
+      };
+    }
     default:
       return state;
   }
+}
+
+function clampCursor(cursor: number, max: number): number {
+  if (max <= 0) return 0;
+  return Math.max(0, Math.min(max - 1, cursor));
 }

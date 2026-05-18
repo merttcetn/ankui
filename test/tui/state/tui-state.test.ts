@@ -83,6 +83,7 @@ test("createInitialState produces activeTab='overview' and empty drillStack", ()
   const state = createInitialState(makeResult([]));
   assert.equal(state.activeTab, "overview");
   assert.deepEqual(state.drillStack, []);
+  assert.equal(state.listCursor, 0);
 });
 
 test("setTab replaces activeTab and clears drillStack", () => {
@@ -91,11 +92,13 @@ test("setTab replaces activeTab and clears drillStack", () => {
     drillStack: [{ kind: "userScope", toolId: "claude" }],
     result: makeResult([]),
     searchOpen: false,
-    searchQuery: ""
+    searchQuery: "",
+    listCursor: 0
   };
   const next = tuiReducer(state, { type: "setTab", id: "codex" });
   assert.equal(next.activeTab, "codex");
   assert.deepEqual(next.drillStack, []);
+  assert.equal(next.listCursor, 0);
 });
 
 test("drillIn pushes a frame onto drillStack without changing activeTab", () => {
@@ -106,6 +109,7 @@ test("drillIn pushes a frame onto drillStack without changing activeTab", () => 
   assert.equal(next.activeTab, "overview");
   assert.equal(next.drillStack.length, 1);
   assert.deepEqual(next.drillStack[0], { kind: "userScope", toolId: "claude" });
+  assert.equal(next.listCursor, 0);
 });
 
 test("drillOut pops the top of drillStack", () => {
@@ -117,7 +121,8 @@ test("drillOut pops the top of drillStack", () => {
     ],
     result: makeResult([]),
     searchOpen: false,
-    searchQuery: ""
+    searchQuery: "",
+    listCursor: 0
   };
   const next = tuiReducer(state, { type: "drillOut" });
   assert.equal(next.drillStack.length, 1);
@@ -158,7 +163,8 @@ test("setResult replaces the held result and preserves activeTab", () => {
     drillStack: [],
     result: makeResult(["/p1"]),
     searchOpen: false,
-    searchQuery: ""
+    searchQuery: "",
+    listCursor: 0
   };
   const next = tuiReducer(initial, {
     type: "setResult",
@@ -175,7 +181,8 @@ test("setResult preserves a userScope drill frame", () => {
     drillStack: [{ kind: "userScope", toolId: "claude" }],
     result: makeResult([]),
     searchOpen: false,
-    searchQuery: ""
+    searchQuery: "",
+    listCursor: 0
   };
   const next = tuiReducer(state, {
     type: "setResult",
@@ -191,7 +198,8 @@ test("setResult preserves a project drill frame when the project is still presen
     drillStack: [{ kind: "project", toolId: "claude", projectPath: "/p1" }],
     result: makeResult(["/p1"]),
     searchOpen: false,
-    searchQuery: ""
+    searchQuery: "",
+    listCursor: 0
   };
   const next = tuiReducer(state, {
     type: "setResult",
@@ -211,7 +219,8 @@ test("setResult drops a project drill frame whose project disappeared", () => {
     drillStack: [{ kind: "project", toolId: "claude", projectPath: "/p1" }],
     result: makeResult(["/p1"]),
     searchOpen: false,
-    searchQuery: ""
+    searchQuery: "",
+    listCursor: 0
   };
   const next = tuiReducer(state, {
     type: "setResult",
@@ -251,6 +260,18 @@ test("searchSetQuery updates the query without changing searchOpen", () => {
   });
   assert.equal(next.searchOpen, true);
   assert.equal(next.searchQuery, "verify");
+  assert.equal(next.listCursor, 0);
+});
+
+test("listMove advances and clamps listCursor", () => {
+  let state = createInitialState(makeResult([]));
+  state = tuiReducer(state, { type: "listMove", direction: "down", max: 3 });
+  state = tuiReducer(state, { type: "listMove", direction: "down", max: 3 });
+  state = tuiReducer(state, { type: "listMove", direction: "down", max: 3 });
+  assert.equal(state.listCursor, 2);
+
+  state = tuiReducer(state, { type: "listMove", direction: "up", max: 3 });
+  assert.equal(state.listCursor, 1);
 });
 
 test("setTab clears search state alongside drillStack", () => {
@@ -259,11 +280,13 @@ test("setTab clears search state alongside drillStack", () => {
     drillStack: [],
     result: makeResult([]),
     searchOpen: true,
-    searchQuery: "deploy"
+    searchQuery: "deploy",
+    listCursor: 4
   };
   const next = tuiReducer(state, { type: "setTab", id: "codex" });
   assert.equal(next.searchOpen, false);
   assert.equal(next.searchQuery, "");
+  assert.equal(next.listCursor, 0);
 });
 
 test("cycleTab clears search state alongside drillStack", () => {
@@ -272,7 +295,8 @@ test("cycleTab clears search state alongside drillStack", () => {
     drillStack: [],
     result: makeResult([]),
     searchOpen: true,
-    searchQuery: "x"
+    searchQuery: "x",
+    listCursor: 4
   };
   const next = tuiReducer(state, {
     type: "cycleTab",
@@ -281,4 +305,5 @@ test("cycleTab clears search state alongside drillStack", () => {
   });
   assert.equal(next.searchOpen, false);
   assert.equal(next.searchQuery, "");
+  assert.equal(next.listCursor, 0);
 });
