@@ -1,7 +1,7 @@
 import type { MultiProjectScanResult, ToolId } from "../../types.js";
 import { cycleTabId } from "./navigation.js";
 
-export type TabId = "overview" | ToolId | "mcps" | "access" | "doctor" | "settings";
+export type TabId = "overview" | ToolId | "mcps" | "access" | "doctor" | "actions" | "settings";
 
 export type DrillFrame =
   | { kind: "userScope"; toolId: ToolId }

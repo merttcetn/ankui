@@ -30,6 +30,7 @@ import { McpsTab } from "./screens/McpsTab.js";
 import { AccessTab } from "./screens/AccessTab.js";
 import { DoctorTab } from "./screens/DoctorTab.js";
 import { Settings } from "./screens/Settings.js";
+import { ActionsTab } from "./screens/ActionsTab.js";
 import { FirstRunScan } from "./screens/FirstRunScan.js";
 
 export type AppMode = "firstRun" | "main";
@@ -71,6 +72,7 @@ const CROSS_TOOL_TABS: ReadonlyArray<TabItem> = [
   { id: "mcps", label: "MCPs" },
   { id: "access", label: "Access" },
   { id: "doctor", label: "Doctor" },
+  { id: "actions", label: "Actions" },
   { id: "settings", label: "Settings" }
 ];
 
@@ -166,6 +168,7 @@ function MainShell(props: MainShellProps): React.ReactElement {
         state.activeTab === "mcps" ||
         state.activeTab === "access" ||
         state.activeTab === "doctor" ||
+        state.activeTab === "actions" ||
         state.activeTab === "settings"
       ) {
         return;
@@ -278,6 +281,8 @@ function renderScreen(
       return <AccessTab result={result} cursor={state.listCursor} />;
     case "doctor":
       return <DoctorTab result={result} />;
+    case "actions":
+      return <ActionsTab result={result} cursor={state.listCursor} />;
     case "settings":
       return (
         <Settings
@@ -326,6 +331,16 @@ function getListMax(state: TuiState, result: MultiProjectScanResult): number {
   if (state.drillStack.length > 0) return getDrillSkillCount(state, result);
   if (state.activeTab === "access") {
     return aggregateFindings(result).reduce((n, s) => n + s.findings.length, 0);
+  }
+  if (state.activeTab === "actions") {
+    let count = 0;
+    for (const tool of result.userScope.tools) {
+      if (!tool.detected) continue;
+      count += tool.skills.filter(
+        (s) => s.kind === "agent_skill" || s.kind === "skills_sh_skill"
+      ).length;
+    }
+    return count;
   }
   return 0;
 }

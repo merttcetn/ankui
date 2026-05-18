@@ -58,9 +58,9 @@ test("App routes activeTab='settings' to the Settings screen", async () => {
   const inst = render(
     <App mode="main" result={fixture()} homeDir="/h" onConfigChange={async () => {}} />
   );
-  // Tools row: overview + 6 tools = 7. Cross-tool row: mcps, access, doctor, settings.
-  // Right arrow 10 times to land on Settings.
-  await pressRightArrows(inst.stdin, 10);
+  // Tools row: overview + 6 tools = 7. Cross-tool row: mcps, access, doctor, actions, settings.
+  // Right arrow 11 times to land on Settings.
+  await pressRightArrows(inst.stdin, 11);
   const frame = inst.lastFrame() ?? "";
   // The TabBar renders the active tab uppercased without inter-letter spacing,
   // so look for the uppercased "SETTINGS" in the tab row.

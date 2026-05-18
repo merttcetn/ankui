@@ -157,6 +157,20 @@ test("cycleTabId helper handles unknown current tab by returning first", () => {
   assert.equal(cycleTabId("unknown", "prev", [...TABS]), "overview");
 });
 
+test("cycleTab walks through actions tab in the cross-tool row", () => {
+  const tabs = ["overview", "claude", "mcps", "access", "doctor", "actions", "settings"] as const;
+  const state: TuiState = {
+    activeTab: "doctor",
+    drillStack: [],
+    result: makeResult([]),
+    searchOpen: false,
+    searchQuery: "",
+    listCursor: 0
+  };
+  const next = tuiReducer(state, { type: "cycleTab", direction: "next", tabs });
+  assert.equal(next.activeTab, "actions");
+});
+
 test("setResult replaces the held result and preserves activeTab", () => {
   const initial: TuiState = {
     activeTab: "claude",
