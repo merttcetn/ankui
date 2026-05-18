@@ -1,7 +1,9 @@
 import React, { useEffect, useReducer } from "react";
 import { Box, useApp } from "ink";
+import os from "node:os";
 
-import type { MultiProjectScanResult } from "../types.js";
+import type { MultiProjectScanResult, Skill } from "../types.js";
+import { disableSkill, enableSkill } from "../writer/index.js";
 import type {
   CrawlOptions,
   CrawlResult
@@ -213,6 +215,16 @@ function MainShell(props: MainShellProps): React.ReactElement {
       bump();
       if (!props.onRefresh) return;
       void props.onRefresh();
+    },
+    onDisable: () => {
+      bump();
+      if (state.activeTab !== "actions") return;
+      void runSkillAction(state, result, "disable", props);
+    },
+    onEnable: () => {
+      bump();
+      if (state.activeTab !== "actions") return;
+      void runSkillAction(state, result, "enable", props);
     }
   });
 
@@ -343,4 +355,40 @@ function getListMax(state: TuiState, result: MultiProjectScanResult): number {
     return count;
   }
   return 0;
+}
+
+async function runSkillAction(
+  state: TuiState,
+  result: MultiProjectScanResult,
+  action: "disable" | "enable",
+  props: { onRefresh?: () => Promise<void>; homeDir?: string }
+): Promise<void> {
+  const rows: Skill[] = [];
+  for (const tool of result.userScope.tools) {
+    if (!tool.detected) continue;
+    rows.push(
+      ...tool.skills.filter(
+        (s) => s.kind === "agent_skill" || s.kind === "skills_sh_skill"
+      )
+    );
+  }
+  const target = rows[state.listCursor];
+  if (!target) return;
+
+  const isCurrentlyDisabled = target.details?.disabled === true;
+  if (action === "disable" && isCurrentlyDisabled) return;
+  if (action === "enable" && !isCurrentlyDisabled) return;
+
+  const context = {
+    homeDir: props.homeDir ?? os.homedir(),
+    cwd: result.cwd
+  };
+  const op = action === "disable" ? disableSkill : enableSkill;
+  const writerResult = await op(target, context);
+
+  if (writerResult.ok && props.onRefresh) {
+    await props.onRefresh();
+  }
+  // Failed writes are silent in this iteration — the user will see the
+  // unchanged state on the next render. Error surface is deferred.
 }

@@ -10,6 +10,8 @@ export interface KeyHandlers {
   onQuit?: () => void;
   onRefresh?: () => void;
   onSlash?: () => void;
+  onDisable?: () => void;
+  onEnable?: () => void;
   /** Receives any printable character not otherwise handled. */
   onTextInput?: (ch: string) => void;
   /** Receives a backspace event. */
@@ -30,6 +32,8 @@ export function useKeys(handlers: KeyHandlers): void {
     if (input === "/") return handlers.onSlash?.();
     if (input === "q") return handlers.onQuit?.();
     if (input === "r") return handlers.onRefresh?.();
+    if (input === "d") return handlers.onDisable?.();
+    if (input === "e") return handlers.onEnable?.();
     if (input && input.length === 1 && input >= " " && input !== "/") {
       handlers.onTextInput?.(input);
     }
