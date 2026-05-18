@@ -182,19 +182,14 @@ async function launchTui(): Promise<void> {
 
   if (!(await fileExists(configPath))) {
     // First-run mode: render the FirstRunScan wizard. The user picks dev roots;
-    // onConfigChange writes the config file and we exit so the next `ankui`
-    // invocation launches into main mode against a freshly populated config.
+    // onConfigChange writes the config file, then App exits Ink so the next
+    // `ankui` invocation launches against a freshly populated config.
     await renderTui({
       mode: "firstRun",
       homeDir,
       onConfigChange: async (devRoots) => {
         const merged = mergeDevRoots([], devRoots);
         await writeAnkuiConfig({ version: 1, devRoots: merged }, homeDir);
-        // Exit Ink so the developer can re-launch into main mode. Re-rendering
-        // in the same process would require Ink lifecycle plumbing that 8f
-        // intentionally defers; the next `ankui` invocation is the cheapest
-        // and most predictable path back.
-        process.exit(0);
       }
     });
     return;

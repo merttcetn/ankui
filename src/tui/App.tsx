@@ -71,26 +71,30 @@ const CROSS_TOOL_TABS: ReadonlyArray<TabItem> = [
 
 export function App(props: AppProps): React.ReactElement {
   if (props.mode === "firstRun") {
-    return (
-      <Frame>
-        <FirstRunScan
-          mode="firstRun"
-          homeDir={props.homeDir}
-          onConfirm={(roots) => {
-            void props.onConfigChange(roots);
-          }}
-          onCancel={() => {
-            // Esc in first run = exit immediately. The CLI process will
-            // terminate after Ink unmounts.
-            process.exit(0);
-          }}
-          crawlImpl={props.crawlImplForFirstRun}
-        />
-      </Frame>
-    );
+    return <FirstRunShell {...props} />;
   }
 
   return <MainShell {...(props as MainShellProps)} />;
+}
+
+function FirstRunShell(props: Extract<AppProps, { mode: "firstRun" }>): React.ReactElement {
+  const { exit } = useApp();
+
+  return (
+    <Frame>
+      <FirstRunScan
+        mode="firstRun"
+        homeDir={props.homeDir}
+        onConfirm={(roots) => {
+          void props.onConfigChange(roots).then(() => exit());
+        }}
+        onCancel={() => {
+          exit();
+        }}
+        crawlImpl={props.crawlImplForFirstRun}
+      />
+    </Frame>
+  );
 }
 
 interface MainShellProps {
