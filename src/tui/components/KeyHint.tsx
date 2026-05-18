@@ -12,13 +12,20 @@ export interface KeyHintProps {
 }
 
 /**
- * Footer line of dim key bindings. The separator is the `·` interpunct (the
- * same glyph used for dot leaders) wrapped with single spaces.
+ * Footer line of dim key bindings, rendered BELOW the Frame (outside the
+ * heavy border) at bottom-left. The separator is the `·` interpunct — same
+ * glyph as DotLeaderRow and IdleWhisper, so the row reads as part of the
+ * Archive Inspector typographic system rather than as chrome.
+ *
+ * `paddingLeft={1}` insets the row by one cell so the first glyph sits under
+ * the first body column of the Frame (which itself has `paddingX={1}`),
+ * giving the bar a visible attachment to the frame above it without drawing
+ * any connector glyphs.
  */
 export function KeyHint({ hints }: KeyHintProps): React.ReactElement {
   const separator = ` ${DOT_LEADER} `;
   return (
-    <Box width="100%">
+    <Box width="100%" paddingLeft={1}>
       <Text dimColor>{hints.join(separator)}</Text>
     </Box>
   );

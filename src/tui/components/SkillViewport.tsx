@@ -5,6 +5,7 @@ import type { Skill, SkillKind } from "../../types.js";
 import { ACCENT } from "../theme/colors.js";
 import { ACTIVE_PREFIX } from "../theme/icons.js";
 import { groupSkillsByKind } from "../util/skill-grouping.js";
+import { clampCursor, windowStart } from "../util/viewport.js";
 
 export interface SkillViewportProps {
   skills: ReadonlyArray<Skill>;
@@ -26,7 +27,7 @@ export function SkillViewport({
   visibleCount = DEFAULT_VISIBLE_COUNT
 }: SkillViewportProps): React.ReactElement {
   const rows = flattenSkills(skills);
-  const safeCursor = clamp(cursor, rows.length);
+  const safeCursor = clampCursor(cursor, rows.length);
   const count = Math.max(1, visibleCount);
   const start = windowStart(safeCursor, rows.length, count);
   const visible = rows.slice(start, start + count);
@@ -59,17 +60,6 @@ function flattenSkills(skills: ReadonlyArray<Skill>): SkillRow[] {
   return [...groupSkillsByKind(skills).entries()].flatMap(([kind, list]) =>
     list.map((skill) => ({ skill, kind }))
   );
-}
-
-function windowStart(cursor: number, total: number, visibleCount: number): number {
-  if (total <= visibleCount) return 0;
-  const preferred = cursor - Math.floor(visibleCount / 2);
-  return Math.max(0, Math.min(total - visibleCount, preferred));
-}
-
-function clamp(cursor: number, total: number): number {
-  if (total <= 0) return 0;
-  return Math.max(0, Math.min(total - 1, cursor));
 }
 
 function fit(value: string, width: number): string {

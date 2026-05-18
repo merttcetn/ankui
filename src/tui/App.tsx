@@ -8,6 +8,7 @@ import type {
 } from "../scanner/filesystem-crawler.js";
 import { Frame } from "./components/Frame.js";
 import { IdleWhisper } from "./components/IdleWhisper.js";
+import { KeyHint } from "./components/KeyHint.js";
 import { TabBar, type TabItem } from "./components/TabBar.js";
 import { useIdleWhisper } from "./hooks/use-idle-whisper.js";
 import { useKeys } from "./input/use-keys.js";
@@ -19,6 +20,8 @@ import {
   type TuiState
 } from "./state/tui-state.js";
 import { filterSkillsByQuery } from "./util/skill-filter.js";
+import { deriveKeyHints, FIRST_RUN_KEY_HINTS } from "./util/key-hints.js";
+import { aggregateFindings } from "./util/finding-grouping.js";
 
 import { Overview } from "./screens/Overview.js";
 import { ToolTab } from "./screens/ToolTab.js";
@@ -84,19 +87,22 @@ function FirstRunShell(props: Extract<AppProps, { mode: "firstRun" }>): React.Re
   const { exit } = useApp();
 
   return (
-    <Frame>
-      <FirstRunScan
-        mode="firstRun"
-        homeDir={props.homeDir}
-        onConfirm={(roots) => {
-          void props.onConfigChange(roots).then(() => exit());
-        }}
-        onCancel={() => {
-          exit();
-        }}
-        crawlImpl={props.crawlImplForFirstRun}
-      />
-    </Frame>
+    <Box flexDirection="column">
+      <Frame>
+        <FirstRunScan
+          mode="firstRun"
+          homeDir={props.homeDir}
+          onConfirm={(roots) => {
+            void props.onConfigChange(roots).then(() => exit());
+          }}
+          onCancel={() => {
+            exit();
+          }}
+          crawlImpl={props.crawlImplForFirstRun}
+        />
+      </Frame>
+      <KeyHint hints={FIRST_RUN_KEY_HINTS} />
+    </Box>
   );
 }
 
@@ -134,22 +140,16 @@ function MainShell(props: MainShellProps): React.ReactElement {
   useKeys({
     onArrowDown: () => {
       bump();
-      if (state.drillStack.length > 0) {
-        dispatch({
-          type: "listMove",
-          direction: "down",
-          max: getDrillSkillCount(state, result)
-        });
+      const max = getListMax(state, result);
+      if (max > 0) {
+        dispatch({ type: "listMove", direction: "down", max });
       }
     },
     onArrowUp: () => {
       bump();
-      if (state.drillStack.length > 0) {
-        dispatch({
-          type: "listMove",
-          direction: "up",
-          max: getDrillSkillCount(state, result)
-        });
+      const max = getListMax(state, result);
+      if (max > 0) {
+        dispatch({ type: "listMove", direction: "up", max });
       }
     },
     onArrowRight: () => {
@@ -218,15 +218,18 @@ function MainShell(props: MainShellProps): React.ReactElement {
   });
 
   return (
-    <Frame>
-      <Box flexDirection="column">
-        <TabBar rows={[tools, crossTool]} activeId={state.activeTab} />
-        <Box marginTop={1} flexDirection="column">
-          {renderScreen(state, result, dispatch, props.onConfigChange)}
+    <Box flexDirection="column">
+      <Frame>
+        <Box flexDirection="column">
+          <TabBar rows={[tools, crossTool]} activeId={state.activeTab} />
+          <Box marginTop={1} flexDirection="column">
+            {renderScreen(state, result, dispatch, props.onConfigChange)}
+          </Box>
+          <IdleWhisper whisper={whisper} />
         </Box>
-        <IdleWhisper whisper={whisper} />
-      </Box>
-    </Frame>
+      </Frame>
+      <KeyHint hints={deriveKeyHints(state)} />
+    </Box>
   );
 }
 
@@ -277,7 +280,7 @@ function renderScreen(
     case "mcps":
       return <McpsTab result={result} />;
     case "access":
-      return <AccessTab result={result} />;
+      return <AccessTab result={result} cursor={state.listCursor} />;
     case "doctor":
       return <DoctorTab result={result} />;
     case "settings":
@@ -316,4 +319,18 @@ function getDrillSkillCount(state: TuiState, result: MultiProjectScanResult): nu
   const project = result.projects.find((p) => p.projectPath === top.projectPath);
   const tool = project?.scan.tools.find((t) => t.id === top.toolId);
   return tool?.skills.length ?? 0;
+}
+
+/**
+ * Resolves the max index for the shared `listCursor` based on what the
+ * current screen is scrolling through. Drill-in screens scroll skills;
+ * the Access tab scrolls flattened findings. Everything else has no
+ * scrollable list and returns 0 (which short-circuits arrow handling).
+ */
+function getListMax(state: TuiState, result: MultiProjectScanResult): number {
+  if (state.drillStack.length > 0) return getDrillSkillCount(state, result);
+  if (state.activeTab === "access") {
+    return aggregateFindings(result).reduce((n, s) => n + s.findings.length, 0);
+  }
+  return 0;
 }

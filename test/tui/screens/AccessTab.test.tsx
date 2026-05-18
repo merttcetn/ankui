@@ -77,8 +77,13 @@ test("AccessTab renders the 'ACCESS' section header and total count", () => {
 });
 
 test("AccessTab emits sections in priority order", () => {
+  // visibleCount=10 widens the viewport so all 4 sections render in one
+  // frame — production default is 3 (card-paginated). The ordering itself
+  // is also covered by finding-grouping.test.ts, but we still want the
+  // screen to round-trip that order without reshuffling.
   const inst = render(
     <AccessTab
+      visibleCount={10}
       result={resultWith([
         f("dangerous_pattern", "rm -rf"),
         f("broad_access_capability", "BroadMCP"),
