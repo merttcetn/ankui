@@ -30,6 +30,28 @@ export interface RenderTuiFirstRunOptions {
  *   4. `{ mode: "firstRun", … }` (Phase 8f): mount {@link App} in first-run
  *      mode with no scan data — App renders the FirstRunScan wizard.
  */
+/** ANSI escapes for the alternate screen buffer — the same trick vim/htop use. */
+const ENTER_ALT_BUFFER = "\x1B[?1049h\x1B[2J\x1B[H";
+const EXIT_ALT_BUFFER = "\x1B[?1049l";
+
+async function withAltScreenBuffer(mount: () => Promise<void>): Promise<void> {
+  process.stdout.write(ENTER_ALT_BUFFER);
+  const restore = (): void => {
+    process.stdout.write(EXIT_ALT_BUFFER);
+  };
+  const onSigint = (): void => {
+    restore();
+    process.exit(130);
+  };
+  process.on("SIGINT", onSigint);
+  try {
+    await mount();
+  } finally {
+    process.off("SIGINT", onSigint);
+    restore();
+  }
+}
+
 export async function renderTui(
   input:
     | RenderTuiLoadScanOptions
@@ -38,30 +60,36 @@ export async function renderTui(
     | DataSource
 ): Promise<void> {
   if (isFirstRunOptions(input)) {
-    const instance = render(
-      React.createElement(App, {
-        mode: "firstRun",
-        result: null,
-        homeDir: input.homeDir,
-        onConfigChange: input.onConfigChange
-      } as never)
-    );
-    await instance.waitUntilExit();
+    await withAltScreenBuffer(async () => {
+      const instance = render(
+        React.createElement(App, {
+          mode: "firstRun",
+          result: null,
+          homeDir: input.homeDir,
+          onConfigChange: input.onConfigChange
+        } as never)
+      );
+      await instance.waitUntilExit();
+    });
     return;
   }
   if (isLoadScanOptions(input)) {
-    const instance = render(
-      React.createElement(LauncherShell, { loadScan: input.loadScan })
-    );
-    await instance.waitUntilExit();
+    await withAltScreenBuffer(async () => {
+      const instance = render(
+        React.createElement(LauncherShell, { loadScan: input.loadScan })
+      );
+      await instance.waitUntilExit();
+    });
     return;
   }
   const props =
     "initial" in input
       ? { dataSource: input }
       : { result: input };
-  const instance = render(React.createElement(App, props as never));
-  await instance.waitUntilExit();
+  await withAltScreenBuffer(async () => {
+    const instance = render(React.createElement(App, props as never));
+    await instance.waitUntilExit();
+  });
 }
 
 function isFirstRunOptions(
