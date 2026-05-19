@@ -4,7 +4,7 @@
 
 ## What Ankui is
 
-AI coding tools accumulate configuration, skills, rules, and MCP servers across your filesystem, and it is easy to lose track of what each one can access. Ankui is a read-only local scanner and terminal UI that inventories those resources and surfaces access findings — it never executes user code, follows remote URLs, or sends data anywhere. Supported tools: Claude, Codex, Cursor, Gemini, OpenCode, and skills.sh.
+AI coding tools accumulate configuration, skills, rules, and MCP servers across your filesystem, and it is easy to lose track of what each one can access. Ankui is a local-first scanner and terminal UI that inventories those resources and surfaces access findings — it never executes user code, follows remote URLs, or sends data anywhere. The one thing it can write is reversible: from the TUI you can disable or re-enable an individual skill, which only moves its directory into or out of a sibling `.disabled/` folder — no file is read, modified, or deleted. Supported tools: Claude, Codex, Cursor, Gemini, OpenCode, and skills.sh.
 
 ## Try it
 
@@ -53,9 +53,22 @@ ankui --json | jq '[.tools[] | select(.id == "claude") | .skills[]] | length'
 
 `.tools` is an array of `{ id, skills, findings, ... }` objects, not an object keyed by tool id.
 
+## Managing skills (enable / disable)
+
+From the TUI **Actions** tab you can turn individual markdown-backed skills off or back on. Changes are **staged in the UI and only written when you press `[s]`** — nothing touches disk until then.
+
+- `↑` / `↓` selects a skill. `[d]` stages a disable, `[e]` stages an enable. The row marker flips immediately (`●` enabled / `○` disabled) like a checkbox, and every staged change is listed under **Pending (unsaved)** in the right panel. Toggling a skill back to its on-disk state removes its pending entry.
+- `[s]` saves. Each pending change moves the skill directory between `<skills>/<name>/` and `<skills>/.disabled/<name>/`. Saved skills move to **Saved this session**; any that fail stay pending with the reason shown. The move is a single directory rename and is **refused** if it would escape `$HOME`/`$CWD`, if the source is missing, or if it would overwrite an existing directory. Nothing is read, modified, or deleted.
+- Quitting with unsaved changes prompts a confirm: `[s]` save first, `[q]` discard & quit, `[esc]` cancel. On exit, Ankui prints a net summary of what was actually **saved** this session — toggles that cancel out, or staged changes you discarded, are omitted because nothing changed on disk.
+- Disabled skills still appear in scans (marked disabled), so the inventory stays honest.
+
+Only `agent_skill` and skills.sh skills (a directory with `SKILL.md`) at user scope are eligible. MCP servers, config entries, and built-in defaults are never written.
+
 ## Privacy and safety
 
 Ankui sends no data anywhere and calls no external APIs.
+
+**The only write Ankui makes is the explicit skill enable/disable, and it only happens when you press `[s]` to save staged changes.** Triggered only from the TUI Actions tab, it moves a skill directory into or out of a sibling `.disabled/` folder via a single rename — reversible, never a delete or overwrite, and refused if it would escape `$HOME`/`$CWD`, clobber an existing directory, or act on a missing source. Everything else Ankui does is strictly read-only.
 
 **Sensitive files skipped.** Any file matching these patterns is skipped with a `sensitive_file_skipped` warning rather than read:
 
@@ -109,9 +122,12 @@ Run a local scan and print a summary.
 Usage: ankui scan [options]
 
 Run a local scan and print a summary.
+
+Options:
+  --show-builtins  include CLI-bundled built-in skill defaults
 ```
 
-No tool-specific flags. The command reads user-scope and project-scope paths for all six tools and prints the counts shown in the Quick start section above.
+`--show-builtins` injects the opt-in built-in skill registry — the CLI-bundled defaults that ship inside Claude, Codex, and Gemini. Without the flag, no built-in records appear; this flag exists only on `ankui scan`. Otherwise the command reads user-scope and project-scope paths for all six tools and prints the counts shown in the Quick start section above.
 
 ---
 
@@ -323,8 +339,10 @@ Crawls your home directory (max depth 6, concurrency 16) for directories that co
 | `Enter` | Drill into the selected item |
 | `Esc` / `Backspace` | Drill out (return to the previous screen) |
 | `/` | Open incremental search (drill-in screens only) |
+| `[d]` / `[e]` | Stage a disable / enable for the selected skill — UI only until `[s]` (Actions tab) |
+| `[s]` | Save staged skill changes to disk (Actions tab) |
 | `r` | Rescan (refresh data from disk) |
-| `q` | Quit |
+| `q` | Quit (if there are unsaved staged changes, prompts `[s]` save / `[q]` discard / `[esc]` cancel; prints the net saved-this-session summary) |
 
 Note: `Tab` is reserved for future focus navigation and does not cycle tabs in this version.
 
@@ -333,7 +351,7 @@ Note: `Tab` is reserved for future focus navigation and does not cycle tabs in t
 ```bash
 npm install
 npm run typecheck      # TypeScript strict-mode check (no emit)
-npm test               # runs 407 tests via node:test + tsx
+npm test               # runs 501 tests via node:test + tsx
 npm run build          # emits to dist/
 node dist/cli.js scan  # smoke test against your real local config
 ```
