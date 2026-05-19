@@ -1,10 +1,14 @@
-import React, { useEffect, useReducer, useRef } from "react";
-import { Box, useApp } from "ink";
+import React, { useEffect, useReducer, useRef, useState } from "react";
+import { Box, Text, useApp } from "ink";
 import os from "node:os";
 
-import type { MultiProjectScanResult, Skill } from "../types.js";
+import { createSkillId, type MultiProjectScanResult, type Skill } from "../types.js";
 import type { SessionAction } from "../utils/session-summary.js";
-import { disableSkill, enableSkill } from "../writer/index.js";
+import {
+  disableSkill,
+  enableSkill,
+  type SkillWriterResult
+} from "../writer/index.js";
 import type {
   CrawlOptions,
   CrawlResult
@@ -33,7 +37,11 @@ import { McpsTab } from "./screens/McpsTab.js";
 import { AccessTab } from "./screens/AccessTab.js";
 import { DoctorTab } from "./screens/DoctorTab.js";
 import { Settings } from "./screens/Settings.js";
-import { ActionsTab } from "./screens/ActionsTab.js";
+import {
+  ActionsTab,
+  type PendingChange,
+  type SkillActionFeedback
+} from "./screens/ActionsTab.js";
 import { FirstRunScan } from "./screens/FirstRunScan.js";
 
 export type AppMode = "firstRun" | "main";
@@ -124,11 +132,42 @@ function MainShell(props: MainShellProps): React.ReactElement {
   const { exit } = useApp();
   const { whisper, bump } = useIdleWhisper({ enabled: true });
   const sessionActionsRef = useRef<SessionAction[]>([]);
+  const resultRef = useRef<MultiProjectScanResult>(initialResult);
+  const listCursorRef = useRef(0);
+  const skillActionQueueRef = useRef<Promise<void>>(Promise.resolve());
+  const mountedRef = useRef(true);
+  const [sessionActions, setSessionActions] = useState<SessionAction[]>([]);
+  const [actionFeedback, setActionFeedback] = useState<SkillActionFeedback | null>(null);
+  // Staged disable/enable: kept UI-side until [s]. `result` (on-disk truth) is
+  // only mutated by a successful save, so skill ids stay stable while staging.
+  const [pending, setPending] = useState<PendingChange[]>([]);
+  const pendingRef = useRef<PendingChange[]>([]);
+  const [saving, setSaving] = useState(false);
+  const savingRef = useRef(false);
+  const [saveSummary, setSaveSummary] = useState<string | null>(null);
+  const [confirmQuit, setConfirmQuit] = useState(false);
+  const confirmQuitRef = useRef(false);
+
+  const setPendingState = (next: PendingChange[]): void => {
+    pendingRef.current = next;
+    setPending(next);
+    if (next.length === 0 && confirmQuitRef.current) {
+      confirmQuitRef.current = false;
+      setConfirmQuit(false);
+    }
+  };
+
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+    };
+  }, []);
 
   useEffect(() => {
     if (!props.dataSource?.subscribe) return;
     const unsubscribe = props.dataSource.subscribe((next) => {
-      dispatch({ type: "setResult", result: next });
+      setCurrentResult(dispatch, resultRef, next);
     });
     return unsubscribe;
   }, [props.dataSource]);
@@ -136,10 +175,12 @@ function MainShell(props: MainShellProps): React.ReactElement {
   useEffect(() => {
     if (!props.result) return;
     if (props.result === state.result) return;
-    dispatch({ type: "setResult", result: props.result });
+    setCurrentResult(dispatch, resultRef, props.result);
   }, [props.result]);
 
   const result = state.result;
+  resultRef.current = result;
+  listCursorRef.current = state.listCursor;
   const { tools, crossTool } = buildTabList(result);
   // Flattened cycle order: tools row, then cross-tool row. Matches the
   // visual top-to-bottom, left-to-right reading of the two-row tab bar.
@@ -148,39 +189,137 @@ function MainShell(props: MainShellProps): React.ReactElement {
     ...crossTool.map((t) => t.id as TabId)
   ];
 
-  const runSkillAction = async (action: "disable" | "enable"): Promise<void> => {
-    const rows: Skill[] = [];
-    for (const tool of result.userScope.tools) {
-      if (!tool.detected) continue;
-      rows.push(
-        ...tool.skills.filter(
-          (s) => s.kind === "agent_skill" || s.kind === "skills_sh_skill"
-        )
-      );
-    }
-    const target = rows[state.listCursor];
-    if (!target) return;
+  const stagePending = (action: "disable" | "enable"): void => {
+    if (confirmQuitRef.current) return;
+    const selection = selectActionSkill(resultRef.current, listCursorRef.current);
+    if (!selection) return;
+    const skill = resolveActionSkill(resultRef.current, selection);
+    if (!skill) return;
 
-    const isCurrentlyDisabled = target.details?.disabled === true;
-    if (action === "disable" && isCurrentlyDisabled) return;
-    if (action === "enable" && !isCurrentlyDisabled) return;
+    const diskDisabled = skill.details?.disabled === true;
+    const wantDisabled = action === "disable";
+    const without = pendingRef.current.filter((p) => p.id !== selection.id);
 
-    const context = {
-      homeDir: props.homeDir ?? os.homedir(),
-      cwd: result.cwd
-    };
-    const op = action === "disable" ? disableSkill : enableSkill;
-    const writerResult = await op(target, context);
-
-    if (writerResult.ok) {
-      sessionActionsRef.current.push({
-        toolId: target.toolId,
-        name: target.name,
-        action
+    if (wantDisabled === diskDisabled) {
+      // Toggled back to the on-disk state — no pending change to save.
+      setPendingState(without);
+      setActionFeedback({
+        status: "noop",
+        action,
+        toolId: skill.toolId,
+        kind: skill.kind,
+        name: skill.name,
+        message: `No change: ${skill.toolId}/${skill.name} already ${diskDisabled ? "disabled" : "enabled"}`
       });
-      if (props.onRefresh) {
-        await props.onRefresh();
+    } else {
+      setPendingState([
+        ...without,
+        {
+          id: selection.id,
+          toolId: skill.toolId,
+          kind: skill.kind,
+          name: skill.name,
+          action
+        }
+      ]);
+      setActionFeedback({
+        status: "noop",
+        action,
+        toolId: skill.toolId,
+        kind: skill.kind,
+        name: skill.name,
+        message: `Staged ${action}: ${skill.toolId}/${skill.name} — [s] to save`
+      });
+    }
+    setSaveSummary(null);
+  };
+
+  const savePending = (opts?: { fromQuitConfirm?: boolean }): void => {
+    if (savingRef.current) return;
+    if (pendingRef.current.length === 0) {
+      setSaveSummary("Nothing to save");
+      if (opts?.fromQuitConfirm) {
+        if (props.onExit) props.onExit(sessionActionsRef.current);
+        exit();
       }
+      return;
+    }
+    const queued = skillActionQueueRef.current.then(() => runSave(opts));
+    skillActionQueueRef.current = queued.catch(() => undefined);
+  };
+
+  const runSave = async (opts?: { fromQuitConfirm?: boolean }): Promise<void> => {
+    savingRef.current = true;
+    setSaving(true);
+    setActionFeedback(null);
+
+    const items = [...pendingRef.current];
+    let saved = 0;
+    const errors: string[] = [];
+
+    for (const item of items) {
+      const target = resolveActionSkill(resultRef.current, item);
+      if (!target) {
+        setPendingState(pendingRef.current.filter((p) => p.id !== item.id));
+        continue;
+      }
+      const diskDisabled = target.details?.disabled === true;
+      const wantDisabled = item.action === "disable";
+      if (wantDisabled === diskDisabled) {
+        // Already in the desired state on disk — nothing to write.
+        setPendingState(pendingRef.current.filter((p) => p.id !== item.id));
+        continue;
+      }
+
+      const context = {
+        homeDir: props.homeDir ?? os.homedir(),
+        cwd: resultRef.current.cwd
+      };
+      const op = item.action === "disable" ? disableSkill : enableSkill;
+      let writerResult: SkillWriterResult;
+      try {
+        writerResult = await op(target, context);
+      } catch {
+        errors.push(formatSkillActionUnexpectedFailure(item.action, target));
+        continue;
+      }
+      if (!writerResult.ok) {
+        errors.push(formatSkillActionFailure(item.action, target, writerResult.reason));
+        continue;
+      }
+
+      if (!mountedRef.current) return;
+      setCurrentResult(
+        dispatch,
+        resultRef,
+        applySkillActionResult(resultRef.current, target, item.action, writerResult.newSourcePath)
+      );
+      const nextActions = [
+        ...sessionActionsRef.current,
+        { toolId: target.toolId, name: target.name, action: item.action } as SessionAction
+      ];
+      sessionActionsRef.current = nextActions;
+      setSessionActions(nextActions);
+      setPendingState(pendingRef.current.filter((p) => p.id !== item.id));
+      saved += 1;
+    }
+
+    if (!mountedRef.current) return;
+    savingRef.current = false;
+    setSaving(false);
+    const failed = errors.length;
+    setSaveSummary(
+      `Saved ${saved}` +
+        (failed
+          ? ` · ${failed} failed: ${errors[0]}${failed > 1 ? ` (+${failed - 1} more)` : ""}`
+          : "")
+    );
+    if (props.onRefresh && saved > 0) {
+      await props.onRefresh();
+    }
+    if (opts?.fromQuitConfirm && pendingRef.current.length === 0) {
+      if (props.onExit) props.onExit(sessionActionsRef.current);
+      exit();
     }
   };
 
@@ -229,6 +368,11 @@ function MainShell(props: MainShellProps): React.ReactElement {
     },
     onEscape: () => {
       bump();
+      if (confirmQuitRef.current) {
+        confirmQuitRef.current = false;
+        setConfirmQuit(false);
+        return;
+      }
       if (state.searchOpen) {
         dispatch({ type: "searchClose" });
         return;
@@ -245,10 +389,16 @@ function MainShell(props: MainShellProps): React.ReactElement {
         dispatch({ type: "searchSetQuery", query: state.searchQuery + ch });
         return;
       }
+      // Quit-confirm swallows text input; only [s] (save) acts there.
+      if (confirmQuitRef.current) {
+        if (ch === "s" || ch === "S") savePending({ fromQuitConfirm: true });
+        return;
+      }
       // Screen-scoped hotkeys live here so search-overlay input always wins.
       if (state.activeTab === "actions") {
-        if (ch === "d") void runSkillAction("disable");
-        else if (ch === "e") void runSkillAction("enable");
+        if (ch === "d") stagePending("disable");
+        else if (ch === "e") stagePending("enable");
+        else if (ch === "s" || ch === "S") savePending();
       }
     },
     onBackspace: () => {
@@ -262,6 +412,11 @@ function MainShell(props: MainShellProps): React.ReactElement {
     },
     onQuit: () => {
       bump();
+      if (pendingRef.current.length > 0 && !confirmQuitRef.current) {
+        confirmQuitRef.current = true;
+        setConfirmQuit(true);
+        return;
+      }
       if (props.onExit) {
         props.onExit(sessionActionsRef.current);
       }
@@ -281,8 +436,25 @@ function MainShell(props: MainShellProps): React.ReactElement {
       <Box flexDirection="column">
         <TabBar rows={[tools, crossTool]} activeId={state.activeTab} />
         <Box marginTop={1} flexDirection="column">
-          {renderScreen(state, result, dispatch, props.onConfigChange)}
+          {renderScreen(
+            state,
+            result,
+            dispatch,
+            props.onConfigChange,
+            sessionActions,
+            actionFeedback,
+            pending,
+            saving,
+            saveSummary
+          )}
         </Box>
+        {confirmQuit && (
+          <Box marginTop={1}>
+            <Text color="yellow">
+              {`${pending.length} unsaved change(s) · [s] save · [q] discard & quit · [esc] cancel`}
+            </Text>
+          </Box>
+        )}
         <IdleWhisper whisper={whisper} />
       </Box>
     </ShellWithHints>
@@ -306,7 +478,12 @@ function renderScreen(
   state: TuiState,
   result: MultiProjectScanResult,
   dispatch: React.Dispatch<TuiAction>,
-  onConfigChange: ((devRoots: string[]) => Promise<void>) | undefined
+  onConfigChange: ((devRoots: string[]) => Promise<void>) | undefined,
+  sessionActions: ReadonlyArray<SessionAction>,
+  actionFeedback: SkillActionFeedback | null,
+  pendingChanges: ReadonlyArray<PendingChange>,
+  saving: boolean,
+  saveSummary: string | null
 ): React.ReactElement {
   if (state.drillStack.length > 0) {
     const top = state.drillStack[state.drillStack.length - 1];
@@ -340,7 +517,17 @@ function renderScreen(
     case "doctor":
       return <DoctorTab result={result} />;
     case "actions":
-      return <ActionsTab result={result} cursor={state.listCursor} />;
+      return (
+        <ActionsTab
+          result={result}
+          cursor={state.listCursor}
+          sessionActions={sessionActions}
+          actionFeedback={actionFeedback}
+          pending={pendingChanges}
+          saving={saving}
+          saveSummary={saveSummary}
+        />
+      );
     case "settings":
       return (
         <Settings
@@ -363,6 +550,149 @@ function renderScreen(
     default:
       return <ToolTab toolId={state.activeTab} result={result} dispatch={dispatch} />;
   }
+}
+
+interface SkillActionSelection {
+  id: string;
+  toolId: Skill["toolId"];
+  kind: Skill["kind"];
+  name: string;
+}
+
+function setCurrentResult(
+  dispatch: React.Dispatch<TuiAction>,
+  resultRef: React.MutableRefObject<MultiProjectScanResult>,
+  result: MultiProjectScanResult
+): void {
+  resultRef.current = result;
+  dispatch({ type: "setResult", result });
+}
+
+function selectActionSkill(
+  result: MultiProjectScanResult,
+  cursor: number
+): SkillActionSelection | undefined {
+  const skill = getActionSkills(result)[cursor];
+  if (!skill) return undefined;
+  return {
+    id: skill.id,
+    toolId: skill.toolId,
+    kind: skill.kind,
+    name: skill.name
+  };
+}
+
+function resolveActionSkill(
+  result: MultiProjectScanResult,
+  selection: SkillActionSelection
+): Skill | undefined {
+  const skills = getActionSkills(result);
+  return (
+    skills.find((skill) => skill.id === selection.id) ??
+    skills.find(
+      (skill) =>
+        skill.toolId === selection.toolId &&
+        skill.kind === selection.kind &&
+        skill.name === selection.name
+    )
+  );
+}
+
+function getActionSkills(result: MultiProjectScanResult): Skill[] {
+  const skills: Skill[] = [];
+  for (const tool of result.userScope.tools) {
+    if (!tool.detected) continue;
+    skills.push(
+      ...tool.skills.filter(
+        (skill) => skill.kind === "agent_skill" || skill.kind === "skills_sh_skill"
+      )
+    );
+  }
+  return skills;
+}
+
+function applySkillActionResult(
+  result: MultiProjectScanResult,
+  target: Skill,
+  action: "disable" | "enable",
+  newSourcePath: string
+): MultiProjectScanResult {
+  const disabled = action === "disable";
+  let changed = false;
+  const tools = result.userScope.tools.map((tool) => {
+    if (tool.id !== target.toolId) return tool;
+    const skills = tool.skills.map((skill) => {
+      if (skill.id !== target.id) return skill;
+      changed = true;
+      const nextDetails = withDisabledState(skill.details, disabled);
+      return {
+        ...skill,
+        id: createSkillId({
+          toolId: skill.toolId,
+          kind: skill.kind,
+          name: skill.name,
+          sourcePath: newSourcePath
+        }),
+        sourcePath: newSourcePath,
+        ...(nextDetails ? { details: nextDetails } : { details: undefined })
+      };
+    });
+    return changed ? { ...tool, skills } : tool;
+  });
+
+  if (!changed) return result;
+  return {
+    ...result,
+    userScope: {
+      ...result.userScope,
+      tools
+    }
+  };
+}
+
+function withDisabledState(
+  details: Skill["details"],
+  disabled: boolean
+): Skill["details"] {
+  if (disabled) {
+    return { ...(details ?? {}), disabled: true };
+  }
+  if (!details) return undefined;
+  const { disabled: _disabled, ...rest } = details;
+  return Object.keys(rest).length > 0 ? rest : undefined;
+}
+
+function formatSkillActionFailure(
+  action: "disable" | "enable",
+  skill: Skill,
+  reason: Extract<SkillWriterResult, { ok: false }>["reason"]
+): string {
+  const verb = action === "disable" ? "disable" : "enable";
+  let reasonText: string;
+  switch (reason) {
+    case "target_exists":
+      reasonText = "target already exists";
+      break;
+    case "source_missing":
+      reasonText = "source is missing";
+      break;
+    case "outside_allowed_roots":
+      reasonText = "path is outside allowed roots";
+      break;
+    default: {
+      const _exhaustive: never = reason;
+      reasonText = _exhaustive;
+    }
+  }
+  return `Could not ${verb} ${skill.toolId}/${skill.name}: ${reasonText}`;
+}
+
+function formatSkillActionUnexpectedFailure(
+  action: "disable" | "enable",
+  skill: Skill
+): string {
+  const verb = action === "disable" ? "disable" : "enable";
+  return `Could not ${verb} ${skill.toolId}/${skill.name}: operation failed`;
 }
 
 function getDrillSkillCount(state: TuiState, result: MultiProjectScanResult): number {
@@ -402,4 +732,3 @@ function getListMax(state: TuiState, result: MultiProjectScanResult): number {
   }
   return 0;
 }
-

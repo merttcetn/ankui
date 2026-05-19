@@ -1,4 +1,7 @@
 import assert from "node:assert/strict";
+import fs from "node:fs/promises";
+import os from "node:os";
+import path from "node:path";
 import test from "node:test";
 import React from "react";
 import { render } from "ink-testing-library";
@@ -114,6 +117,58 @@ function multiProjectResultWithManyClaudeSkills(count: number): MultiProjectScan
   };
 }
 
+async function multiProjectResultWithDiskSkill(
+  homeDir: string,
+  name: string,
+  opts: { disabled?: boolean } = {}
+): Promise<MultiProjectScanResult> {
+  const skillDir = opts.disabled
+    ? path.join(homeDir, ".claude", "skills", ".disabled", name)
+    : path.join(homeDir, ".claude", "skills", name);
+  await fs.mkdir(skillDir, { recursive: true });
+  const sourcePath = path.join(skillDir, "SKILL.md");
+  await fs.writeFile(sourcePath, "# Toggle me\n");
+
+  const skill: Skill = {
+    id: createSkillId({ toolId: "claude", kind: "agent_skill", name, sourcePath }),
+    toolId: "claude",
+    kind: "agent_skill",
+    name,
+    summary: "",
+    scope: "user",
+    sourcePath,
+    source: "directory",
+    capabilityCategories: [],
+    accessLevel: "moderate",
+    ...(opts.disabled ? { details: { disabled: true } } : {})
+  };
+  const userScope = withDetectedTool(emptyScanResult(), "claude", [
+    path.join(homeDir, ".claude")
+  ]);
+
+  return {
+    scannedAt: "2026-05-14T00:00:00.000Z",
+    cwd: homeDir,
+    homeDir,
+    devRoots: [],
+    userScope: {
+      ...userScope,
+      homeDir,
+      cwd: homeDir,
+      tools: userScope.tools.map((t) =>
+        t.id === "claude" ? { ...t, skills: [skill] } : t
+      )
+    },
+    projects: [],
+    warnings: [],
+    totals: {
+      projectCount: 0,
+      skillsAcrossProjects: 0,
+      userScopeSkills: 1
+    }
+  };
+}
+
 async function flush(): Promise<void> {
   await new Promise<void>((resolve) => setImmediate(resolve));
 }
@@ -127,6 +182,20 @@ async function writeKeys(
     stdin.write(k);
     await flush();
   }
+}
+
+async function waitForFrameMatch(
+  inst: ReturnType<typeof render>,
+  pattern: RegExp
+): Promise<string> {
+  let frame = inst.lastFrame() ?? "";
+  for (let attempt = 0; attempt < 50; attempt += 1) {
+    if (pattern.test(frame)) return frame;
+    await new Promise((resolve) => setTimeout(resolve, 10));
+    frame = inst.lastFrame() ?? "";
+  }
+  assert.match(frame, pattern);
+  return frame;
 }
 
 test("App reserves Tab without cycling top-level tabs", async () => {
@@ -221,5 +290,182 @@ test("App reflects a new result prop after a LauncherShell-style refresh", async
   await new Promise((r) => setImmediate(r));
   const after = inst.lastFrame() ?? "";
   assert.match(after, /S K I L L S   \( 2 \)/, "after rerender shows 2 skills");
+  inst.unmount();
+});
+
+const TO_ACTIONS = Array.from({ length: 10 }, () => "\x1B[C");
+
+test("App stages a disable in the UI and writes nothing until [s]", async () => {
+  const homeDir = await fs.mkdtemp(path.join(os.tmpdir(), "ankui-app-action-"));
+  const result = await multiProjectResultWithDiskSkill(homeDir, "toggle-me");
+  const skillMd = path.join(homeDir, ".claude", "skills", "toggle-me", "SKILL.md");
+  const disabledMd = path.join(homeDir, ".claude", "skills", ".disabled", "toggle-me", "SKILL.md");
+
+  const inst = render(<App result={result} homeDir={homeDir} />);
+  await writeKeys(inst.stdin, TO_ACTIONS);
+  assert.match(inst.lastFrame() ?? "", /● toggle-me/);
+
+  await writeKeys(inst.stdin, ["d"]);
+  const staged = await waitForFrameMatch(inst, /Pending \(unsaved\) \(1\)/);
+  assert.match(staged, /○ toggle-me/); // glyph flips like a checkbox
+  assert.match(staged, /→ disable claude\/toggle-me/);
+  assert.match(staged, /Staged disable: claude\/toggle-me/);
+  // Nothing on disk yet — staging is UI-only.
+  await assert.rejects(fs.stat(disabledMd));
+  await fs.stat(skillMd);
+
+  await writeKeys(inst.stdin, ["s"]);
+  const saved = await waitForFrameMatch(inst, /Saved 1/);
+  assert.match(saved, /○ toggle-me/);
+  assert.match(saved, /Saved this session/);
+  assert.doesNotMatch(saved, /Pending \(unsaved\)/);
+  await fs.stat(disabledMd);
+  await assert.rejects(fs.stat(skillMd));
+  inst.unmount();
+});
+
+test("App stages an enable and writes it to disk on [s]", async () => {
+  const homeDir = await fs.mkdtemp(path.join(os.tmpdir(), "ankui-app-action-"));
+  const result = await multiProjectResultWithDiskSkill(homeDir, "toggle-me", {
+    disabled: true
+  });
+  const skillMd = path.join(homeDir, ".claude", "skills", "toggle-me", "SKILL.md");
+  const disabledMd = path.join(homeDir, ".claude", "skills", ".disabled", "toggle-me", "SKILL.md");
+
+  const inst = render(<App result={result} homeDir={homeDir} />);
+  await writeKeys(inst.stdin, TO_ACTIONS);
+  assert.match(inst.lastFrame() ?? "", /○ toggle-me/);
+
+  await writeKeys(inst.stdin, ["e"]);
+  const staged = await waitForFrameMatch(inst, /→ enable {2}claude\/toggle-me/);
+  assert.match(staged, /● toggle-me/);
+  await assert.rejects(fs.stat(skillMd)); // not moved back yet
+  await fs.stat(disabledMd);
+
+  await writeKeys(inst.stdin, ["s"]);
+  const saved = await waitForFrameMatch(inst, /Saved 1/);
+  assert.match(saved, /● toggle-me/);
+  await fs.stat(skillMd);
+  await assert.rejects(fs.stat(disabledMd));
+  inst.unmount();
+});
+
+test("App clears a pending change toggled back to the on-disk state", async () => {
+  const homeDir = await fs.mkdtemp(path.join(os.tmpdir(), "ankui-app-action-"));
+  const result = await multiProjectResultWithDiskSkill(homeDir, "toggle-me");
+
+  const inst = render(<App result={result} homeDir={homeDir} />);
+  await writeKeys(inst.stdin, TO_ACTIONS);
+
+  await writeKeys(inst.stdin, ["d"]);
+  await waitForFrameMatch(inst, /Pending \(unsaved\) \(1\)/);
+
+  await writeKeys(inst.stdin, ["e"]);
+  const cleared = await waitForFrameMatch(inst, /No change: claude\/toggle-me already enabled/);
+  assert.match(cleared, /● toggle-me/);
+  assert.doesNotMatch(cleared, /Pending \(unsaved\)/);
+
+  await writeKeys(inst.stdin, ["s"]);
+  const nothing = await waitForFrameMatch(inst, /Nothing to save/);
+  assert.match(nothing, /● toggle-me/);
+  await assert.rejects(
+    fs.stat(path.join(homeDir, ".claude", "skills", ".disabled", "toggle-me", "SKILL.md"))
+  );
+  await fs.stat(path.join(homeDir, ".claude", "skills", "toggle-me", "SKILL.md"));
+  inst.unmount();
+});
+
+test("App keeps a failed item pending and reports the error after [s]", async () => {
+  const homeDir = await fs.mkdtemp(path.join(os.tmpdir(), "ankui-app-action-"));
+  const result = await multiProjectResultWithDiskSkill(homeDir, "toggle-me");
+  const disabledDir = path.join(homeDir, ".claude", "skills", ".disabled", "toggle-me");
+  await fs.mkdir(disabledDir, { recursive: true });
+  await fs.writeFile(path.join(disabledDir, "SKILL.md"), "# squatter\n");
+
+  const inst = render(<App result={result} homeDir={homeDir} />);
+  await writeKeys(inst.stdin, TO_ACTIONS);
+
+  await writeKeys(inst.stdin, ["d"]);
+  await waitForFrameMatch(inst, /Pending \(unsaved\) \(1\)/);
+
+  await writeKeys(inst.stdin, ["s"]);
+  const failed = await waitForFrameMatch(
+    inst,
+    /1 failed: Could not disable claude\/toggle-me: target already exists/
+  );
+  assert.match(failed, /Saved 0/);
+  assert.match(failed, /Pending \(unsaved\) \(1\)/); // stays pending
+  assert.match(failed, /○ toggle-me/); // glyph still desired
+  await fs.stat(path.join(homeDir, ".claude", "skills", "toggle-me", "SKILL.md"));
+  inst.unmount();
+});
+
+test("App confirms quit with unsaved changes; [q] discards without writing", async () => {
+  const homeDir = await fs.mkdtemp(path.join(os.tmpdir(), "ankui-app-action-"));
+  const result = await multiProjectResultWithDiskSkill(homeDir, "toggle-me");
+  let captured: Array<{ toolId: string; name: string; action: string }> | null = null;
+  const inst = render(
+    <App
+      result={result}
+      homeDir={homeDir}
+      onExit={(actions) => {
+        captured = actions.map((a) => ({
+          toolId: a.toolId,
+          name: a.name,
+          action: a.action
+        }));
+      }}
+    />
+  );
+  await writeKeys(inst.stdin, TO_ACTIONS);
+  await writeKeys(inst.stdin, ["d"]);
+  await waitForFrameMatch(inst, /Pending \(unsaved\) \(1\)/);
+
+  inst.stdin.write("q");
+  await waitForFrameMatch(inst, /unsaved change\(s\) · \[s\] save · \[q\] discard & quit/);
+  assert.equal(captured, null); // not exited yet
+
+  inst.stdin.write("q"); // discard & quit
+  await flush();
+  assert.ok(captured !== null, "onExit fired");
+  assert.deepEqual(captured, []); // nothing was saved
+  await assert.rejects(
+    fs.stat(path.join(homeDir, ".claude", "skills", ".disabled", "toggle-me", "SKILL.md"))
+  );
+  inst.unmount();
+});
+
+test("App saves from the quit confirm with [s] then exits", async () => {
+  const homeDir = await fs.mkdtemp(path.join(os.tmpdir(), "ankui-app-action-"));
+  const result = await multiProjectResultWithDiskSkill(homeDir, "toggle-me");
+  let captured: Array<{ toolId: string; name: string; action: string }> | null = null;
+  const inst = render(
+    <App
+      result={result}
+      homeDir={homeDir}
+      onExit={(actions) => {
+        captured = actions.map((a) => ({
+          toolId: a.toolId,
+          name: a.name,
+          action: a.action
+        }));
+      }}
+    />
+  );
+  await writeKeys(inst.stdin, TO_ACTIONS);
+  await writeKeys(inst.stdin, ["d"]);
+  await waitForFrameMatch(inst, /Pending \(unsaved\) \(1\)/);
+
+  inst.stdin.write("q");
+  await waitForFrameMatch(inst, /\[s\] save · \[q\] discard/);
+  inst.stdin.write("s");
+  for (let i = 0; i < 50 && captured === null; i += 1) {
+    await new Promise((r) => setTimeout(r, 10));
+  }
+  assert.ok(captured !== null, "onExit fired after save");
+  assert.deepEqual(captured, [
+    { toolId: "claude", name: "toggle-me", action: "disable" }
+  ]);
+  await fs.stat(path.join(homeDir, ".claude", "skills", ".disabled", "toggle-me", "SKILL.md"));
   inst.unmount();
 });
