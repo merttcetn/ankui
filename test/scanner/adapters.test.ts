@@ -653,6 +653,126 @@ test("skills-sh adapter surfaces .disabled/ markdown skills with details.disable
   assert.equal(off.details?.disabled, true);
 });
 
+test("Antigravity adapter extracts IDE skills, CLI settings MCP, legacy MCP, plugin manifests+MCP+skills, and AGENTS.md memory", async () => {
+  const cwd = await makeTempWorkspace("ankui-antigravity-cwd-");
+  const homeDir = await makeTempWorkspace("ankui-antigravity-home-");
+
+  // IDE skill under ~/.antigravity/skills/marketing/SKILL.md
+  await fs.mkdir(path.join(homeDir, ".antigravity", "skills", "marketing"), { recursive: true });
+  await fs.writeFile(
+    path.join(homeDir, ".antigravity", "skills", "marketing", "SKILL.md"),
+    "---\nname: marketing\ndescription: Marketing skill\n---\n# Marketing"
+  );
+
+  // New CLI settings.json with one MCP
+  const cliNewDir = path.join(homeDir, ".gemini", "antigravity-cli");
+  await fs.mkdir(cliNewDir, { recursive: true });
+  await fs.writeFile(
+    path.join(cliNewDir, "settings.json"),
+    JSON.stringify({ mcpServers: { github: { command: "github-mcp" } } })
+  );
+
+  // Legacy CLI mcp_config.json with one MCP (snake_case key)
+  const cliOldDir = path.join(homeDir, ".gemini", "antigravity");
+  await fs.mkdir(cliOldDir, { recursive: true });
+  await fs.writeFile(
+    path.join(cliOldDir, "mcp_config.json"),
+    JSON.stringify({ mcp_servers: { legacy: { command: "legacy-mcp" } } })
+  );
+
+  // Plugin "swarm" with plugin.json + mcp_config.json + skills/orchestrate/SKILL.md
+  const pluginDir = path.join(cliNewDir, "plugins", "swarm");
+  await fs.mkdir(pluginDir, { recursive: true });
+  await fs.writeFile(
+    path.join(pluginDir, "plugin.json"),
+    JSON.stringify({ name: "swarm", description: "Parallel agent orchestrator", version: "1.2.3" })
+  );
+  await fs.writeFile(
+    path.join(pluginDir, "mcp_config.json"),
+    JSON.stringify({ mcpServers: { swarmctl: { command: "swarmctl-mcp" } } })
+  );
+  await fs.mkdir(path.join(pluginDir, "skills", "orchestrate"), { recursive: true });
+  await fs.writeFile(
+    path.join(pluginDir, "skills", "orchestrate", "SKILL.md"),
+    "---\nname: orchestrate\ndescription: Plan and dispatch subagents\n---\n# Orchestrate"
+  );
+
+  // Project AGENTS.md memory
+  await fs.writeFile(path.join(cwd, "AGENTS.md"), "# Project Agents Memory");
+
+  // Sensitive sibling files in the CLI dir that the adapter MUST NOT surface
+  await fs.writeFile(path.join(cliNewDir, "history.jsonl"), '{"x":1}\n');
+  await fs.writeFile(path.join(cliNewDir, "cli.log"), "boot\n");
+  await fs.mkdir(path.join(cliNewDir, "conversations"), { recursive: true });
+  await fs.writeFile(path.join(cliNewDir, "conversations", "a.pb"), "ignored");
+  await fs.mkdir(path.join(cliNewDir, "brain"), { recursive: true });
+  await fs.writeFile(path.join(cliNewDir, "brain", "x"), "ignored");
+
+  const result = await scan({ cwd, homeDir, env: {} });
+  const ag = tool(result, "antigravity");
+
+  assert.equal(ag.detected, true);
+  assert.ok(ag.detectedPaths.includes(path.join(homeDir, ".antigravity")));
+  assert.ok(ag.detectedPaths.includes(cliNewDir));
+  assert.ok(ag.detectedPaths.includes(cliOldDir));
+
+  // IDE skill
+  assert.ok(skill(ag.skills, "agent_skill", "marketing"));
+
+  // Settings MCP
+  assert.ok(skill(ag.skills, "mcp_server", "GitHub"));
+
+  // Legacy MCP
+  assert.ok(skill(ag.skills, "mcp_server", "legacy"));
+
+  // Plugin manifest + MCP + skill
+  const swarmManifest = skill(ag.skills, "plugins", "swarm");
+  assert.ok(swarmManifest, "expected swarm plugin manifest entry");
+  assert.equal(swarmManifest?.details?.pluginName, "swarm");
+  assert.equal(swarmManifest?.details?.version, "1.2.3");
+
+  const swarmMcp = skill(ag.skills, "mcp_server", "swarmctl");
+  assert.ok(swarmMcp, "expected swarm plugin MCP entry");
+  assert.equal(swarmMcp?.details?.pluginName, "swarm");
+
+  const orchestrate = skill(ag.skills, "agent_skill", "orchestrate");
+  assert.ok(orchestrate, "expected swarm plugin skill entry");
+  assert.equal(orchestrate?.details?.pluginName, "swarm");
+
+  // Project memory
+  const memory = ag.skills.find(
+    (s) => s.kind === "memory_file" && s.sourcePath === path.join(cwd, "AGENTS.md")
+  );
+  assert.ok(memory, "expected AGENTS.md memory entry");
+  assert.equal(memory?.scope, "project");
+
+  // Sensitive sibling files MUST NOT appear anywhere in skills.
+  for (const s of ag.skills) {
+    assert.ok(
+      !s.sourcePath.includes("/history.jsonl"),
+      `history.jsonl leaked: ${s.sourcePath}`
+    );
+    assert.ok(!s.sourcePath.includes("/cli.log"), `cli.log leaked: ${s.sourcePath}`);
+    assert.ok(
+      !s.sourcePath.includes("/conversations/"),
+      `conversations/ leaked: ${s.sourcePath}`
+    );
+    assert.ok(!s.sourcePath.includes("/brain/"), `brain/ leaked: ${s.sourcePath}`);
+  }
+});
+
+test("Antigravity adapter is a no-op when nothing is discovered", async () => {
+  const cwd = await makeTempWorkspace("ankui-antigravity-empty-cwd-");
+  const homeDir = await makeTempWorkspace("ankui-antigravity-empty-home-");
+
+  const result = await scan({ cwd, homeDir, env: {} });
+  const ag = tool(result, "antigravity");
+
+  assert.equal(ag.detected, false);
+  assert.equal(ag.skills.length, 0);
+  assert.equal(ag.warnings.length, 0);
+});
+
 async function makeTempWorkspace(prefix: string): Promise<string> {
   return fs.mkdtemp(path.join(os.tmpdir(), prefix));
 }

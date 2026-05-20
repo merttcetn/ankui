@@ -4,6 +4,7 @@ export type ToolId =
   | "cursor"
   | "gemini"
   | "opencode"
+  | "antigravity"
   | "skills-sh";
 
 export type SkillKind =
@@ -197,6 +198,11 @@ export const TOOL_DEFINITIONS = [
     id: "opencode",
     name: "OpenCode",
     description: "OpenCode local agents, commands, tools, plugins, and skills."
+  },
+  {
+    id: "antigravity",
+    name: "Antigravity",
+    description: "Antigravity IDE and CLI — settings, plugins, MCP servers, and skills."
   },
   {
     id: "skills-sh",

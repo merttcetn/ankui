@@ -111,7 +111,7 @@ test("loadAllScans returns userScope plus a ProjectScan per discovered project",
   assert.equal(result.scannedAt, "2026-05-13T00:00:00.000Z");
   assert.equal(result.homeDir, home);
   assert.deepEqual(result.devRoots, [root]);
-  assert.equal(result.userScope.tools.length, 6);
+  assert.equal(result.userScope.tools.length, 7);
 
   const names = result.projects.map((p) => path.basename(p.projectPath)).sort();
   assert.deepEqual(names, ["proj-a", "proj-b"]);

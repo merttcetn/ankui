@@ -47,7 +47,7 @@ test("runDoctorCommand emits parseable JSON when json is true", async () => {
 
   const parsed = JSON.parse(captured);
   assert.equal(typeof parsed.scannedAt, "string");
-  assert.equal(parsed.tools.length, 6);
+  assert.equal(parsed.tools.length, 7);
   assert.equal(parsed.detectedToolCount, 0);
   assert.equal(parsed.warningCount, 0);
 });

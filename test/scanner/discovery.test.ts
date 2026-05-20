@@ -18,6 +18,9 @@ test("discovers known user-level config paths", async () => {
   await fs.mkdir(path.join(homeDir, ".cursor"), { recursive: true });
   await fs.mkdir(path.join(homeDir, ".gemini"), { recursive: true });
   await fs.mkdir(path.join(homeDir, ".config", "opencode"), { recursive: true });
+  await fs.mkdir(path.join(homeDir, ".antigravity"), { recursive: true });
+  await fs.mkdir(path.join(homeDir, ".gemini", "antigravity-cli"), { recursive: true });
+  await fs.mkdir(path.join(homeDir, ".gemini", "antigravity"), { recursive: true });
   await fs.mkdir(path.join(homeDir, ".skills"), { recursive: true });
   await fs.mkdir(path.join(homeDir, ".config", "skills"), { recursive: true });
 
@@ -29,6 +32,9 @@ test("discovers known user-level config paths", async () => {
   assertToolPath(result.paths, "cursor", path.join(homeDir, ".cursor"));
   assertToolPath(result.paths, "gemini", path.join(homeDir, ".gemini"));
   assertToolPath(result.paths, "opencode", path.join(homeDir, ".config", "opencode"));
+  assertToolPath(result.paths, "antigravity", path.join(homeDir, ".antigravity"));
+  assertToolPath(result.paths, "antigravity", path.join(homeDir, ".gemini", "antigravity-cli"));
+  assertToolPath(result.paths, "antigravity", path.join(homeDir, ".gemini", "antigravity"));
   assertToolPath(result.paths, "skills-sh", path.join(homeDir, ".skills"));
   assertToolPath(result.paths, "skills-sh", path.join(homeDir, ".config", "skills"));
   assert.equal(result.warnings.length, 0);
@@ -59,6 +65,7 @@ test("discovers project-level config files and directories", async () => {
   assertToolPath(result.paths, "claude", path.join(cwd, "CLAUDE.local.md"));
   assertToolPath(result.paths, "codex", path.join(cwd, "AGENTS.md"));
   assertToolPath(result.paths, "opencode", path.join(cwd, "AGENTS.md"));
+  assertToolPath(result.paths, "antigravity", path.join(cwd, "AGENTS.md"));
   assertToolPath(result.paths, "gemini", path.join(cwd, "GEMINI.md"));
   assertToolPath(result.paths, "opencode", path.join(cwd, "opencode.json"));
   assertToolPath(result.paths, "opencode", path.join(cwd, "opencode.jsonc"));
@@ -220,12 +227,13 @@ test("scan marks tools detected from discovered paths", async () => {
     now: new Date("2026-05-12T00:00:00.000Z")
   });
 
-  assert.equal(result.summary.detectedTools, 6);
+  assert.equal(result.summary.detectedTools, 7);
   assert.equal(tool(result, "claude").detected, true);
   assert.equal(tool(result, "codex").detected, true);
   assert.equal(tool(result, "cursor").detected, true);
   assert.equal(tool(result, "gemini").detected, true);
   assert.equal(tool(result, "opencode").detected, true);
+  assert.equal(tool(result, "antigravity").detected, true);
   assert.equal(tool(result, "skills-sh").detected, true);
   assertToolPath(tool(result, "claude").detectedPaths, "claude", path.join(cwd, "CLAUDE.md"));
 });

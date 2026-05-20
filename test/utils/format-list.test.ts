@@ -134,7 +134,7 @@ test("formatListJson returns dense byTool with all tool keys present", () => {
   assert.deepEqual(json.filters, { kind: null, tool: null });
   assert.equal(json.totalSkills, 2);
 
-  for (const toolId of ["claude", "codex", "cursor", "gemini", "opencode", "skills-sh"]) {
+  for (const toolId of ["claude", "codex", "cursor", "gemini", "opencode", "antigravity", "skills-sh"]) {
     assert.ok(toolId in json.byTool, `expected key ${toolId}`);
   }
   assert.equal(json.byTool.claude.length, 1);

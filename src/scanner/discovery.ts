@@ -62,6 +62,9 @@ const USER_PATHS: Array<Omit<KnownPathCandidate, "basePath" | "scope" | "source"
   { toolIds: ["cursor"], relativePath: ".cursor", entryType: "directory" },
   { toolIds: ["gemini"], relativePath: ".gemini", entryType: "directory" },
   { toolIds: ["opencode"], relativePath: ".config/opencode", entryType: "directory" },
+  { toolIds: ["antigravity"], relativePath: ".antigravity", entryType: "directory" },
+  { toolIds: ["antigravity"], relativePath: ".gemini/antigravity-cli", entryType: "directory" },
+  { toolIds: ["antigravity"], relativePath: ".gemini/antigravity", entryType: "directory" },
   { toolIds: ["skills-sh"], relativePath: ".skills", entryType: "directory" },
   { toolIds: ["skills-sh"], relativePath: ".config/skills", entryType: "directory" }
 ];
@@ -69,7 +72,7 @@ const USER_PATHS: Array<Omit<KnownPathCandidate, "basePath" | "scope" | "source"
 const PROJECT_FILE_PATHS: Array<Omit<KnownPathCandidate, "basePath" | "scope" | "source">> = [
   { toolIds: ["claude"], relativePath: "CLAUDE.md", entryType: "file" },
   { toolIds: ["claude"], relativePath: "CLAUDE.local.md", entryType: "file" },
-  { toolIds: ["codex", "opencode"], relativePath: "AGENTS.md", entryType: "file" },
+  { toolIds: ["codex", "opencode", "antigravity"], relativePath: "AGENTS.md", entryType: "file" },
   { toolIds: ["gemini"], relativePath: "GEMINI.md", entryType: "file" },
   { toolIds: ["opencode"], relativePath: "opencode.json", entryType: "file" },
   { toolIds: ["opencode"], relativePath: "opencode.jsonc", entryType: "file" },

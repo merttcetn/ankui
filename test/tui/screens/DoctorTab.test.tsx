@@ -60,8 +60,8 @@ test("DoctorTab renders the 'DOCTOR' header and summary line", () => {
   );
   const frame = inst.lastFrame() ?? "";
   assert.match(frame, /D O C T O R/);
-  // 6 tools (MVP count), 1 detected, 0 warnings.
-  assert.match(frame, /6 tools.*1 detected.*0 warnings/);
+  // 7 tools (MVP count), 1 detected, 0 warnings.
+  assert.match(frame, /7 tools.*1 detected.*0 warnings/);
   inst.unmount();
 });
 

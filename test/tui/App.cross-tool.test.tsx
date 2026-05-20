@@ -113,9 +113,9 @@ async function pressRightArrows(stdin: { write: (s: string) => void }, count: nu
 
 test("App routes activeTab='mcps' to McpsTab screen", async () => {
   const inst = render(<App result={fixture()} />);
-  // Cycle tabs past tools row until MCPS is active. Overview + 6 tools = 7
-  // entries in the first row, so 7 right arrows land us on `mcps`.
-  await pressRightArrows(inst.stdin, 7);
+  // Cycle tabs past tools row until MCPS is active. Overview + 7 tools = 8
+  // entries in the first row, so 8 right arrows land us on `mcps`.
+  await pressRightArrows(inst.stdin, 8);
   const frame = inst.lastFrame() ?? "";
   assert.match(frame, /M C P S/);
   assert.match(frame, /Postgres/);
@@ -124,7 +124,7 @@ test("App routes activeTab='mcps' to McpsTab screen", async () => {
 
 test("App routes activeTab='access' to AccessTab screen", async () => {
   const inst = render(<App result={fixture()} />);
-  await pressRightArrows(inst.stdin, 8);
+  await pressRightArrows(inst.stdin, 9);
   const frame = inst.lastFrame() ?? "";
   assert.match(frame, /A C C E S S/);
   assert.match(frame, /duplicate-test/);
@@ -133,7 +133,7 @@ test("App routes activeTab='access' to AccessTab screen", async () => {
 
 test("App routes activeTab='doctor' to DoctorTab screen", async () => {
   const inst = render(<App result={fixture()} />);
-  await pressRightArrows(inst.stdin, 9);
+  await pressRightArrows(inst.stdin, 10);
   const frame = inst.lastFrame() ?? "";
   assert.match(frame, /DOCTOR/);
   assert.match(frame, /1 warnings/);

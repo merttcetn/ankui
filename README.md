@@ -4,7 +4,7 @@
 
 ## What Ankui is
 
-AI coding tools accumulate configuration, skills, rules, and MCP servers across your filesystem, and it is easy to lose track of what each one can access. Ankui is a local-first scanner and terminal UI that inventories those resources and surfaces access findings — it never executes user code, follows remote URLs, or sends data anywhere. The one thing it can write is reversible: from the TUI you can disable or re-enable an individual skill, which only moves its directory into or out of a sibling `.disabled/` folder — no file is read, modified, or deleted. Supported tools: Claude, Codex, Cursor, Gemini, OpenCode, and skills.sh.
+AI coding tools accumulate configuration, skills, rules, and MCP servers across your filesystem, and it is easy to lose track of what each one can access. Ankui is a local-first scanner and terminal UI that inventories those resources and surfaces access findings — it never executes user code, follows remote URLs, or sends data anywhere. The one thing it can write is reversible: from the TUI you can disable or re-enable an individual skill, which only moves its directory into or out of a sibling `.disabled/` folder — no file is read, modified, or deleted. Supported tools: Claude, Codex, Cursor, Gemini, OpenCode, Antigravity, and skills.sh.
 
 ## Try it
 
@@ -84,6 +84,8 @@ Ankui sends no data anywhere and calls no external APIs.
 - Common across all tools: `sessions`, `session`, `history`, `histories`, `conversation`, `conversations`
 - Additional for OpenCode paths: `auth`, `log`, `logs`, `share`, `cache`, `database`, `databases`, `db`, `runtime`
 
+For Antigravity specifically, the adapter opens only known files (`settings.json`, per-plugin `plugin.json` / `mcp_config.json`, `SKILL.md` files inside `skills/` directories, `mcp_config.json` in the legacy location). The sensitive sibling files inside `~/.gemini/antigravity-cli/` — `conversations/`, `brain/`, `implicit/`, `knowledge/`, `log/`, `cache/`, `bin/`, `updater/`, `cli.log`, `history.jsonl` — are never enumerated or read.
+
 **File size cap.** Files larger than 1 MB (`MAX_SAFE_FILE_BYTES = 1024 * 1024`) are skipped with a `file_too_large` warning.
 
 **Symlinks.** Symlinks whose resolved targets fall inside `$HOME` or `$CWD` are followed and reported with `details.linked: true` and `details.linkTarget`. Symlinks pointing outside those roots, or whose resolved target hits a sensitive path segment, produce a `symlink_skipped` warning and are not read.
@@ -101,6 +103,7 @@ Ankui sends no data anywhere and calls no external APIs.
 | **Cursor** | `~/.cursor/mcp.json` (MCP servers), `~/.cursor/rules/` (`.mdc` rules files) | `.cursor/mcp.json`, `.cursor/rules/`, `.mcp.json`, `.cursorrules` |
 | **Gemini** | `~/.gemini/settings.json` (MCP servers), `~/.gemini/commands/` (custom commands), `~/.gemini/skills/` (agent skills), `~/.gemini/extensions/` (extensions) | `.gemini/commands/`, `.gemini/skills/`, `GEMINI.md` |
 | **OpenCode** | `~/.config/opencode/` (agents, commands, tools, skills) | `opencode.json`, `opencode.jsonc` (MCP servers, plugins, tool permissions), `.opencode/` (agents, commands, tools, skills), `AGENTS.md` |
+| **Antigravity** | `~/.antigravity/skills/` (IDE skills), `~/.gemini/antigravity-cli/settings.json` (MCP servers), `~/.gemini/antigravity-cli/plugins/<name>/{plugin.json, mcp_config.json, skills/}`, `~/.gemini/antigravity/mcp_config.json` (legacy) | `AGENTS.md` |
 | **skills.sh** | `~/.skills/`, `~/.config/skills/` | `.skills/` |
 
 Each tool adapter reads only from the paths listed above. All access goes through the safety layer described in the previous section.
@@ -272,7 +275,7 @@ Options:
   --tool <tool>  filter by tool id (e.g., claude, codex)
 ```
 
-Valid skill kinds include `mcp_server`, `agent_skill`, `custom_agents`, `custom_commands`, `custom_prompts`, `custom_tools`, `memory_file`, `rules`, `plugins`, `skills_sh_skill`. Valid tool ids are `claude`, `codex`, `cursor`, `gemini`, `opencode`, `skills-sh`. An invalid filter value exits with code 1 and a usage message.
+Valid skill kinds include `mcp_server`, `agent_skill`, `custom_agents`, `custom_commands`, `custom_prompts`, `custom_tools`, `memory_file`, `rules`, `plugins`, `skills_sh_skill`. Valid tool ids are `claude`, `codex`, `cursor`, `gemini`, `opencode`, `antigravity`, `skills-sh`. An invalid filter value exits with code 1 and a usage message.
 
 ---
 

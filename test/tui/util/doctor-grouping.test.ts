@@ -63,8 +63,8 @@ test("buildDoctorBoard renders every tool with detected state", () => {
     })
   );
   const ids = board.map((row) => row.toolId);
-  // All 6 MVP tools present, in TOOL_DEFINITIONS order.
-  assert.deepEqual(ids, ["claude", "codex", "cursor", "gemini", "opencode", "skills-sh"]);
+  // All 7 MVP tools present, in TOOL_DEFINITIONS order.
+  assert.deepEqual(ids, ["claude", "codex", "cursor", "gemini", "opencode", "antigravity", "skills-sh"]);
   const claude = board.find((r) => r.toolId === "claude");
   assert.equal(claude?.detected, true);
   assert.equal(board.find((r) => r.toolId === "codex")?.detected, false);

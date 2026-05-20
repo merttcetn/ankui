@@ -277,10 +277,10 @@ test("App reflects a new result prop after a LauncherShell-style refresh", async
 
   const inst = render(<App result={initial} />);
   // Right-arrow to the Actions tab. Cycle order from tabIds is
-  // [overview, claude, codex, cursor, gemini, opencode, skills.sh,
-  //  mcps, access, doctor, actions, settings] — all tools are in the
-  //  tab bar regardless of detection. Actions is at index 10.
-  const presses = Array.from({ length: 10 }, () => "\x1B[C");
+  // [overview, claude, codex, cursor, gemini, opencode, antigravity,
+  //  skills.sh, mcps, access, doctor, actions, settings] — all tools
+  //  are in the tab bar regardless of detection. Actions is at index 11.
+  const presses = Array.from({ length: 11 }, () => "\x1B[C");
   await writeKeys(inst.stdin, presses);
   const before = inst.lastFrame() ?? "";
   // SectionHeader spaces every glyph: "SKILLS (1)" → "S K I L L S   ( 1 )"
@@ -293,7 +293,9 @@ test("App reflects a new result prop after a LauncherShell-style refresh", async
   inst.unmount();
 });
 
-const TO_ACTIONS = Array.from({ length: 10 }, () => "\x1B[C");
+// 11 right-arrows reach the Actions tab; one down-arrow steps off the agent
+// group header (navIndex 0) onto its first skill so [d]/[e] act on a skill.
+const TO_ACTIONS = [...Array.from({ length: 11 }, () => "\x1B[C"), "\x1B[B"];
 
 test("App stages a disable in the UI and writes nothing until [s]", async () => {
   const homeDir = await fs.mkdtemp(path.join(os.tmpdir(), "ankui-app-action-"));

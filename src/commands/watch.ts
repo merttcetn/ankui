@@ -27,6 +27,7 @@ const USER_SCOPE_RELATIVE_PATHS: readonly string[] = [
   ".cursor",
   ".gemini",
   ".config/opencode",
+  ".antigravity",
   ".skills",
   ".config/skills"
 ];

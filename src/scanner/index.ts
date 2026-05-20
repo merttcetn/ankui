@@ -12,6 +12,7 @@ import {
 import { enrichSkill } from "./capability-map.js";
 import { reviewTools } from "./access-review.js";
 import { expandBuiltinsForTool } from "./builtins.js";
+import { antigravityAdapter } from "./adapters/antigravity.js";
 import { claudeAdapter } from "./adapters/claude.js";
 import { codexAdapter } from "./adapters/codex.js";
 import { cursorAdapter } from "./adapters/cursor.js";
@@ -68,7 +69,15 @@ export async function scan(options: ScanOptions = {}): Promise<ScanResult> {
   }
 
   const adapterResults = await runScannerAdapters(
-    [claudeAdapter, codexAdapter, cursorAdapter, geminiAdapter, opencodeAdapter, skillsShAdapter],
+    [
+      claudeAdapter,
+      codexAdapter,
+      cursorAdapter,
+      geminiAdapter,
+      opencodeAdapter,
+      antigravityAdapter,
+      skillsShAdapter
+    ],
     {
       cwd,
       homeDir,

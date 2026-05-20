@@ -148,7 +148,7 @@ test("formatMultiProjectJson exposes devRoots, totals, and per-project payload",
 
   assert.equal(json.scannedAt, "2026-05-13T00:00:00.000Z");
   assert.deepEqual(json.devRoots, ["/Users/x/Developer"]);
-  assert.equal(json.userScope.tools.length, 6);
+  assert.equal(json.userScope.tools.length, 7);
   assert.equal(json.projects.length, 1);
   assert.equal(json.projects[0].projectPath, "/Users/x/Developer/ankui");
   assert.equal(json.projects[0].displayPath, "~/Developer/ankui");

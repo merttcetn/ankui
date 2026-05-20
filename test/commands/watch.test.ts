@@ -52,6 +52,7 @@ test("collectWatchPaths includes every existing user-scope tool dir", async () =
   await fs.mkdir(path.join(home, ".cursor"), { recursive: true });
   await fs.mkdir(path.join(home, ".gemini"), { recursive: true });
   await fs.mkdir(path.join(home, ".config", "opencode"), { recursive: true });
+  await fs.mkdir(path.join(home, ".antigravity"), { recursive: true });
   await fs.mkdir(path.join(home, ".skills"), { recursive: true });
   await fs.mkdir(path.join(home, ".config", "skills"), { recursive: true });
   await fs.writeFile(path.join(home, ".claude.json"), "{}");
@@ -64,6 +65,7 @@ test("collectWatchPaths includes every existing user-scope tool dir", async () =
     path.join(home, ".cursor"),
     path.join(home, ".gemini"),
     path.join(home, ".config", "opencode"),
+    path.join(home, ".antigravity"),
     path.join(home, ".skills"),
     path.join(home, ".config", "skills")
   ]) {

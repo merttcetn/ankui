@@ -77,9 +77,9 @@ test("formatDoctor groups detected paths by scope (user vs project)", () => {
   assert.match(output, /\n- skills\.sh  not detected\b/);
 });
 
-test("formatDoctor preserves the canonical tool order: claude, codex, cursor, gemini, opencode, skills-sh", () => {
+test("formatDoctor preserves the canonical tool order: claude, codex, cursor, gemini, opencode, antigravity, skills-sh", () => {
   const output = formatDoctor(emptyResult());
-  const expectedOrder = ["Claude", "Codex", "Cursor", "Gemini", "OpenCode", "skills.sh"];
+  const expectedOrder = ["Claude", "Codex", "Cursor", "Gemini", "OpenCode", "Antigravity", "skills.sh"];
   const indices = expectedOrder.map((name) => output.indexOf(name));
   const sorted = [...indices].sort((a, b) => a - b);
   assert.deepEqual(indices, sorted, "tool rows must appear in canonical order");
@@ -176,7 +176,7 @@ test("formatDoctorJson returns metadata + tool rows + warning grouping", () => {
   assert.equal(json.cwd, "/p");
   assert.equal(json.homeDir, "/h");
   assert.equal(json.detectedToolCount, 1);
-  assert.equal(json.tools.length, 6);
+  assert.equal(json.tools.length, 7);
 
   const claude = json.tools.find((t: { id: string }) => t.id === "claude");
   assert.equal(claude.detected, true);
