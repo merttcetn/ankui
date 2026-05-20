@@ -13,11 +13,25 @@ export interface KeyHintsContext {
  * separator + dimColor as IdleWhisper, so the controls read as a quiet
  * editorial footer rather than chrome competing with the content.
  *
- * Hints are state-aware: drill-in screens expose scroll/search/back,
- * cross-tool tabs hide ⏎ (Enter is a no-op there), the access tab swaps
- * ⏎ for ↑↓ (card-paginated finding scroll), and the search overlay swaps
- * navigation for input controls. `r rescan` is gated on `ctx.canRefresh`
- * so the bar never advertises a key that would be a no-op.
+ * Hints are state-aware around two axes: drill-in/search overlays take
+ * precedence over everything else, and within the top-level frame the
+ * footer pivots on `state.focus`:
+ *
+ * - Drill-in (`state.drillStack.length > 0`) — unchanged regardless of
+ *   focus. Shows scroll/search/back, or the search-input controls when
+ *   the overlay is open.
+ * - Sidebar focus (`state.focus === "sidebar"`) — the user is browsing
+ *   the left sidebar. Shows ↑↓ select / → focus panel / ⏎ open on every
+ *   tab; tab-specific hotkeys belong to the panel and stay hidden here.
+ * - Panel focus (`state.focus === "panel"`) — screen-specific hints
+ *   driven by `state.activeTab`. `← sidebar` replaces the old `←→ tabs`
+ *   hint (the sidebar is now the navigation surface). Cross-tool tabs
+ *   (mcps/doctor/settings) expose only the back hint; the access tab
+ *   surfaces ↑↓ next finding; the actions tab surfaces ↑↓/[d]/[e];
+ *   tool tabs (overview + per-tool) surface ↑↓ scroll / ⏎ open.
+ *
+ * `r rescan` is gated on `ctx.canRefresh` so the bar never advertises
+ * a key that would be a no-op.
  */
 export function deriveKeyHints(
   state: TuiState,
@@ -32,12 +46,19 @@ export function deriveKeyHints(
     return ["↑↓ scroll", "/ search", "esc back", ...r, "q quit"];
   }
 
+  if (state.focus === "sidebar") {
+    return ["↑↓ select", "→ focus panel", "⏎ open", ...r, "q quit"];
+  }
+
+  // focus === "panel" — screen-specific hints
+  const back = "← sidebar";
+
   if (state.activeTab === "access") {
-    return ["←→ tabs", "↑↓ next finding", ...r, "q quit"];
+    return ["↑↓ next finding", back, ...r, "q quit"];
   }
 
   if (state.activeTab === "actions") {
-    return ["←→ tabs", "↑↓ select", "[d] disable", "[e] enable", ...r, "q quit"];
+    return ["↑↓ select", back, "[d] disable", "[e] enable", ...r, "q quit"];
   }
 
   if (
@@ -45,10 +66,11 @@ export function deriveKeyHints(
     state.activeTab === "doctor" ||
     state.activeTab === "settings"
   ) {
-    return ["←→ tabs", ...r, "q quit"];
+    return [back, ...r, "q quit"];
   }
 
-  return ["←→ tabs", "⏎ open", ...r, "q quit"];
+  // Tool tabs (Overview + Claude/Codex/...) — Enter opens drill-in.
+  return ["↑↓ scroll", back, "⏎ open", ...r, "q quit"];
 }
 
 /** Hints shown in the first-run dev-root picker. */

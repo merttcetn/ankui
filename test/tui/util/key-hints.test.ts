@@ -12,6 +12,8 @@ function baseState(overrides: Partial<TuiState> = {}): TuiState {
     searchOpen: false,
     searchQuery: "",
     listCursor: 0,
+    actionsCollapsed: [],
+    focus: "sidebar",
     ...overrides
   };
 }
@@ -21,7 +23,7 @@ test("deriveKeyHints includes ⏎ open on tool tabs where Enter drills in", () =
     baseState({ activeTab: "overview" }),
     { canRefresh: true }
   );
-  assert.deepEqual(hints, ["←→ tabs", "⏎ open", "r rescan", "q quit"]);
+  assert.deepEqual(hints, ["↑↓ select", "→ focus panel", "⏎ open", "r rescan", "q quit"]);
 });
 
 test("deriveKeyHints includes ⏎ open on per-tool tabs (claude, codex, …)", () => {
@@ -30,28 +32,32 @@ test("deriveKeyHints includes ⏎ open on per-tool tabs (claude, codex, …)", (
     { canRefresh: true }
   );
   assert.ok(hints.includes("⏎ open"));
+  assert.ok(hints.includes("↑↓ select"));
 });
 
 test("deriveKeyHints omits ⏎ open on cross-tool tabs where Enter is a no-op (mcps/doctor/settings)", () => {
   for (const tab of ["mcps", "doctor", "settings"] as const) {
-    const hints = deriveKeyHints(baseState({ activeTab: tab }), { canRefresh: true });
+    const hints = deriveKeyHints(
+      baseState({ activeTab: tab, focus: "panel" }),
+      { canRefresh: true }
+    );
     assert.equal(
       hints.includes("⏎ open"),
       false,
       `expected no ⏎ open hint on ${tab} tab`
     );
-    assert.deepEqual(hints, ["←→ tabs", "r rescan", "q quit"]);
+    assert.deepEqual(hints, ["← sidebar", "r rescan", "q quit"]);
   }
 });
 
 test("deriveKeyHints exposes ↑↓ next finding on the access tab (card-paginated scroll)", () => {
   const hints = deriveKeyHints(
-    baseState({ activeTab: "access" }),
+    baseState({ activeTab: "access", focus: "panel" }),
     { canRefresh: true }
   );
   assert.deepEqual(hints, [
-    "←→ tabs",
     "↑↓ next finding",
+    "← sidebar",
     "r rescan",
     "q quit"
   ]);
@@ -136,12 +142,12 @@ test("FIRST_RUN_KEY_HINTS exposes confirm/cancel/quit", () => {
 
 test("deriveKeyHints exposes ↑↓/[d]/[e] hotkeys on the Actions tab", () => {
   const withRefresh = deriveKeyHints(
-    baseState({ activeTab: "actions" }),
+    baseState({ activeTab: "actions", focus: "panel" }),
     { canRefresh: true }
   );
   assert.deepEqual(withRefresh, [
-    "←→ tabs",
     "↑↓ select",
+    "← sidebar",
     "[d] disable",
     "[e] enable",
     "r rescan",
@@ -149,13 +155,42 @@ test("deriveKeyHints exposes ↑↓/[d]/[e] hotkeys on the Actions tab", () => {
   ]);
 
   const withoutRefresh = deriveKeyHints(
-    baseState({ activeTab: "actions" })
+    baseState({ activeTab: "actions", focus: "panel" })
   );
   assert.deepEqual(withoutRefresh, [
-    "←→ tabs",
     "↑↓ select",
+    "← sidebar",
     "[d] disable",
     "[e] enable",
     "q quit"
   ]);
+});
+
+test("deriveKeyHints with focus='sidebar' shows ↑↓ select / → focus panel / ⏎ open regardless of tab", () => {
+  for (const tab of ["overview", "claude", "mcps", "actions", "settings"] as const) {
+    const hints = deriveKeyHints(
+      baseState({ activeTab: tab, focus: "sidebar" })
+    );
+    assert.deepEqual(hints, ["↑↓ select", "→ focus panel", "⏎ open", "q quit"]);
+  }
+});
+
+test("deriveKeyHints with focus='panel' on a tool tab swaps ←→ tabs for ← sidebar and keeps ⏎ open", () => {
+  const hints = deriveKeyHints(
+    baseState({ activeTab: "claude", focus: "panel" })
+  );
+  assert.deepEqual(hints, ["↑↓ scroll", "← sidebar", "⏎ open", "q quit"]);
+});
+
+test("deriveKeyHints drill-in branch ignores focus (renders the same regardless)", () => {
+  for (const focus of ["sidebar", "panel"] as const) {
+    const hints = deriveKeyHints(
+      baseState({
+        activeTab: "claude",
+        drillStack: [{ kind: "userScope", toolId: "claude" }],
+        focus
+      })
+    );
+    assert.deepEqual(hints, ["↑↓ scroll", "/ search", "esc back", "q quit"]);
+  }
 });
