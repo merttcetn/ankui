@@ -20,7 +20,7 @@ import type {
 } from "../scanner/filesystem-crawler.js";
 import { IdleWhisper } from "./components/IdleWhisper.js";
 import { ShellWithHints } from "./components/ShellWithHints.js";
-import { Sidebar, type SidebarSection } from "./components/Sidebar.js";
+import { Sidebar } from "./components/Sidebar.js";
 import type { TabItem } from "./components/TabBar.js";
 import { useIdleWhisper } from "./hooks/use-idle-whisper.js";
 import { useKeys } from "./input/use-keys.js";
@@ -357,6 +357,13 @@ function MainShell(props: MainShellProps): React.ReactElement {
   useKeys({
     onArrowDown: () => {
       bump();
+      if (state.focus === "sidebar" && state.drillStack.length === 0) {
+        dispatch({ type: "cycleTab", direction: "next", tabs: tabIds });
+        // cycleTab sets focus to "panel" — push it back to sidebar so ↑↓
+        // continues to move the selector instead of jumping into the screen.
+        dispatch({ type: "setFocus", focus: "sidebar" });
+        return;
+      }
       const max = getListMax(state, result);
       if (max > 0) {
         dispatch({ type: "listMove", direction: "down", max });
@@ -364,6 +371,11 @@ function MainShell(props: MainShellProps): React.ReactElement {
     },
     onArrowUp: () => {
       bump();
+      if (state.focus === "sidebar" && state.drillStack.length === 0) {
+        dispatch({ type: "cycleTab", direction: "prev", tabs: tabIds });
+        dispatch({ type: "setFocus", focus: "sidebar" });
+        return;
+      }
       const max = getListMax(state, result);
       if (max > 0) {
         dispatch({ type: "listMove", direction: "up", max });
@@ -371,16 +383,41 @@ function MainShell(props: MainShellProps): React.ReactElement {
     },
     onArrowRight: () => {
       bump();
-      dispatch({ type: "cycleTab", direction: "next", tabs: tabIds });
+      if (state.focus === "sidebar") {
+        dispatch({ type: "setFocus", focus: "panel" });
+      }
     },
     onArrowLeft: () => {
       bump();
-      dispatch({ type: "cycleTab", direction: "prev", tabs: tabIds });
+      if (state.focus === "panel" && state.drillStack.length === 0 && !state.searchOpen) {
+        dispatch({ type: "setFocus", focus: "sidebar" });
+      }
     },
     onEnter: () => {
       bump();
-      // Phase 8g: minimal Enter binding — drill into the active tool's user
-      // scope when a tool tab is active and no drill is currently active.
+      // Sidebar focus: pressing Enter on a tool row drills into its user
+      // scope and moves focus to the panel. On non-tool rows we just shift
+      // focus to the panel so the user can start interacting.
+      if (state.focus === "sidebar") {
+        if (
+          state.activeTab === "overview" ||
+          state.activeTab === "mcps" ||
+          state.activeTab === "access" ||
+          state.activeTab === "doctor" ||
+          state.activeTab === "actions" ||
+          state.activeTab === "settings"
+        ) {
+          dispatch({ type: "setFocus", focus: "panel" });
+          return;
+        }
+        dispatch({
+          type: "drillIn",
+          frame: { kind: "userScope", toolId: state.activeTab }
+        });
+        return; // drillIn already sets focus to "panel"
+      }
+
+      // Panel focus: original drill-in semantics (only meaningful on tool tabs).
       if (state.drillStack.length > 0) return;
       if (state.activeTab === "overview") return;
       if (
@@ -408,11 +445,20 @@ function MainShell(props: MainShellProps): React.ReactElement {
         dispatch({ type: "searchClose" });
         return;
       }
-      dispatch({ type: "drillOut" });
+      if (state.drillStack.length > 0) {
+        dispatch({ type: "drillOut" });
+        return;
+      }
+      if (state.focus === "panel") {
+        dispatch({ type: "setFocus", focus: "sidebar" });
+      }
     },
     onSlash: () => {
       bump();
-      if (!state.searchOpen) dispatch({ type: "searchOpen" });
+      if (!state.searchOpen) {
+        dispatch({ type: "searchOpen" });
+        dispatch({ type: "setFocus", focus: "panel" });
+      }
     },
     onTextInput: (ch) => {
       bump();
