@@ -2,7 +2,12 @@ import React, { useEffect, useReducer, useRef, useState } from "react";
 import { Box, Text, useApp } from "ink";
 import os from "node:os";
 
-import { createSkillId, type MultiProjectScanResult, type Skill } from "../types.js";
+import {
+  createSkillId,
+  type MultiProjectScanResult,
+  type Skill,
+  type ToolId
+} from "../types.js";
 import type { SessionAction } from "../utils/session-summary.js";
 import {
   disableSkill,
@@ -15,7 +20,8 @@ import type {
 } from "../scanner/filesystem-crawler.js";
 import { IdleWhisper } from "./components/IdleWhisper.js";
 import { ShellWithHints } from "./components/ShellWithHints.js";
-import { TabBar, type TabItem } from "./components/TabBar.js";
+import { Sidebar, type SidebarSection } from "./components/Sidebar.js";
+import type { TabItem } from "./components/TabBar.js";
 import { useIdleWhisper } from "./hooks/use-idle-whisper.js";
 import { useKeys } from "./input/use-keys.js";
 import {
@@ -26,6 +32,12 @@ import {
   type TuiState
 } from "./state/tui-state.js";
 import { filterSkillsByQuery } from "./util/skill-filter.js";
+import {
+  actionsNavigableCount,
+  buildActionsModel,
+  makeDesiredDisabled,
+  type ActionsItem
+} from "./util/actions-items.js";
 import { deriveKeyHints, FIRST_RUN_KEY_HINTS } from "./util/key-hints.js";
 import { aggregateFindings } from "./util/finding-grouping.js";
 
@@ -134,6 +146,7 @@ function MainShell(props: MainShellProps): React.ReactElement {
   const sessionActionsRef = useRef<SessionAction[]>([]);
   const resultRef = useRef<MultiProjectScanResult>(initialResult);
   const listCursorRef = useRef(0);
+  const actionsCollapsedRef = useRef<ToolId[]>([]);
   const skillActionQueueRef = useRef<Promise<void>>(Promise.resolve());
   const mountedRef = useRef(true);
   const [sessionActions, setSessionActions] = useState<SessionAction[]>([]);
@@ -181,6 +194,7 @@ function MainShell(props: MainShellProps): React.ReactElement {
   const result = state.result;
   resultRef.current = result;
   listCursorRef.current = state.listCursor;
+  actionsCollapsedRef.current = state.actionsCollapsed;
   const { tools, crossTool } = buildTabList(result);
   // Flattened cycle order: tools row, then cross-tool row. Matches the
   // visual top-to-bottom, left-to-right reading of the two-row tab bar.
@@ -189,16 +203,33 @@ function MainShell(props: MainShellProps): React.ReactElement {
     ...crossTool.map((t) => t.id as TabId)
   ];
 
+  const toggleActionGroupAtCursor = (): void => {
+    if (confirmQuitRef.current) return;
+    const item = actionItemAt(
+      resultRef.current,
+      actionsCollapsedRef.current,
+      pendingRef.current,
+      listCursorRef.current
+    );
+    if (item?.type === "header") {
+      dispatch({ type: "toggleActionsGroup", toolId: item.toolId });
+    }
+  };
+
   const stagePending = (action: "disable" | "enable"): void => {
     if (confirmQuitRef.current) return;
-    const selection = selectActionSkill(resultRef.current, listCursorRef.current);
-    if (!selection) return;
-    const skill = resolveActionSkill(resultRef.current, selection);
-    if (!skill) return;
+    const item = actionItemAt(
+      resultRef.current,
+      actionsCollapsedRef.current,
+      pendingRef.current,
+      listCursorRef.current
+    );
+    if (!item || item.type !== "skill") return;
+    const skill = item.skill;
 
     const diskDisabled = skill.details?.disabled === true;
     const wantDisabled = action === "disable";
-    const without = pendingRef.current.filter((p) => p.id !== selection.id);
+    const without = pendingRef.current.filter((p) => p.id !== skill.id);
 
     if (wantDisabled === diskDisabled) {
       // Toggled back to the on-disk state — no pending change to save.
@@ -215,7 +246,7 @@ function MainShell(props: MainShellProps): React.ReactElement {
       setPendingState([
         ...without,
         {
-          id: selection.id,
+          id: skill.id,
           toolId: skill.toolId,
           kind: skill.kind,
           name: skill.name,
@@ -399,6 +430,7 @@ function MainShell(props: MainShellProps): React.ReactElement {
         if (ch === "d") stagePending("disable");
         else if (ch === "e") stagePending("enable");
         else if (ch === "s" || ch === "S") savePending();
+        else if (ch === " ") toggleActionGroupAtCursor();
       }
     },
     onBackspace: () => {
@@ -434,19 +466,28 @@ function MainShell(props: MainShellProps): React.ReactElement {
       hints={deriveKeyHints(state, { canRefresh: Boolean(props.onRefresh) })}
     >
       <Box flexDirection="column">
-        <TabBar rows={[tools, crossTool]} activeId={state.activeTab} />
-        <Box marginTop={1} flexDirection="column">
-          {renderScreen(
-            state,
-            result,
-            dispatch,
-            props.onConfigChange,
-            sessionActions,
-            actionFeedback,
-            pending,
-            saving,
-            saveSummary
-          )}
+        <Box flexDirection="row">
+          <Sidebar
+            sections={[
+              { label: "TOOLS", items: tools },
+              { label: "VIEWS", items: crossTool }
+            ]}
+            activeId={state.activeTab}
+            focus={state.focus}
+          />
+          <Box flexDirection="column" flexGrow={1} paddingLeft={2}>
+            {renderScreen(
+              state,
+              result,
+              dispatch,
+              props.onConfigChange,
+              sessionActions,
+              actionFeedback,
+              pending,
+              saving,
+              saveSummary
+            )}
+          </Box>
         </Box>
         {confirmQuit && (
           <Box marginTop={1}>
@@ -526,6 +567,7 @@ function renderScreen(
           pending={pendingChanges}
           saving={saving}
           saveSummary={saveSummary}
+          collapsed={state.actionsCollapsed}
         />
       );
     case "settings":
@@ -568,18 +610,19 @@ function setCurrentResult(
   dispatch({ type: "setResult", result });
 }
 
-function selectActionSkill(
+/**
+ * Resolves the Actions-tab cursor to its model item. Returns a `header` item
+ * (cursor on a group header), a `skill` item, or undefined (cursor stale after
+ * a collapse). Walks the same model `ActionsTab` renders so indices align.
+ */
+function actionItemAt(
   result: MultiProjectScanResult,
+  collapsed: ReadonlyArray<ToolId>,
+  pending: ReadonlyArray<PendingChange>,
   cursor: number
-): SkillActionSelection | undefined {
-  const skill = getActionSkills(result)[cursor];
-  if (!skill) return undefined;
-  return {
-    id: skill.id,
-    toolId: skill.toolId,
-    kind: skill.kind,
-    name: skill.name
-  };
+): ActionsItem | undefined {
+  const desired = makeDesiredDisabled(pending);
+  return buildActionsModel(result, new Set(collapsed), desired).items[cursor];
 }
 
 function resolveActionSkill(
@@ -721,14 +764,7 @@ function getListMax(state: TuiState, result: MultiProjectScanResult): number {
     return aggregateFindings(result).reduce((n, s) => n + s.findings.length, 0);
   }
   if (state.activeTab === "actions") {
-    let count = 0;
-    for (const tool of result.userScope.tools) {
-      if (!tool.detected) continue;
-      count += tool.skills.filter(
-        (s) => s.kind === "agent_skill" || s.kind === "skills_sh_skill"
-      ).length;
-    }
-    return count;
+    return actionsNavigableCount(result, new Set(state.actionsCollapsed));
   }
   return 0;
 }
