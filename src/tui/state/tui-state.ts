@@ -3,6 +3,8 @@ import { cycleTabId } from "./navigation.js";
 
 export type TabId = "overview" | ToolId | "mcps" | "access" | "doctor" | "actions" | "settings";
 
+export type FocusPane = "sidebar" | "panel";
+
 export type DrillFrame =
   | { kind: "userScope"; toolId: ToolId }
   | { kind: "project"; toolId: ToolId; projectPath: string };
@@ -22,6 +24,19 @@ export interface TuiState {
   searchQuery: string;
   /** Cursor for bounded drill-in skill lists. */
   listCursor: number;
+  /**
+   * Actions tab: agent groups the user has collapsed. Array (not a Set) to keep
+   * state plain/serializable; read sites build a `Set` on demand. Empty = all
+   * groups expanded. Survives rescans (it's a UI preference, not scan data).
+   */
+  actionsCollapsed: ToolId[];
+  /**
+   * Which pane currently owns ↑/↓. "sidebar" => arrows move the sidebar
+   * selection; "panel" => arrows scroll the active screen's internal list.
+   * Tab-changing actions reset this to "panel" so users land already
+   * interacting with the screen they navigated to.
+   */
+  focus: FocusPane;
 }
 
 export type TuiAction =
@@ -34,7 +49,9 @@ export type TuiAction =
   | { type: "searchOpen" }
   | { type: "searchClose" }
   | { type: "searchSetQuery"; query: string }
-  | { type: "listMove"; direction: "up" | "down"; max: number };
+  | { type: "listMove"; direction: "up" | "down"; max: number }
+  | { type: "toggleActionsGroup"; toolId: ToolId }
+  | { type: "setFocus"; focus: FocusPane };
 
 export function createInitialState(result: MultiProjectScanResult): TuiState {
   return {
@@ -43,7 +60,9 @@ export function createInitialState(result: MultiProjectScanResult): TuiState {
     result,
     searchOpen: false,
     searchQuery: "",
-    listCursor: 0
+    listCursor: 0,
+    actionsCollapsed: [],
+    focus: "sidebar"
   };
 }
 
@@ -56,13 +75,15 @@ export function tuiReducer(state: TuiState, action: TuiAction): TuiState {
         drillStack: [],
         searchOpen: false,
         searchQuery: "",
-        listCursor: 0
+        listCursor: 0,
+        focus: "panel"
       };
     case "drillIn":
       return {
         ...state,
         drillStack: [...state.drillStack, action.frame],
-        listCursor: 0
+        listCursor: 0,
+        focus: "panel"
       };
     case "drillOut":
       if (state.drillStack.length === 0) return state;
@@ -79,7 +100,8 @@ export function tuiReducer(state: TuiState, action: TuiAction): TuiState {
         drillStack: [],
         searchOpen: false,
         searchQuery: "",
-        listCursor: 0
+        listCursor: 0,
+        focus: "panel"
       };
     }
     case "setResult": {
@@ -110,6 +132,17 @@ export function tuiReducer(state: TuiState, action: TuiAction): TuiState {
         listCursor: clampCursor(state.listCursor + step, max)
       };
     }
+    case "toggleActionsGroup": {
+      const collapsed = state.actionsCollapsed.includes(action.toolId)
+        ? state.actionsCollapsed.filter((id) => id !== action.toolId)
+        : [...state.actionsCollapsed, action.toolId];
+      // Cursor is intentionally left as-is; a collapse that hides the current
+      // row is clamped at render time and permanently re-clamped on the next
+      // arrow press via getListMax + listMove.
+      return { ...state, actionsCollapsed: collapsed };
+    }
+    case "setFocus":
+      return { ...state, focus: action.focus };
     default:
       return state;
   }

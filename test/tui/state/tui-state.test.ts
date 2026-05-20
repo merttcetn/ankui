@@ -93,7 +93,8 @@ test("setTab replaces activeTab and clears drillStack", () => {
     result: makeResult([]),
     searchOpen: false,
     searchQuery: "",
-    listCursor: 0
+    listCursor: 0,
+    actionsCollapsed: []
   };
   const next = tuiReducer(state, { type: "setTab", id: "codex" });
   assert.equal(next.activeTab, "codex");
@@ -122,7 +123,8 @@ test("drillOut pops the top of drillStack", () => {
     result: makeResult([]),
     searchOpen: false,
     searchQuery: "",
-    listCursor: 0
+    listCursor: 0,
+    actionsCollapsed: []
   };
   const next = tuiReducer(state, { type: "drillOut" });
   assert.equal(next.drillStack.length, 1);
@@ -165,7 +167,8 @@ test("cycleTab walks through actions tab in the cross-tool row", () => {
     result: makeResult([]),
     searchOpen: false,
     searchQuery: "",
-    listCursor: 0
+    listCursor: 0,
+    actionsCollapsed: []
   };
   const next = tuiReducer(state, { type: "cycleTab", direction: "next", tabs });
   assert.equal(next.activeTab, "actions");
@@ -178,7 +181,8 @@ test("setResult replaces the held result and preserves activeTab", () => {
     result: makeResult(["/p1"]),
     searchOpen: false,
     searchQuery: "",
-    listCursor: 0
+    listCursor: 0,
+    actionsCollapsed: []
   };
   const next = tuiReducer(initial, {
     type: "setResult",
@@ -196,7 +200,8 @@ test("setResult preserves a userScope drill frame", () => {
     result: makeResult([]),
     searchOpen: false,
     searchQuery: "",
-    listCursor: 0
+    listCursor: 0,
+    actionsCollapsed: []
   };
   const next = tuiReducer(state, {
     type: "setResult",
@@ -213,7 +218,8 @@ test("setResult preserves a project drill frame when the project is still presen
     result: makeResult(["/p1"]),
     searchOpen: false,
     searchQuery: "",
-    listCursor: 0
+    listCursor: 0,
+    actionsCollapsed: []
   };
   const next = tuiReducer(state, {
     type: "setResult",
@@ -234,7 +240,8 @@ test("setResult drops a project drill frame whose project disappeared", () => {
     result: makeResult(["/p1"]),
     searchOpen: false,
     searchQuery: "",
-    listCursor: 0
+    listCursor: 0,
+    actionsCollapsed: []
   };
   const next = tuiReducer(state, {
     type: "setResult",
@@ -295,7 +302,8 @@ test("setTab clears search state alongside drillStack", () => {
     result: makeResult([]),
     searchOpen: true,
     searchQuery: "deploy",
-    listCursor: 4
+    listCursor: 4,
+    actionsCollapsed: []
   };
   const next = tuiReducer(state, { type: "setTab", id: "codex" });
   assert.equal(next.searchOpen, false);
@@ -310,7 +318,8 @@ test("cycleTab clears search state alongside drillStack", () => {
     result: makeResult([]),
     searchOpen: true,
     searchQuery: "x",
-    listCursor: 4
+    listCursor: 4,
+    actionsCollapsed: []
   };
   const next = tuiReducer(state, {
     type: "cycleTab",
@@ -320,4 +329,97 @@ test("cycleTab clears search state alongside drillStack", () => {
   assert.equal(next.searchOpen, false);
   assert.equal(next.searchQuery, "");
   assert.equal(next.listCursor, 0);
+});
+
+test("createInitialState seeds actionsCollapsed=[] (all groups expanded)", () => {
+  assert.deepEqual(createInitialState(makeResult([])).actionsCollapsed, []);
+});
+
+test("toggleActionsGroup adds then removes a toolId", () => {
+  const collapsed = tuiReducer(INITIAL_STATE, {
+    type: "toggleActionsGroup",
+    toolId: "claude"
+  });
+  assert.deepEqual(collapsed.actionsCollapsed, ["claude"]);
+
+  const expanded = tuiReducer(collapsed, {
+    type: "toggleActionsGroup",
+    toolId: "claude"
+  });
+  assert.deepEqual(expanded.actionsCollapsed, []);
+});
+
+test("toggleActionsGroup leaves listCursor untouched", () => {
+  const moved = tuiReducer(createInitialState(makeResult([])), {
+    type: "listMove",
+    direction: "down",
+    max: 5
+  });
+  const toggled = tuiReducer(moved, {
+    type: "toggleActionsGroup",
+    toolId: "codex"
+  });
+  assert.equal(toggled.listCursor, moved.listCursor);
+});
+
+test("setResult preserves actionsCollapsed (UI preference survives rescan)", () => {
+  const collapsed = tuiReducer(createInitialState(makeResult([])), {
+    type: "toggleActionsGroup",
+    toolId: "gemini"
+  });
+  const next = tuiReducer(collapsed, {
+    type: "setResult",
+    result: makeResult(["/p1"])
+  });
+  assert.deepEqual(next.actionsCollapsed, ["gemini"]);
+});
+
+// ── focus pane ────────────────────────────────────────────────────────────────
+
+test("createInitialState defaults focus to 'sidebar'", () => {
+  const state = createInitialState(makeResult([]));
+  assert.equal(state.focus, "sidebar");
+});
+
+test("setFocus moves focus to 'panel' and back to 'sidebar'", () => {
+  const base = createInitialState(makeResult([]));
+  const toPanel = tuiReducer(base, { type: "setFocus", focus: "panel" });
+  assert.equal(toPanel.focus, "panel");
+  const toSidebar = tuiReducer(toPanel, { type: "setFocus", focus: "sidebar" });
+  assert.equal(toSidebar.focus, "sidebar");
+});
+
+test("setTab resets focus to 'panel' even when state had 'sidebar'", () => {
+  const base = createInitialState(makeResult([])); // focus: "sidebar"
+  const next = tuiReducer(base, { type: "setTab", id: "codex" });
+  assert.equal(next.focus, "panel");
+});
+
+test("cycleTab resets focus to 'panel'", () => {
+  const base = createInitialState(makeResult([])); // focus: "sidebar"
+  const next = tuiReducer(base, {
+    type: "cycleTab",
+    direction: "next",
+    tabs: ["overview", "claude", "codex"]
+  });
+  assert.equal(next.focus, "panel");
+});
+
+test("drillIn resets focus to 'panel'", () => {
+  const base = createInitialState(makeResult([])); // focus: "sidebar"
+  const next = tuiReducer(base, {
+    type: "drillIn",
+    frame: { kind: "userScope", toolId: "claude" }
+  });
+  assert.equal(next.focus, "panel");
+});
+
+test("drillOut keeps focus unchanged", () => {
+  const withStack: TuiState = {
+    ...createInitialState(makeResult([])),
+    drillStack: [{ kind: "userScope", toolId: "claude" }],
+    focus: "panel"
+  };
+  const next = tuiReducer(withStack, { type: "drillOut" });
+  assert.equal(next.focus, "panel");
 });
