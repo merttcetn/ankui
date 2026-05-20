@@ -101,6 +101,24 @@ const CROSS_TOOL_TABS: ReadonlyArray<TabItem> = [
   { id: "settings", label: "Settings" }
 ];
 
+/**
+ * Tabs that have no user-scope drill-in. Includes "overview" (a tool-row
+ * tab that isn't tied to a single tool) and every cross-tool tab. Used by
+ * onEnter to decide whether Enter drills in or merely shifts focus.
+ */
+const NON_DRILLABLE_TAB_IDS: ReadonlySet<TabId> = new Set<TabId>([
+  "overview",
+  "mcps",
+  "access",
+  "doctor",
+  "actions",
+  "settings"
+]);
+
+function isToolTab(id: TabId): id is ToolId {
+  return !NON_DRILLABLE_TAB_IDS.has(id);
+}
+
 export function App(props: AppProps): React.ReactElement {
   if (props.mode === "firstRun") {
     return <FirstRunShell {...props} />;
@@ -214,6 +232,13 @@ function MainShell(props: MainShellProps): React.ReactElement {
     if (item?.type === "header") {
       dispatch({ type: "toggleActionsGroup", toolId: item.toolId });
     }
+  };
+
+  const cycleSidebar = (direction: "next" | "prev"): void => {
+    dispatch({ type: "cycleTab", direction, tabs: tabIds });
+    // cycleTab resets focus to "panel" — keep it on the sidebar so ↑↓
+    // continues to move the selector instead of jumping into the screen.
+    dispatch({ type: "setFocus", focus: "sidebar" });
   };
 
   const stagePending = (action: "disable" | "enable"): void => {
@@ -358,10 +383,7 @@ function MainShell(props: MainShellProps): React.ReactElement {
     onArrowDown: () => {
       bump();
       if (state.focus === "sidebar" && state.drillStack.length === 0) {
-        dispatch({ type: "cycleTab", direction: "next", tabs: tabIds });
-        // cycleTab sets focus to "panel" — push it back to sidebar so ↑↓
-        // continues to move the selector instead of jumping into the screen.
-        dispatch({ type: "setFocus", focus: "sidebar" });
+        cycleSidebar("next");
         return;
       }
       const max = getListMax(state, result);
@@ -372,8 +394,7 @@ function MainShell(props: MainShellProps): React.ReactElement {
     onArrowUp: () => {
       bump();
       if (state.focus === "sidebar" && state.drillStack.length === 0) {
-        dispatch({ type: "cycleTab", direction: "prev", tabs: tabIds });
-        dispatch({ type: "setFocus", focus: "sidebar" });
+        cycleSidebar("prev");
         return;
       }
       const max = getListMax(state, result);
@@ -395,43 +416,31 @@ function MainShell(props: MainShellProps): React.ReactElement {
     },
     onEnter: () => {
       bump();
-      // Sidebar focus: pressing Enter on a tool row drills into its user
-      // scope and moves focus to the panel. On non-tool rows we just shift
-      // focus to the panel so the user can start interacting.
+      // Sidebar focus: Enter on a tool row drills in and hands focus to the
+      // panel. On non-drillable rows we just shift focus to the panel.
       if (state.focus === "sidebar") {
-        if (
-          state.activeTab === "overview" ||
-          state.activeTab === "mcps" ||
-          state.activeTab === "access" ||
-          state.activeTab === "doctor" ||
-          state.activeTab === "actions" ||
-          state.activeTab === "settings"
-        ) {
+        const tab = state.activeTab;
+        if (!isToolTab(tab)) {
           dispatch({ type: "setFocus", focus: "panel" });
           return;
         }
         dispatch({
           type: "drillIn",
-          frame: { kind: "userScope", toolId: state.activeTab }
+          frame: { kind: "userScope", toolId: tab }
         });
-        return; // drillIn already sets focus to "panel"
-      }
-
-      // Panel focus: original drill-in semantics (only meaningful on tool tabs).
-      if (state.drillStack.length > 0) return;
-      if (state.activeTab === "overview") return;
-      if (
-        state.activeTab === "mcps" ||
-        state.activeTab === "access" ||
-        state.activeTab === "doctor" ||
-        state.activeTab === "actions" ||
-        state.activeTab === "settings"
-      ) {
+        // Belt-and-suspenders: drillIn's reducer also sets focus to "panel",
+        // but pinning it here removes the invariant dependency.
+        dispatch({ type: "setFocus", focus: "panel" });
         return;
       }
+
+      // Panel focus: original drill-in semantics — only meaningful on tool tabs.
+      if (state.drillStack.length > 0) return;
+      const tab = state.activeTab;
+      if (!isToolTab(tab)) return;
       dispatch({
         type: "drillIn",
-        frame: { kind: "userScope", toolId: state.activeTab }
+        frame: { kind: "userScope", toolId: tab }
       });
     },
     onEscape: () => {
