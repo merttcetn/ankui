@@ -20,8 +20,7 @@ import type {
 } from "../scanner/filesystem-crawler.js";
 import { IdleWhisper } from "./components/IdleWhisper.js";
 import { ShellWithHints } from "./components/ShellWithHints.js";
-import { Sidebar } from "./components/Sidebar.js";
-import type { TabItem } from "./components/TabBar.js";
+import { Sidebar, type TabItem } from "./components/Sidebar.js";
 import { useIdleWhisper } from "./hooks/use-idle-whisper.js";
 import { useKeys } from "./input/use-keys.js";
 import {

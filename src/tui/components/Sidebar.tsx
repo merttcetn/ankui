@@ -4,7 +4,11 @@ import { Box, Text } from "ink";
 import { LIGHT } from "../theme/borders.js";
 import { ACCENT } from "../theme/colors.js";
 import { ACTIVE_PREFIX } from "../theme/icons.js";
-import type { TabItem } from "./TabBar.js";
+
+export interface TabItem {
+  id: string;
+  label: string;
+}
 
 export interface SidebarSection {
   label: string;
