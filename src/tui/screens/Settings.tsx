@@ -15,6 +15,7 @@ import {
 import { ACTIVE_PREFIX } from "../theme/icons.js";
 import { ACCENT } from "../theme/colors.js";
 import { formatLastScan } from "../util/scan-history.js";
+import { usePanelWidth } from "../util/panel-width.js";
 
 export interface SettingsProps {
   result: MultiProjectScanResult;
@@ -29,6 +30,7 @@ export function Settings({
 }: SettingsProps): React.ReactElement {
   const [state, dispatch] = useReducer(settingsReducer, INITIAL_SETTINGS_STATE);
   const [addBuffer, setAddBuffer] = useState("");
+  const panelWidth = usePanelWidth();
 
   const devRoots = result.devRoots;
   const rootCount = devRoots.length;
@@ -77,7 +79,7 @@ export function Settings({
 
   return (
     <Box flexDirection="column">
-      <SectionHeader label="DEV ROOTS" />
+      <SectionHeader label="DEV ROOTS" underlineWidth={panelWidth} />
       {rootCount === 0 ? (
         <Text dimColor>
           No dev roots registered. Press [a] to add one, or [r] to scan filesystem.
@@ -91,8 +93,8 @@ export function Settings({
               <Text color={isActive ? ACCENT : undefined}>
                 {isActive ? `${ACTIVE_PREFIX} ` : "  "}
               </Text>
-              <Box width={60}>
-                <DotLeaderRow label={display} metadata="" width={60} active={isActive} />
+              <Box width={panelWidth}>
+                <DotLeaderRow label={display} metadata="" width={panelWidth} active={isActive} />
               </Box>
             </Box>
           );
@@ -124,7 +126,7 @@ export function Settings({
       </Box>
 
       <Box marginTop={1} flexDirection="column">
-        <SectionHeader label="SCAN HISTORY" />
+        <SectionHeader label="SCAN HISTORY" underlineWidth={panelWidth} />
         <Text>{`last scan · ${lastScanLine}`}</Text>
       </Box>
     </Box>

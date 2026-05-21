@@ -7,6 +7,7 @@ import { ACCENT } from "../theme/colors.js";
 import { ACTIVE_PREFIX } from "../theme/icons.js";
 import type { FindingSection } from "../util/finding-grouping.js";
 import { clampCursor, windowStart } from "../util/viewport.js";
+import { usePanelWidth } from "../util/panel-width.js";
 import { SectionHeader } from "./SectionHeader.js";
 
 export interface AccessViewportProps {
@@ -47,6 +48,7 @@ export function AccessViewport({
   const count = Math.max(1, visibleCount);
   const start = windowStart(safeCursor, total, count);
   const visible = rows.slice(start, start + count);
+  const panelWidth = usePanelWidth();
 
   return (
     <Box flexDirection="column">
@@ -60,7 +62,10 @@ export function AccessViewport({
           <Box key={row.finding.id} flexDirection="column">
             {isFirstVisibleOfSection && (
               <Box marginTop={1}>
-                <SectionHeader label={row.sectionLabel.toUpperCase()} />
+                <SectionHeader
+                  label={row.sectionLabel.toUpperCase()}
+                  underlineWidth={panelWidth}
+                />
               </Box>
             )}
             <FindingCard

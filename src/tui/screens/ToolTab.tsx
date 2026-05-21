@@ -10,8 +10,7 @@ import type {
 import type { TuiAction } from "../state/tui-state.js";
 import { SectionHeader } from "../components/SectionHeader.js";
 import { DotLeaderRow } from "../components/DotLeaderRow.js";
-
-const ROW_WIDTH = 60;
+import { usePanelWidth } from "../util/panel-width.js";
 
 export interface ToolTabProps {
   toolId: ToolId;
@@ -21,12 +20,13 @@ export interface ToolTabProps {
 
 export function ToolTab({ toolId, result, dispatch }: ToolTabProps): React.ReactElement {
   void dispatch;
+  const panelWidth = usePanelWidth();
 
   const tool = result.userScope.tools.find((t) => t.id === toolId);
   if (!tool || !tool.detected) {
     return (
       <Box flexDirection="column">
-        <SectionHeader label={toolId.toUpperCase()} />
+        <SectionHeader label={toolId.toUpperCase()} underlineWidth={panelWidth} />
         <Text>Not detected on this machine.</Text>
       </Box>
     );
@@ -39,11 +39,11 @@ export function ToolTab({ toolId, result, dispatch }: ToolTabProps): React.React
 
   return (
     <Box flexDirection="column">
-      <SectionHeader label={toolId.toUpperCase()} />
+      <SectionHeader label={toolId.toUpperCase()} underlineWidth={panelWidth} />
       <Text>{formatSummary(tool, projectsWithSkills)}</Text>
 
       <Box marginTop={1} flexDirection="column">
-        <SectionHeader label="USER SCOPE" />
+        <SectionHeader label="USER SCOPE" underlineWidth={panelWidth} />
         <Text dimColor>{tool.detectedPaths.join(" · ")}</Text>
         {Object.entries(tool.stats)
           .filter(([, count]) => typeof count === "number" && (count as number) > 0)
@@ -52,20 +52,20 @@ export function ToolTab({ toolId, result, dispatch }: ToolTabProps): React.React
               key={kind}
               label={kind}
               metadata={String(count)}
-              width={ROW_WIDTH}
+              width={panelWidth}
             />
           ))}
       </Box>
 
       {projectsWithSkills.length > 0 && (
         <Box marginTop={1} flexDirection="column">
-          <SectionHeader label="PROJECTS" />
+          <SectionHeader label="PROJECTS" underlineWidth={panelWidth} />
           {projectsWithSkills.map((project) => (
             <DotLeaderRow
               key={project.projectPath}
               label={project.displayPath}
               metadata={formatProjectMetadata(project, toolId)}
-              width={ROW_WIDTH}
+              width={panelWidth}
             />
           ))}
         </Box>

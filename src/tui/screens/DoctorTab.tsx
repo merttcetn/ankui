@@ -12,6 +12,7 @@ import {
   type DoctorToolRow,
   type WarningGroup
 } from "../util/doctor-grouping.js";
+import { usePanelWidth } from "../util/panel-width.js";
 
 export interface DoctorTabProps {
   result: MultiProjectScanResult;
@@ -21,16 +22,17 @@ export function DoctorTab({ result }: DoctorTabProps): React.ReactElement {
   const board = buildDoctorBoard(result);
   const warningGroups = groupWarningsByReason(result);
   const detectedCount = board.filter((row) => row.detected).length;
+  const panelWidth = usePanelWidth();
 
   return (
     <Box flexDirection="column">
-      <SectionHeader label="DOCTOR" />
+      <SectionHeader label="DOCTOR" underlineWidth={panelWidth} />
       <Text>
         {board.length} tools · {detectedCount} detected · {result.warnings.length} warnings
       </Text>
 
       <Box marginTop={1} flexDirection="column">
-        <SectionHeader label="TOOLS" />
+        <SectionHeader label="TOOLS" underlineWidth={panelWidth} />
         {board.map((row) => (
           <ToolBoardRow key={row.toolId} row={row} />
         ))}
@@ -45,7 +47,11 @@ export function DoctorTab({ result }: DoctorTabProps): React.ReactElement {
             </Box>
           </Box>
         ) : (
-          <WarningsSection groups={warningGroups} homeDir={result.homeDir} />
+          <WarningsSection
+            groups={warningGroups}
+            homeDir={result.homeDir}
+            underlineWidth={panelWidth}
+          />
         )}
       </Box>
     </Box>
@@ -92,12 +98,13 @@ function ToolBoardRow({ row }: { row: DoctorToolRow }): React.ReactElement {
 interface WarningsSectionProps {
   groups: ReadonlyArray<WarningGroup>;
   homeDir: string;
+  underlineWidth: number;
 }
 
-function WarningsSection({ groups, homeDir }: WarningsSectionProps): React.ReactElement {
+function WarningsSection({ groups, homeDir, underlineWidth }: WarningsSectionProps): React.ReactElement {
   return (
     <Box flexDirection="column">
-      <SectionHeader label="WARNINGS" />
+      <SectionHeader label="WARNINGS" underlineWidth={underlineWidth} />
       {groups.map((group) => (
         <Box key={group.reason} marginTop={1} flexDirection="column">
           <Text bold>

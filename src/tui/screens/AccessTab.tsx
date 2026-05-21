@@ -7,6 +7,7 @@ import { EmptyStateWhisper } from "../components/EmptyStateWhisper.js";
 import { SectionHeader } from "../components/SectionHeader.js";
 import { EMPTY_STATE_WHISPERS } from "../messages.js";
 import { aggregateFindings } from "../util/finding-grouping.js";
+import { usePanelWidth } from "../util/panel-width.js";
 
 export interface AccessTabProps {
   result: MultiProjectScanResult;
@@ -26,11 +27,12 @@ export function AccessTab({
   visibleCount
 }: AccessTabProps): React.ReactElement {
   const sections = aggregateFindings(result);
+  const panelWidth = usePanelWidth();
 
   if (sections.length === 0) {
     return (
       <Box flexDirection="column">
-        <SectionHeader label="ACCESS" />
+        <SectionHeader label="ACCESS" underlineWidth={panelWidth} />
         <Text dimColor>No findings.</Text>
         <Box marginTop={1}>
           <EmptyStateWhisper text={EMPTY_STATE_WHISPERS.noFindings} />
@@ -46,7 +48,7 @@ export function AccessTab({
 
   return (
     <Box flexDirection="column">
-      <SectionHeader label="ACCESS" />
+      <SectionHeader label="ACCESS" underlineWidth={panelWidth} />
       <Text>
         {total} findings ({breakdown})
       </Text>

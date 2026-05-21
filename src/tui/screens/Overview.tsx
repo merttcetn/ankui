@@ -4,8 +4,7 @@ import { Box, Text } from "ink";
 import type { AITool, MultiProjectScanResult } from "../../types.js";
 import { SectionHeader } from "../components/SectionHeader.js";
 import { DotLeaderRow } from "../components/DotLeaderRow.js";
-
-const ROW_WIDTH = 60;
+import { usePanelWidth } from "../util/panel-width.js";
 
 export interface OverviewProps {
   result: MultiProjectScanResult;
@@ -13,28 +12,29 @@ export interface OverviewProps {
 
 export function Overview({ result }: OverviewProps): React.ReactElement {
   const totals = computeOverviewTotals(result);
+  const panelWidth = usePanelWidth();
 
   return (
     <Box flexDirection="column">
-      <SectionHeader label="OVERVIEW" />
+      <SectionHeader label="OVERVIEW" underlineWidth={panelWidth} />
       <Text>
         {totals.detectedCount} detected · {totals.skills} skills · {totals.mcpConfigs} MCP configs ({totals.uniqueMcps} unique) · {totals.findings} findings
       </Text>
 
       <Box marginTop={1} flexDirection="column">
-        <SectionHeader label="PER TOOL" />
+        <SectionHeader label="PER TOOL" underlineWidth={panelWidth} />
         {result.userScope.tools.map((tool) => (
           <DotLeaderRow
             key={tool.id}
             label={tool.name}
             metadata={formatToolMetadata(tool, result)}
-            width={ROW_WIDTH}
+            width={panelWidth}
           />
         ))}
       </Box>
 
       <Box marginTop={1} flexDirection="column">
-        <SectionHeader label="CROSS TOOL" />
+        <SectionHeader label="CROSS TOOL" underlineWidth={panelWidth} />
         <Text>
           {totals.uniqueMcps} unique MCPs · {totals.duplicatedMcps} duplicated cross-tool
         </Text>
