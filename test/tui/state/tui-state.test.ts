@@ -404,14 +404,25 @@ test("setTab resets focus to 'panel' even when state had 'sidebar'", () => {
   assert.equal(next.focus, "panel");
 });
 
-test("cycleTab resets focus to 'panel'", () => {
-  const base = createInitialState(makeResult([])); // focus: "sidebar"
-  const next = tuiReducer(base, {
+test("cycleTab does NOT change focus (mechanical sidebar nav; caller stays in charge)", () => {
+  // Sidebar nav (cycleSidebar) calls cycleTab from focus="sidebar" and
+  // expects to stay there. setTab / drillIn are the actions that move
+  // focus into the panel — cycleTab is not.
+  const sidebar: TuiState = { ...createInitialState(makeResult([])), focus: "sidebar" };
+  const next = tuiReducer(sidebar, {
     type: "cycleTab",
     direction: "next",
-    tabs: ["overview", "claude", "codex"]
+    tabs: ["overview", "claude"]
   });
-  assert.equal(next.focus, "panel");
+  assert.equal(next.focus, "sidebar");
+
+  const panel: TuiState = { ...createInitialState(makeResult([])), focus: "panel" };
+  const next2 = tuiReducer(panel, {
+    type: "cycleTab",
+    direction: "next",
+    tabs: ["overview", "claude"]
+  });
+  assert.equal(next2.focus, "panel"); // also unchanged
 });
 
 test("drillIn resets focus to 'panel'", () => {

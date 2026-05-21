@@ -92,6 +92,9 @@ export function tuiReducer(state: TuiState, action: TuiAction): TuiState {
         drillStack: state.drillStack.slice(0, -1),
         listCursor: 0
       };
+    // cycleTab is mechanical sidebar navigation (driven by cycleSidebar()) —
+    // focus stays where it was. setTab / drillIn are active user actions
+    // that move focus into the panel.
     case "cycleTab": {
       const nextId = cycleTabId(state.activeTab, action.direction, action.tabs) as TabId;
       return {
@@ -100,8 +103,7 @@ export function tuiReducer(state: TuiState, action: TuiAction): TuiState {
         drillStack: [],
         searchOpen: false,
         searchQuery: "",
-        listCursor: 0,
-        focus: "panel"
+        listCursor: 0
       };
     }
     case "setResult": {

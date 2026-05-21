@@ -235,9 +235,6 @@ function MainShell(props: MainShellProps): React.ReactElement {
 
   const cycleSidebar = (direction: "next" | "prev"): void => {
     dispatch({ type: "cycleTab", direction, tabs: tabIds });
-    // cycleTab resets focus to "panel" — keep it on the sidebar so ↑↓
-    // continues to move the selector instead of jumping into the screen.
-    dispatch({ type: "setFocus", focus: "sidebar" });
   };
 
   const stagePending = (action: "disable" | "enable"): void => {
@@ -480,7 +477,10 @@ function MainShell(props: MainShellProps): React.ReactElement {
         return;
       }
       // Screen-scoped hotkeys live here so search-overlay input always wins.
-      if (state.activeTab === "actions") {
+      // Gated on focus="panel" because key-hints only advertise them in that
+      // mode — the sidebar-focused user shouldn't accidentally stage actions
+      // by pressing d/e/s while browsing the navigator.
+      if (state.activeTab === "actions" && state.focus === "panel") {
         if (ch === "d") stagePending("disable");
         else if (ch === "e") stagePending("enable");
         else if (ch === "s" || ch === "S") savePending();

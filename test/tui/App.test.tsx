@@ -453,6 +453,27 @@ test("App confirms quit with unsaved changes; [q] discards without writing", asy
   inst.unmount();
 });
 
+test("App ignores [d] / [e] / [s] on the Actions tab when focus is still on the sidebar", async () => {
+  const homeDir = await fs.mkdtemp(path.join(os.tmpdir(), "ankui-app-action-"));
+  const result = await multiProjectResultWithDiskSkill(homeDir, "toggle-me");
+  const inst = render(<App result={result} homeDir={homeDir} onRefresh={async () => {}} />);
+
+  // Navigate to Actions via the sidebar (11 down arrows) BUT do NOT press →
+  // to move focus to the panel.
+  const toActionsSidebar = Array.from({ length: 11 }, () => "\x1B[B");
+  await writeKeys(inst.stdin, toActionsSidebar);
+  await waitForFrameMatch(inst, /Actions/);
+
+  // Press d / e / s — none should fire because focus is still on sidebar.
+  await writeKeys(inst.stdin, ["d", "e", "s"]);
+  await new Promise((r) => setTimeout(r, 50));
+
+  const frame = inst.lastFrame() ?? "";
+  assert.ok(!/Pending \(unsaved\)/.test(frame), `expected no pending changes, got:\n${frame}`);
+  assert.ok(!/Staged/.test(frame), `expected no staged feedback, got:\n${frame}`);
+  inst.unmount();
+});
+
 test("App saves from the quit confirm with [s] then exits", async () => {
   const homeDir = await fs.mkdtemp(path.join(os.tmpdir(), "ankui-app-action-"));
   const result = await multiProjectResultWithDiskSkill(homeDir, "toggle-me");
