@@ -208,8 +208,9 @@ test("App reserves Tab without cycling top-level tabs", async () => {
 
 test("App opens search on / inside a drilled-in user-scope view and renders the SearchBox", async () => {
   const inst = render(<App result={multiProjectResult()} />);
-  // Right arrow -> switch to Claude, then Enter -> drill into user scope, then /
-  await writeKeys(inst.stdin, ["\x1B[C", "\r", "/"]);
+  // Down arrow -> select Claude in the sidebar, then Enter -> drill into user
+  // scope (Enter on a tool row from sidebar focus drills in), then /.
+  await writeKeys(inst.stdin, ["\x1B[B", "\r", "/"]);
   const frame = inst.lastFrame() ?? "";
   assert.match(frame, /type to filter|esc to close/);
   inst.unmount();
@@ -217,7 +218,7 @@ test("App opens search on / inside a drilled-in user-scope view and renders the 
 
 test("App appends typed characters to the search query inside a drill-in", async () => {
   const inst = render(<App result={multiProjectResult()} />);
-  await writeKeys(inst.stdin, ["\x1B[C", "\r", "/", "d", "e", "p"]);
+  await writeKeys(inst.stdin, ["\x1B[B", "\r", "/", "d", "e", "p"]);
   const frame = inst.lastFrame() ?? "";
   assert.match(frame, /\/dep/);
   inst.unmount();
@@ -225,7 +226,7 @@ test("App appends typed characters to the search query inside a drill-in", async
 
 test("App closes search on Esc inside a drill-in", async () => {
   const inst = render(<App result={multiProjectResult()} />);
-  await writeKeys(inst.stdin, ["\x1B[C", "\r", "/", "\x1B"]);
+  await writeKeys(inst.stdin, ["\x1B[B", "\r", "/", "\x1B"]);
   const frame = inst.lastFrame() ?? "";
   assert.doesNotMatch(frame, /type to filter|esc to close/);
   inst.unmount();
@@ -233,8 +234,10 @@ test("App closes search on Esc inside a drill-in", async () => {
 
 test("App scrolls the drill-in skill viewport with down arrow", async () => {
   const inst = render(<App result={multiProjectResultWithManyClaudeSkills(16)} />);
+  // Sidebar ↓ to Claude, Enter to drill in, then ↓ scrolls the drill-in
+  // viewport (drill-in handlers are focus-independent).
   await writeKeys(inst.stdin, [
-    "\x1B[C",
+    "\x1B[B",
     "\r",
     ...Array.from({ length: 15 }, () => "\x1B[B")
   ]);
@@ -276,11 +279,11 @@ test("App reflects a new result prop after a LauncherShell-style refresh", async
   const updated = multiProjectResultWithManyClaudeSkills(2);
 
   const inst = render(<App result={initial} />);
-  // Right-arrow to the Actions tab. Cycle order from tabIds is
-  // [overview, claude, codex, cursor, gemini, opencode, antigravity,
-  //  skills.sh, mcps, access, doctor, actions, settings] — all tools
-  //  are in the tab bar regardless of detection. Actions is at index 11.
-  const presses = Array.from({ length: 11 }, () => "\x1B[C");
+  // Down-arrow through the sidebar to the Actions tab. The flattened cycle
+  // order is [overview, claude, codex, cursor, gemini, opencode, antigravity,
+  // skills.sh, mcps, access, doctor, actions, settings] — all tools are in the
+  // sidebar regardless of detection. Actions is at index 11.
+  const presses = Array.from({ length: 11 }, () => "\x1B[B");
   await writeKeys(inst.stdin, presses);
   const before = inst.lastFrame() ?? "";
   // SectionHeader spaces every glyph: "SKILLS (1)" → "S K I L L S   ( 1 )"
@@ -293,9 +296,15 @@ test("App reflects a new result prop after a LauncherShell-style refresh", async
   inst.unmount();
 });
 
-// 11 right-arrows reach the Actions tab; one down-arrow steps off the agent
-// group header (navIndex 0) onto its first skill so [d]/[e] act on a skill.
-const TO_ACTIONS = [...Array.from({ length: 11 }, () => "\x1B[C"), "\x1B[B"];
+// 11 down-arrows from the initial sidebar focus reach the Actions tab (focus
+// stays on the sidebar). One right-arrow then moves focus to the panel, and
+// one more down-arrow steps off the agent group header (navIndex 0) onto its
+// first skill so [d]/[e] act on a skill.
+const TO_ACTIONS = [
+  ...Array.from({ length: 11 }, () => "\x1B[B"),
+  "\x1B[C",
+  "\x1B[B"
+];
 
 test("App stages a disable in the UI and writes nothing until [s]", async () => {
   const homeDir = await fs.mkdtemp(path.join(os.tmpdir(), "ankui-app-action-"));
@@ -391,10 +400,17 @@ test("App keeps a failed item pending and reports the error after [s]", async ()
   await waitForFrameMatch(inst, /Pending \(unsaved\) \(1\)/);
 
   await writeKeys(inst.stdin, ["s"]);
+  // The error message wraps to two lines in the narrower right-panel layout,
+  // with sidebar box-drawing glyphs (and the unrelated row beside the wrap)
+  // sitting between the two halves. Anchor on the "1 failed" prefix and the
+  // failure verb; the reason ("target already exists") is asserted as its
+  // own substring further down once the frame has settled.
   const failed = await waitForFrameMatch(
     inst,
-    /1 failed: Could not disable claude\/toggle-me: target already exists/
+    /1 failed: Could not disable claude\/toggle-me/
   );
+  assert.match(failed, /target already/);
+  assert.match(failed, /exists/);
   assert.match(failed, /Saved 0/);
   assert.match(failed, /Pending \(unsaved\) \(1\)/); // stays pending
   assert.match(failed, /○ toggle-me/); // glyph still desired

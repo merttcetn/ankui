@@ -37,15 +37,15 @@ async function flush(): Promise<void> {
   await new Promise<void>((resolve) => setImmediate(resolve));
 }
 
-async function pressRightArrows(stdin: { write: (s: string) => void }, count: number): Promise<void> {
+async function pressDownArrows(stdin: { write: (s: string) => void }, count: number): Promise<void> {
   await flush();
   for (let i = 0; i < count; i += 1) {
-    stdin.write("\x1B[C");
+    stdin.write("\x1B[B");
     await flush();
   }
 }
 
-test("App registers a Settings tab in the cross-tool row", () => {
+test("App registers a Settings tab in the Sidebar VIEWS section", () => {
   const inst = render(
     <App mode="main" result={fixture()} homeDir="/h" onConfigChange={async () => {}} />
   );
@@ -58,13 +58,14 @@ test("App routes activeTab='settings' to the Settings screen", async () => {
   const inst = render(
     <App mode="main" result={fixture()} homeDir="/h" onConfigChange={async () => {}} />
   );
-  // Tools row: overview + 7 tools = 8. Cross-tool row: mcps, access, doctor, actions, settings.
-  // Right arrow 12 times to land on Settings.
-  await pressRightArrows(inst.stdin, 12);
+  // From sidebar focus on `overview`, ↓ cycles through the flattened tab list:
+  // TOOLS section (overview + 7 tools = 8) + VIEWS section (mcps, access,
+  // doctor, actions, settings). 12 down arrows land on `settings`.
+  await pressDownArrows(inst.stdin, 12);
   const frame = inst.lastFrame() ?? "";
-  // The TabBar renders the active tab uppercased without inter-letter spacing,
-  // so look for the uppercased "SETTINGS" in the tab row.
-  assert.match(frame, /SETTINGS/);
+  // The Sidebar renders the active row uppercased with a ▶ prefix when focus
+  // is on the sidebar. Look for the active-sidebar variant.
+  assert.match(frame, /▶ SETTINGS/);
   // DEV ROOTS header is in the Settings screen body (SectionHeader spaces letters).
   assert.match(frame, /D E V   R O O T S/);
   inst.unmount();
@@ -75,6 +76,8 @@ test("App preserves Overview routing after Settings tab integration", () => {
     <App mode="main" result={fixture()} homeDir="/h" onConfigChange={async () => {}} />
   );
   const frame = inst.lastFrame() ?? "";
+  // Initial state has sidebar focus on Overview, so the active row reads
+  // "▶ OVERVIEW" in the sidebar.
   assert.match(frame, /OVERVIEW/);
   inst.unmount();
 });

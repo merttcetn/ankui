@@ -88,9 +88,10 @@ function fixture(): MultiProjectScanResult {
   };
 }
 
-test("App renders second tab row containing MCPs, Access, Doctor", () => {
+test("App renders Sidebar VIEWS section containing MCPs, Access, Doctor", () => {
   const inst = render(<App result={fixture()} />);
   const frame = inst.lastFrame() ?? "";
+  assert.match(frame, /VIEWS/);
   assert.match(frame, /MCPs/);
   assert.match(frame, /Access/);
   assert.match(frame, /Doctor/);
@@ -101,21 +102,21 @@ async function flush(): Promise<void> {
   await new Promise<void>((resolve) => setImmediate(resolve));
 }
 
-async function pressRightArrows(stdin: { write: (s: string) => void }, count: number): Promise<void> {
+async function pressDownArrows(stdin: { write: (s: string) => void }, count: number): Promise<void> {
   // Let Ink mount and enable raw-mode (via useEffect) before the first write,
   // otherwise the initial keypresses arrive before the input listener attaches.
   await flush();
   for (let i = 0; i < count; i += 1) {
-    stdin.write("\x1B[C");
+    stdin.write("\x1B[B");
     await flush();
   }
 }
 
 test("App routes activeTab='mcps' to McpsTab screen", async () => {
   const inst = render(<App result={fixture()} />);
-  // Cycle tabs past tools row until MCPS is active. Overview + 7 tools = 8
-  // entries in the first row, so 8 right arrows land us on `mcps`.
-  await pressRightArrows(inst.stdin, 8);
+  // From sidebar focus on `overview`, ↓ cycles through tabs: overview + 7 tools
+  // = 8 entries in the TOOLS section, so 8 down arrows land us on `mcps`.
+  await pressDownArrows(inst.stdin, 8);
   const frame = inst.lastFrame() ?? "";
   assert.match(frame, /M C P S/);
   assert.match(frame, /Postgres/);
@@ -124,7 +125,7 @@ test("App routes activeTab='mcps' to McpsTab screen", async () => {
 
 test("App routes activeTab='access' to AccessTab screen", async () => {
   const inst = render(<App result={fixture()} />);
-  await pressRightArrows(inst.stdin, 9);
+  await pressDownArrows(inst.stdin, 9);
   const frame = inst.lastFrame() ?? "";
   assert.match(frame, /A C C E S S/);
   assert.match(frame, /duplicate-test/);
@@ -133,7 +134,7 @@ test("App routes activeTab='access' to AccessTab screen", async () => {
 
 test("App routes activeTab='doctor' to DoctorTab screen", async () => {
   const inst = render(<App result={fixture()} />);
-  await pressRightArrows(inst.stdin, 10);
+  await pressDownArrows(inst.stdin, 10);
   const frame = inst.lastFrame() ?? "";
   assert.match(frame, /DOCTOR/);
   assert.match(frame, /1 warnings/);
