@@ -182,3 +182,27 @@ test("AccessViewport footer follows the SkillViewport pattern", () => {
   assert.match(frame, /1\/1 findings · ↑\/↓ next\/prev/);
   inst.unmount();
 });
+
+test("AccessViewport defaults to one finding card (single-card pagination)", () => {
+  // Two findings in the same section. With the default visibleCount, only
+  // one should render — and the indicator should show 1/2.
+  const findings = [
+    f("unknown_capability", "Alpha MCP is not in catalog"),
+    f("unknown_capability", "Beta MCP is not in catalog")
+  ];
+  const inst = render(
+    <AccessViewport
+      sections={sectionsFor(findings)}
+      homeDir="/home"
+      cursor={0}
+    />
+  );
+  const frame = inst.lastFrame() ?? "";
+  assert.match(frame, /Alpha MCP/, `expected first finding rendered: ${frame}`);
+  assert.ok(
+    !/Beta MCP/.test(frame),
+    `expected second finding NOT rendered with default visibleCount=1: ${frame}`
+  );
+  assert.match(frame, /1\/2 findings/, `expected position indicator: ${frame}`);
+  inst.unmount();
+});

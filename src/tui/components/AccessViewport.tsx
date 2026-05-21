@@ -14,12 +14,14 @@ export interface AccessViewportProps {
   sections: ReadonlyArray<FindingSection>;
   homeDir: string;
   cursor: number;
-  /** How many finding cards render at once. Default 3 keeps the frame
-   *  bounded regardless of total finding count. */
+  /** How many finding cards render at once. Default 1 — single-card
+   *  pagination. Each ↑/↓ steps to the next finding so the frame stays
+   *  bounded on short terminals. Tests opt into multi-card windows
+   *  by passing an explicit value. */
   visibleCount?: number;
 }
 
-const DEFAULT_VISIBLE_COUNT = 3;
+const DEFAULT_VISIBLE_COUNT = 1;
 
 interface FindingRow {
   finding: Finding;
