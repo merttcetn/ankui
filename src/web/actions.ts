@@ -80,6 +80,9 @@ export async function applyActions(
     }
   }
 
+  // A second full scan so the client renders post-write disk state without
+  // another round-trip. This is a deliberate cost trade for a local
+  // single-user tool; revisit if multi-project scans become a bottleneck.
   const scan = await deps.loadScan();
   return { outcomes, scan };
 }

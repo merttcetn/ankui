@@ -62,14 +62,16 @@ export async function runWebCommand(
   });
 
   const stop = async (): Promise<void> => {
-    process.removeListener("SIGINT", onSigint);
+    process.removeListener("SIGINT", onSignal);
+    process.removeListener("SIGTERM", onSignal);
     await server.close();
     resolveDone();
   };
-  const onSigint = (): void => {
+  const onSignal = (): void => {
     void stop();
   };
-  process.once("SIGINT", onSigint);
+  process.once("SIGINT", onSignal);
+  process.once("SIGTERM", onSignal);
 
   return { url: server.url, close: stop, done };
 }

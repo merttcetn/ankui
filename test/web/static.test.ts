@@ -52,6 +52,18 @@ test("serveStatic blocks path traversal", async () => {
   assert.equal(asset.status, 404);
 });
 
+test("serveStatic blocks URL-encoded path traversal", async () => {
+  const dir = await tempSpaDir();
+  const asset = await serveStatic("/%2e%2e%2f%2e%2e%2fetc%2fpasswd", "tok123", dir);
+  assert.equal(asset.status, 404);
+});
+
+test("serveStatic rejects malformed percent-encoding", async () => {
+  const dir = await tempSpaDir();
+  const asset = await serveStatic("/%zz", "tok123", dir);
+  assert.equal(asset.status, 404);
+});
+
 test("serveStatic returns 503 when the SPA is not built", async () => {
   const asset = await serveStatic(
     "/",

@@ -43,7 +43,16 @@ export async function serveStatic(
   dir: string = spaDir()
 ): Promise<StaticAsset> {
   const root = path.resolve(dir);
-  const clean = (urlPath.split("?")[0] ?? "/");
+  const rawPath = urlPath.split("?")[0] ?? "/";
+  let clean: string;
+  try {
+    // Decode percent-encoding so an encoded traversal (e.g. %2e%2e%2f)
+    // is normalized and caught by the guard below, not treated as a
+    // literal filename. Malformed encoding is rejected outright.
+    clean = decodeURIComponent(rawPath);
+  } catch {
+    return { status: 404, contentType: "text/plain; charset=utf-8", body: "not found" };
+  }
   const rel = clean === "/" ? "index.html" : clean.replace(/^\/+/, "");
   const resolved = path.resolve(root, rel);
 
