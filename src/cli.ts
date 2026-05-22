@@ -10,6 +10,7 @@ import { runMcpCommand } from "./commands/mcp.js";
 import { runScanAllCommand } from "./commands/scan-all.js";
 import { runShowCommand } from "./commands/show.js";
 import { runWatchCommand } from "./commands/watch.js";
+import { runWebCommand } from "./commands/web.js";
 import { buildLaunchTuiResult } from "./commands/launch-tui.js";
 import {
   getAnkuiConfigPath,
@@ -72,6 +73,21 @@ program
   .action(async () => {
     const handle = await runWatchCommand();
     await handle.exitPromise;
+  });
+
+program
+  .command("web")
+  .description("Open the web UI in a browser.")
+  .option("--port <port>", "preferred port (default: 7373)", (v) =>
+    Number.parseInt(v, 10)
+  )
+  .option("--no-open", "do not open the browser automatically")
+  .action(async (cmdOpts: { port?: number; open?: boolean }) => {
+    const handle = await runWebCommand({
+      port: cmdOpts.port,
+      open: cmdOpts.open
+    });
+    await handle.done;
   });
 
 program
