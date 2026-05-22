@@ -34,6 +34,7 @@ import { filterSkillsByQuery } from "./util/skill-filter.js";
 import {
   actionsNavigableCount,
   buildActionsModel,
+  collectActionSkills,
   makeDesiredDisabled,
   type ActionsItem
 } from "./util/actions-items.js";
@@ -683,7 +684,7 @@ function resolveActionSkill(
   result: MultiProjectScanResult,
   selection: SkillActionSelection
 ): Skill | undefined {
-  const skills = getActionSkills(result);
+  const skills = collectActionSkills(result);
   return (
     skills.find((skill) => skill.id === selection.id) ??
     skills.find(
@@ -693,19 +694,6 @@ function resolveActionSkill(
         skill.name === selection.name
     )
   );
-}
-
-function getActionSkills(result: MultiProjectScanResult): Skill[] {
-  const skills: Skill[] = [];
-  for (const tool of result.userScope.tools) {
-    if (!tool.detected) continue;
-    skills.push(
-      ...tool.skills.filter(
-        (skill) => skill.kind === "agent_skill" || skill.kind === "skills_sh_skill"
-      )
-    );
-  }
-  return skills;
 }
 
 function applySkillActionResult(

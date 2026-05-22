@@ -10,6 +10,10 @@ export const DISCLOSURE_CLOSED = "◇"; // ◇
 /** Active-row prefix used by drill-in lists. */
 export const ACTIVE_PREFIX = "▶"; // ▶
 
+/** Actions-tab agent group disclosure markers. */
+export const GROUP_EXPANDED = "▾"; // ▾
+export const GROUP_COLLAPSED = "▸"; // ▸
+
 /** First-run splash logo glyph. */
 export const SPLASH_DOT = "◌"; // ◌
 

@@ -7,7 +7,12 @@ import {
   ActionsTab,
   type PendingChange
 } from "../../../src/tui/screens/ActionsTab.js";
-import { createSkillId, type MultiProjectScanResult, type Skill } from "../../../src/types.js";
+import {
+  createSkillId,
+  type MultiProjectScanResult,
+  type Skill,
+  type ToolId
+} from "../../../src/types.js";
 
 function activeSkill(name: string): Skill {
   const sourcePath = `/home/.claude/skills/${name}/SKILL.md`;
@@ -29,11 +34,15 @@ function disabledSkill(name: string): Skill {
   return { ...activeSkill(name), sourcePath: `/home/.claude/skills/.disabled/${name}/SKILL.md`, details: { disabled: true } };
 }
 
-function resultWith(skills: Skill[]): MultiProjectScanResult {
+function makeTool(id: ToolId, name: string, skills: Skill[]) {
+  return { id, name, detected: true, detectedPaths: [], skills, findings: [], stats: {} as any, warnings: [] };
+}
+
+function resultFromTools(
+  tools: unknown[],
+  skillTotal: number
+): MultiProjectScanResult {
   // Minimal MultiProjectScanResult; only the userScope.tools[].skills path is read by ActionsTab.
-  const tools = [
-    { id: "claude" as const, detected: true, detectedPaths: [], skills, findings: [], stats: {} as any, warnings: [] }
-  ];
   return {
     scannedAt: "2026-05-18T00:00:00.000Z",
     cwd: "/cwd",
@@ -42,8 +51,12 @@ function resultWith(skills: Skill[]): MultiProjectScanResult {
     userScope: { scannedAt: "x", cwd: "/cwd", homeDir: "/home", tools: tools as any, findings: [], warnings: [], summary: {} as any },
     projects: [],
     warnings: [],
-    totals: { projectCount: 0, skillsAcrossProjects: 0, userScopeSkills: skills.length }
+    totals: { projectCount: 0, skillsAcrossProjects: 0, userScopeSkills: skillTotal }
   };
+}
+
+function resultWith(skills: Skill[]): MultiProjectScanResult {
+  return resultFromTools([makeTool("claude", "Claude", skills)], skills.length);
 }
 
 test("ActionsTab lists each skill with its active or disabled state", () => {
@@ -62,14 +75,70 @@ test("ActionsTab lists each skill with its active or disabled state", () => {
 });
 
 test("ActionsTab highlights the cursor row", () => {
+  // navIndex 0 is the CLAUDE group header; skills start at 1 (alpha), 2 (bravo).
   const inst = render(
     <ActionsTab
       result={resultWith([activeSkill("alpha"), activeSkill("bravo")])}
-      cursor={1}
+      cursor={2}
     />
   );
   const frame = inst.lastFrame() ?? "";
   assert.match(frame, /▶\s+● bravo/);  // ACTIVE_PREFIX from icons.ts on the cursor row
+  inst.unmount();
+});
+
+test("ActionsTab renders an agent group header with enabled/disabled counts", () => {
+  const inst = render(
+    <ActionsTab
+      result={resultWith([activeSkill("alpha"), disabledSkill("bravo")])}
+      cursor={0}
+    />
+  );
+  const frame = inst.lastFrame() ?? "";
+  assert.match(frame, /CLAUDE\s+● 1\s+○ 1\s+\[▾\]/); // expanded glyph + counts
+  inst.unmount();
+});
+
+test("ActionsTab collapses a group: glyph flips and skills are hidden", () => {
+  const inst = render(
+    <ActionsTab
+      result={resultWith([activeSkill("alpha"), activeSkill("bravo")])}
+      collapsed={["claude"]}
+    />
+  );
+  const frame = inst.lastFrame() ?? "";
+  assert.match(frame, /CLAUDE\s+● 2\s+○ 0\s+\[▸\]/); // collapsed glyph + counts
+  assert.doesNotMatch(frame, /alpha/);               // group body hidden
+  assert.doesNotMatch(frame, /bravo/);
+  inst.unmount();
+});
+
+test("ActionsTab shows a (none) placeholder under an expanded empty group", () => {
+  const inst = render(<ActionsTab result={resultWith([])} />);
+  const frame = inst.lastFrame() ?? "";
+  assert.match(frame, /CLAUDE\s+● 0\s+○ 0\s+\[▾\]/);
+  assert.match(frame, /\(none\)/);
+  inst.unmount();
+});
+
+test("ActionsTab caps the viewport at visibleCount physical rows, (none) rows included", () => {
+  // claude has one skill; codex and cursor are empty + expanded, so each emits
+  // a render-only (none) row. With visibleCount=3 the physical window is
+  // [CLAUDE header, alpha, CODEX header] — the codex (none) is the 4th
+  // physical row and must be clipped, not leaked in on top of the 3 rows.
+  const tools = [
+    makeTool("claude", "Claude", [activeSkill("alpha")]),
+    makeTool("codex", "Codex", []),
+    makeTool("cursor", "Cursor", [])
+  ];
+  const inst = render(
+    <ActionsTab result={resultFromTools(tools, 1)} visibleCount={3} cursor={0} />
+  );
+  const frame = inst.lastFrame() ?? "";
+  assert.match(frame, /CLAUDE/);
+  assert.match(frame, /alpha/);
+  assert.match(frame, /CODEX/);
+  assert.doesNotMatch(frame, /\(none\)/); // 4th physical row, clipped by the window
   inst.unmount();
 });
 

@@ -7,10 +7,19 @@ import {
   type SessionAction
 } from "../../utils/session-summary.js";
 import { ACCENT } from "../theme/colors.js";
-import { ACTIVE_PREFIX } from "../theme/icons.js";
+import {
+  ACTIVE_PREFIX,
+  GROUP_COLLAPSED,
+  GROUP_EXPANDED
+} from "../theme/icons.js";
 import { Breadcrumb } from "../components/Breadcrumb.js";
 import { SectionHeader } from "../components/SectionHeader.js";
 import { clampCursor, windowStart } from "../util/viewport.js";
+import {
+  buildActionsModel,
+  makeDesiredDisabled,
+  type ActionsItem
+} from "../util/actions-items.js";
 
 export interface ActionsTabProps {
   result: MultiProjectScanResult;
@@ -21,6 +30,8 @@ export interface ActionsTabProps {
   pending?: ReadonlyArray<PendingChange>;
   saving?: boolean;
   saveSummary?: string | null;
+  /** Actions tab: agent groups currently collapsed (owned by tui-state). */
+  collapsed?: ReadonlyArray<ToolId>;
 }
 
 const DEFAULT_VISIBLE_COUNT = 12;
@@ -46,15 +57,25 @@ export interface PendingChange {
   action: "disable" | "enable";
 }
 
-interface Row {
-  skill: Skill;
-  toolLabel: string;
-}
+type RenderRow =
+  | {
+      kind: "header";
+      item: Extract<ActionsItem, { type: "header" }>;
+      navIndex: number;
+    }
+  | {
+      kind: "skill";
+      item: Extract<ActionsItem, { type: "skill" }>;
+      navIndex: number;
+    }
+  | { kind: "none"; toolId: ToolId };
 
 /**
- * Lists every markdown-backed user-scope skill with an active/disabled marker.
- * The right column mirrors current state counts plus the net changes made in
- * this TUI session.
+ * Lists markdown-backed user-scope skills grouped under a header per agent.
+ * Each group header (`CLAUDE   ● n  ○ m   [▾]`) is always present and is the
+ * only place the cursor can toggle collapse; collapsed groups hide their
+ * skills. The right column mirrors global state counts plus this session's
+ * saved changes.
  */
 export function ActionsTab({
   result,
@@ -64,23 +85,53 @@ export function ActionsTab({
   actionFeedback = null,
   pending = [],
   saving = false,
-  saveSummary = null
+  saveSummary = null,
+  collapsed = []
 }: ActionsTabProps): React.ReactElement {
-  const rows = flattenRows(result);
-  const total = rows.length;
+  // The left list is a checkbox the user is editing: glyphs and header counts
+  // reflect the desired state (on-disk overlaid with unsaved pending changes),
+  // not raw on-disk state. Nothing here touches disk — that's [s].
+  const desiredDisabled = makeDesiredDisabled(pending);
+  const collapsedSet = new Set<ToolId>(collapsed);
+  const model = buildActionsModel(result, collapsedSet, desiredDisabled);
+  const navItems = model.items;
+  const total = navItems.length;
   const safeCursor = clampCursor(cursor, total);
-  const start = windowStart(safeCursor, total, Math.max(1, visibleCount));
-  const visible = rows.slice(start, start + Math.max(1, visibleCount));
-  // The left list is a checkbox the user is editing: the glyph reflects the
-  // desired state (on-disk overlaid with any unsaved pending change), not the
-  // raw on-disk state. Nothing here touches disk — that's [s].
-  const pendingById = new Map(pending.map((p) => [p.id, p.action]));
-  const desiredDisabled = (skill: Skill): boolean => {
-    const p = pendingById.get(skill.id);
-    return p ? p === "disable" : skill.details?.disabled === true;
-  };
-  const enabledCount = rows.filter((row) => !desiredDisabled(row.skill)).length;
-  const disabledCount = total - enabledCount;
+  const span = Math.max(1, visibleCount);
+
+  // Flatten the navigable stream into physical render rows. A `(none)`
+  // placeholder is render-only and never navigable, but it still occupies a
+  // physical row — so the viewport windows over `renderRows`, not `navItems`,
+  // or empty groups would push the list past `visibleCount`.
+  const renderRows: RenderRow[] = [];
+  navItems.forEach((item, navIndex) => {
+    if (item.type === "header") {
+      renderRows.push({ kind: "header", item, navIndex });
+      if (model.noneAfter.get(item.toolId)) {
+        renderRows.push({ kind: "none", toolId: item.toolId });
+      }
+    } else {
+      renderRows.push({ kind: "skill", item, navIndex });
+    }
+  });
+
+  const cursorPhysical = renderRows.findIndex(
+    (row) => row.kind !== "none" && row.navIndex === safeCursor
+  );
+  const start = windowStart(cursorPhysical, renderRows.length, span);
+  const visible = renderRows.slice(start, start + span);
+
+  const enabledCount = navItems.reduce(
+    (n, it) => (it.type === "header" ? n + it.enabled : n),
+    0
+  );
+  const disabledCount = navItems.reduce(
+    (n, it) => (it.type === "header" ? n + it.disabled : n),
+    0
+  );
+  // The SKILLS header counts actual skills; `total` (headers + visible skills)
+  // is the cursor's navigable span, surfaced in the footer instead.
+  const skillCount = enabledCount + disabledCount;
 
   return (
     <Box flexDirection="column">
@@ -88,26 +139,51 @@ export function ActionsTab({
       <ActionStatus feedback={actionFeedback} saving={saving} saveSummary={saveSummary} />
       <Box marginTop={1} flexDirection="row">
         <Box flexDirection="column" width="58%">
-          <SectionHeader label={`SKILLS (${total})`} underlineWidth={44} />
+          <SectionHeader label={`SKILLS (${skillCount})`} underlineWidth={44} />
 
-          {visible.map((row, offset) => {
-            const index = start + offset;
-            const active = index === safeCursor;
-            const stateGlyph = desiredDisabled(row.skill) ? "○" : "●";
-            const suffix = actionSuffix(actionFeedback, row.skill);
+          {visible.map((row) => {
+            if (row.kind === "none") {
+              return (
+                <Box key={`none:${row.toolId}`}>
+                  <Text dimColor>{"   (none)"}</Text>
+                </Box>
+              );
+            }
+            if (row.kind === "header") {
+              const active = row.navIndex === safeCursor;
+              const glyph = row.item.collapsed
+                ? GROUP_COLLAPSED
+                : GROUP_EXPANDED;
+              return (
+                <Box key={`hdr:${row.item.toolId}`} marginTop={1}>
+                  <Text color={active ? ACCENT : undefined}>
+                    {active ? ACTIVE_PREFIX : " "}
+                  </Text>
+                  <Text bold color={active ? ACCENT : undefined}>
+                    {` ${row.item.name.toUpperCase()}`}
+                  </Text>
+                  <Text dimColor>
+                    {`   ● ${row.item.enabled}  ○ ${row.item.disabled}   [${glyph}]`}
+                  </Text>
+                </Box>
+              );
+            }
+            const skill = row.item.skill;
+            const active = row.navIndex === safeCursor;
+            const stateGlyph = desiredDisabled(skill) ? "○" : "●";
+            const suffix = actionSuffix(actionFeedback, skill);
             return (
-              <Box key={row.skill.id}>
+              <Box key={skill.id}>
                 <Text color={active ? ACCENT : undefined}>{active ? ACTIVE_PREFIX : " "}</Text>
-                <Text color={active ? ACCENT : undefined}>{` ${stateGlyph} ${row.skill.name}`}</Text>
+                <Text color={active ? ACCENT : undefined}>{` ${stateGlyph} ${skill.name}`}</Text>
                 {suffix && <Text color={ACCENT}>{`   ${suffix}`}</Text>}
-                <Text dimColor>{`   ${row.toolLabel}`}</Text>
               </Box>
             );
           })}
 
           <Box marginTop={1}>
             <Text dimColor>
-              {`${safeCursor + 1}/${total} · ↑↓ select · [d] disable · [e] enable · [s] save`}
+              {`${safeCursor + 1}/${total} · ↑↓ select · [space] collapse · [d] disable · [e] enable · [s] save`}
             </Text>
           </Box>
         </Box>
@@ -235,16 +311,3 @@ function SessionChanges({
   );
 }
 
-function flattenRows(result: MultiProjectScanResult): Row[] {
-  const rows: Row[] = [];
-  for (const tool of result.userScope.tools) {
-    if (!tool.detected) continue;
-    const markdownSkills = tool.skills.filter(
-      (s) => s.kind === "agent_skill" || s.kind === "skills_sh_skill"
-    );
-    markdownSkills.forEach((skill) => {
-      rows.push({ skill, toolLabel: tool.id });
-    });
-  }
-  return rows;
-}
