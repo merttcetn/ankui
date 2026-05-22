@@ -2,6 +2,12 @@ import React, { useCallback, useEffect, useState } from "react";
 
 import type { MultiProjectScanResult } from "../types.js";
 import { fetchScan } from "./api.js";
+import { Overview } from "./views/Overview.js";
+import { ToolsView } from "./views/ToolsView.js";
+import { McpsView } from "./views/McpsView.js";
+import { AccessView } from "./views/AccessView.js";
+import { DoctorView } from "./views/DoctorView.js";
+import { ActionsView } from "./views/ActionsView.js";
 
 type TabId = "overview" | "tools" | "mcps" | "access" | "doctor" | "actions";
 
@@ -72,6 +78,18 @@ function Body(props: {
   scan: MultiProjectScanResult;
   onScan: (scan: MultiProjectScanResult) => void;
 }): React.ReactElement {
-  // Replaced in the next task with the real view router.
-  return <div className="dim">view “{props.tab}” — pending the views task</div>;
+  switch (props.tab) {
+    case "overview":
+      return <Overview scan={props.scan} />;
+    case "tools":
+      return <ToolsView scan={props.scan} />;
+    case "mcps":
+      return <McpsView scan={props.scan} />;
+    case "access":
+      return <AccessView scan={props.scan} />;
+    case "doctor":
+      return <DoctorView scan={props.scan} />;
+    case "actions":
+      return <ActionsView scan={props.scan} onScan={props.onScan} />;
+  }
 }
