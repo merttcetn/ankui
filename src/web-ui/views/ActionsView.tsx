@@ -97,10 +97,7 @@ export function ActionsView(props: {
         desiredDisabled={desiredDisabled}
       />
 
-      <div
-        className="actions-columns"
-        style={{ paddingBottom: hasPending ? 80 : 0 }}
-      >
+      <div className="actions-columns">
         <ColumnList
           title="Enabled"
           tone="ok"

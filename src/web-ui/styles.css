@@ -309,7 +309,6 @@ code {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 16px;
-  transition: padding-bottom 200ms ease;
 }
 
 @media (max-width: 720px) {
@@ -320,13 +319,28 @@ code {
   background: var(--panel);
   border: 1px solid var(--border);
   border-radius: 6px;
-  padding: 14px 16px;
+  padding: 0 16px 4px;
+  max-height: calc(100vh - 260px);
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: var(--border) transparent;
+  -webkit-mask-image: linear-gradient(to bottom, black calc(100% - 20px), transparent 100%);
+          mask-image: linear-gradient(to bottom, black calc(100% - 20px), transparent 100%);
 }
 
+.actions-col::-webkit-scrollbar { width: 6px; }
+.actions-col::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+.actions-col::-webkit-scrollbar-track { background: transparent; }
+
 .actions-col h3 {
-  margin: 0 0 10px;
+  margin: 0;
+  padding: 14px 0 10px;
   font-size: 13px;
   letter-spacing: 0.04em;
+  position: sticky;
+  top: 0;
+  background: var(--panel);
+  z-index: 1;
 }
 
 .actions-float {
