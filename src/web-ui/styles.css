@@ -163,90 +163,82 @@ code {
   color: var(--accent);
 }
 
-/* ── loading splash ────────────────────────────────────────────── */
+/* ── loading splash ("beacon") ─────────────────────────────────── */
 
 .splash {
-  max-width: 480px;
-  margin: 60px auto;
-  padding: 0;
-  border: 1px solid var(--border);
-  border-radius: 4px;
-  background: var(--panel);
-  letter-spacing: 0.02em;
+  min-height: 60vh;
+  display: grid;
+  place-items: center;
+  gap: 28px;
+  padding: 40px 20px;
+  background:
+    radial-gradient(
+      ellipse at center,
+      color-mix(in srgb, var(--panel) 55%, transparent) 0%,
+      transparent 70%
+    );
 }
 
-.splash-header {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 10px 18px;
-  border-bottom: 1px solid var(--border);
-  color: var(--dim);
-  font-size: 12px;
-  text-transform: lowercase;
-  letter-spacing: 0.1em;
+.beacon {
+  position: relative;
+  width: 100px;
+  height: 100px;
+  display: grid;
+  place-items: center;
+  filter: drop-shadow(0 0 24px color-mix(in srgb, var(--accent) 28%, transparent));
 }
 
-.splash-header .mark { color: var(--accent); }
-.splash-header .sep { opacity: 0.45; }
-
-.splash-body { padding: 22px 22px 6px; }
-
-.splash-line {
-  display: flex;
-  align-items: baseline;
-  gap: 14px;
-  font-size: 14px;
-}
-
-.splash-line .spinner {
+.beacon-mark {
+  font-size: 32px;
   color: var(--accent);
-  font-size: 18px;
-  width: 1ch;
-  font-variant-numeric: tabular-nums;
+  z-index: 2;
+  line-height: 1;
+}
+
+.beacon-ring {
+  position: absolute;
+  inset: 0;
+  border: 1px solid var(--accent);
+  border-radius: 50%;
+  opacity: 0;
+  animation: ank-pulse 3s ease-out infinite;
+}
+
+.beacon-ring:nth-child(2) { animation-delay: 1s; }
+.beacon-ring:nth-child(3) { animation-delay: 2s; }
+
+@keyframes ank-pulse {
+  0%   { opacity: 0.65; transform: scale(0.5); }
+  100% { opacity: 0;    transform: scale(2.2); }
 }
 
 .splash-message {
+  font-size: 20px;
+  letter-spacing: 0.02em;
+  text-align: center;
   min-height: 1.5em;
-  animation: ank-fade 260ms ease-out;
+  max-width: 540px;
+  padding: 0 20px;
+  animation: ank-fade 320ms ease-out;
 }
 
 @keyframes ank-fade {
-  from { opacity: 0; transform: translateY(2px); }
+  from { opacity: 0; transform: translateY(4px); }
   to   { opacity: 1; transform: translateY(0); }
 }
 
-.splash-signals {
-  margin-top: 16px;
-  display: flex;
-  flex-direction: column;
-  gap: 3px;
-  color: var(--dim);
-  font-size: 12px;
-}
-
-.splash-signal { display: flex; gap: 10px; align-items: baseline; }
-.splash-signal.active { color: var(--text); }
-.splash-signal.active .glyph { color: var(--accent); }
-.splash-signal .glyph { width: 1ch; }
-.splash-signal .status { color: var(--dim); margin-left: auto; font-size: 11px; }
-
-.splash-footer {
-  margin-top: 14px;
-  padding: 10px 22px;
-  border-top: 1px solid var(--border);
+.splash-hint {
   color: var(--dim);
   font-size: 11px;
-  letter-spacing: 0.1em;
+  letter-spacing: 0.12em;
   text-transform: lowercase;
 }
 
 .splash-done {
-  padding: 32px 22px;
-  text-align: center;
+  font-size: 18px;
   color: var(--accent);
-  font-size: 16px;
   letter-spacing: 0.1em;
+  text-align: center;
 }
 
 .splash-done .mark { margin-right: 8px; }
@@ -260,6 +252,13 @@ code {
   padding-right: 8px;
   scrollbar-width: thin;
   scrollbar-color: var(--border) transparent;
+  -webkit-mask-image: linear-gradient(to bottom, black calc(100% - 24px), transparent 100%);
+          mask-image: linear-gradient(to bottom, black calc(100% - 24px), transparent 100%);
+}
+
+.tools-expanded.at-bottom {
+  -webkit-mask-image: none;
+          mask-image: none;
 }
 
 .tools-expanded::-webkit-scrollbar { width: 6px; }
@@ -268,6 +267,17 @@ code {
   border-radius: 3px;
 }
 .tools-expanded::-webkit-scrollbar-track { background: transparent; }
+
+.scroll-hint {
+  color: var(--dim);
+  font-style: italic;
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  padding: 6px 0 0;
+  transition: opacity 200ms ease;
+}
+
+.scroll-hint.hidden { opacity: 0; pointer-events: none; }
 
 /* ── sticky save bar (Actions) ─────────────────────────────────── */
 
