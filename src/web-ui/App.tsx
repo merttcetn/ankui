@@ -10,8 +10,16 @@ import { McpsView } from "./views/McpsView.js";
 import { AccessView } from "./views/AccessView.js";
 import { DoctorView } from "./views/DoctorView.js";
 import { ActionsView } from "./views/ActionsView.js";
+import { SettingsView } from "./views/SettingsView.js";
 
-type TabId = "overview" | "tools" | "mcps" | "access" | "doctor" | "actions";
+type TabId =
+  | "overview"
+  | "tools"
+  | "mcps"
+  | "access"
+  | "doctor"
+  | "actions"
+  | "settings";
 
 const TABS: ReadonlyArray<{ id: TabId; label: string }> = [
   { id: "overview", label: "Overview" },
@@ -19,7 +27,8 @@ const TABS: ReadonlyArray<{ id: TabId; label: string }> = [
   { id: "mcps", label: "MCPs" },
   { id: "access", label: "Access" },
   { id: "doctor", label: "Doctor" },
-  { id: "actions", label: "Actions" }
+  { id: "actions", label: "Actions" },
+  { id: "settings", label: "Settings" }
 ];
 
 const DONE_FLASH_MS = 600;
@@ -109,5 +118,7 @@ function Body(props: {
       return <DoctorView scan={props.scan} />;
     case "actions":
       return <ActionsView scan={props.scan} onScan={props.onScan} />;
+    case "settings":
+      return <SettingsView scan={props.scan} onScan={props.onScan} />;
   }
 }

@@ -2,6 +2,7 @@ import type { IncomingMessage, ServerResponse } from "node:http";
 
 import type { MultiProjectScanResult } from "../types.js";
 import { buildLaunchTuiResult } from "../commands/launch-tui.js";
+import { mergeDevRoots, writeAnkuiConfig } from "../config/ankui-config.js";
 import { disableSkill, enableSkill } from "../writer/index.js";
 import { applyActions, type ActionRequest } from "./actions.js";
 import { authorize } from "./security.js";
@@ -60,6 +61,28 @@ export async function handleRequest(
     return sendJson(res, 200, result);
   }
 
+  if (pathOnly === "/api/config") {
+    const auth = authorize(req, ctx);
+    if (!auth.ok) return sendJson(res, auth.status, { error: auth.message });
+    if (method !== "POST") return sendJson(res, 405, { error: "method not allowed" });
+
+    let parsed: unknown;
+    try {
+      parsed = JSON.parse(await readBody(req));
+    } catch {
+      return sendJson(res, 400, { error: "invalid JSON body" });
+    }
+    const devRoots = parseDevRoots(parsed);
+    if (!devRoots) return sendJson(res, 400, { error: "invalid devRoots payload" });
+
+    await writeAnkuiConfig(
+      { version: 1, devRoots: mergeDevRoots([], devRoots) },
+      ctx.homeDir
+    );
+    const scan = await loadScan(ctx);
+    return sendJson(res, 200, { scan });
+  }
+
   const asset = await serveStatic(url, ctx.token, ctx.spaDir);
   res.writeHead(asset.status, { "content-type": asset.contentType });
   res.end(asset.body);
@@ -68,6 +91,18 @@ export async function handleRequest(
 function loadScan(ctx: RouteContext): Promise<MultiProjectScanResult> {
   if (ctx.loadScan) return ctx.loadScan();
   return buildLaunchTuiResult({ homeDir: ctx.homeDir, env: ctx.env });
+}
+
+function parseDevRoots(body: unknown): string[] | null {
+  if (!body || typeof body !== "object") return null;
+  const raw = (body as { devRoots?: unknown }).devRoots;
+  if (!Array.isArray(raw)) return null;
+  const out: string[] = [];
+  for (const entry of raw) {
+    if (typeof entry !== "string") return null;
+    out.push(entry);
+  }
+  return out;
 }
 
 function parseChanges(body: unknown): ActionRequest[] | null {

@@ -16,6 +16,10 @@ export interface ActionsResponse {
   scan: MultiProjectScanResult;
 }
 
+export interface ConfigResponse {
+  scan: MultiProjectScanResult;
+}
+
 function token(): string {
   return (window as unknown as { __ANKUI_TOKEN__?: string }).__ANKUI_TOKEN__ ?? "";
 }
@@ -47,4 +51,22 @@ export async function applyActions(
     throw new Error(`actions request failed (${res.status})`);
   }
   return (await res.json()) as ActionsResponse;
+}
+
+/** Writes new dev roots to ~/.config/ankui/config.json and returns the post-write scan. */
+export async function applyConfig(
+  devRoots: string[]
+): Promise<ConfigResponse> {
+  const res = await fetch("/api/config", {
+    method: "POST",
+    headers: {
+      "x-ankui-token": token(),
+      "content-type": "application/json"
+    },
+    body: JSON.stringify({ devRoots })
+  });
+  if (!res.ok) {
+    throw new Error(`config request failed (${res.status})`);
+  }
+  return (await res.json()) as ConfigResponse;
 }

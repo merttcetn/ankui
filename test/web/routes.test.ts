@@ -151,3 +151,57 @@ test("POST /api/actions rejects a malformed body with 400", async () => {
     await s.close();
   }
 });
+
+test("POST /api/config needs token + matching Origin", async () => {
+  const s = await startServer();
+  try {
+    const noToken = await fetch(`${s.url}/api/config`, {
+      method: "POST",
+      headers: { "content-type": "application/json", origin: s.url },
+      body: JSON.stringify({ devRoots: [] })
+    });
+    assert.equal(noToken.status, 401);
+
+    const badOrigin = await fetch(`${s.url}/api/config`, {
+      method: "POST",
+      headers: {
+        "x-ankui-token": s.token,
+        "content-type": "application/json",
+        origin: "https://evil.example"
+      },
+      body: JSON.stringify({ devRoots: [] })
+    });
+    assert.equal(badOrigin.status, 403);
+  } finally {
+    await s.close();
+  }
+});
+
+test("POST /api/config rejects a malformed body with 400", async () => {
+  const s = await startServer();
+  try {
+    const res = await fetch(`${s.url}/api/config`, {
+      method: "POST",
+      headers: {
+        "x-ankui-token": s.token,
+        "content-type": "application/json",
+        origin: s.url
+      },
+      body: "{not json"
+    });
+    assert.equal(res.status, 400);
+
+    const wrongShape = await fetch(`${s.url}/api/config`, {
+      method: "POST",
+      headers: {
+        "x-ankui-token": s.token,
+        "content-type": "application/json",
+        origin: s.url
+      },
+      body: JSON.stringify({ devRoots: "not-an-array" })
+    });
+    assert.equal(wrongShape.status, 400);
+  } finally {
+    await s.close();
+  }
+});

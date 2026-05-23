@@ -384,6 +384,80 @@ code {
   font-style: italic;
 }
 
+/* ── Settings tab ──────────────────────────────────────────────── */
+
+.settings-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 6px 0;
+  border-bottom: 1px solid color-mix(in srgb, var(--border) 60%, transparent);
+}
+
+.settings-row:last-of-type { border-bottom: none; }
+
+.settings-row .name { flex: 1; }
+
+.settings-row .settings-remove {
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--dim);
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  line-height: 1;
+  font-size: 14px;
+  display: grid;
+  place-items: center;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.settings-row .settings-remove:hover {
+  color: var(--danger);
+  border-color: var(--danger);
+}
+
+.settings-add {
+  display: flex;
+  gap: 8px;
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px solid var(--border);
+}
+
+.settings-add input {
+  flex: 1;
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--text);
+  font: inherit;
+  padding: 6px 10px;
+  border-radius: 4px;
+  caret-color: var(--accent);
+}
+
+.settings-add input:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.settings-add button.primary {
+  background: var(--accent);
+  color: var(--bg);
+  border-color: var(--accent);
+}
+
+.settings-add button.primary:hover { filter: brightness(1.1); }
+
+.settings-footer {
+  margin-top: 14px;
+  color: var(--dim);
+  font-size: 11px;
+  font-style: italic;
+  letter-spacing: 0.04em;
+}
+
 /* ── empty-state whisper ──────────────────────────────────────── */
 
 .empty-whisper {
