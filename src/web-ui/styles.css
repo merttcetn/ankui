@@ -319,13 +319,11 @@ code {
   background: var(--panel);
   border: 1px solid var(--border);
   border-radius: 6px;
-  padding: 0 16px 4px;
+  padding: 0 16px 8px;
   max-height: calc(100vh - 260px);
   overflow-y: auto;
   scrollbar-width: thin;
   scrollbar-color: var(--border) transparent;
-  -webkit-mask-image: linear-gradient(to bottom, black calc(100% - 20px), transparent 100%);
-          mask-image: linear-gradient(to bottom, black calc(100% - 20px), transparent 100%);
 }
 
 .actions-col::-webkit-scrollbar { width: 6px; }
