@@ -92,7 +92,9 @@ export function App(): React.ReactElement {
       {loading && <LoadingSplash phase="loading" />}
       {showDone && <LoadingSplash phase="done" />}
       {scan && !justLoaded && (
-        <Body tab={tab} scan={scan} onScan={setScan} />
+        <div className="tab-panel" key={tab}>
+          <Body tab={tab} scan={scan} onScan={setScan} />
+        </div>
       )}
 
       <IdleWhisper enabled={scan !== null && !justLoaded} />

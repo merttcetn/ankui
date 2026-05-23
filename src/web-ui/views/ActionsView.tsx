@@ -97,25 +97,27 @@ export function ActionsView(props: {
         desiredDisabled={desiredDisabled}
       />
 
-      <div className="actions-columns">
-        <ColumnList
-          title="Enabled"
-          tone="ok"
-          skills={enabled}
-          pending={pending}
-          onToggle={toggle}
-          actionLabel="disable"
-          emptyText="none enabled."
-        />
-        <ColumnList
-          title="Disabled"
-          tone="dim"
-          skills={disabled}
-          pending={pending}
-          onToggle={toggle}
-          actionLabel="enable"
-          emptyText="none disabled."
-        />
+      <div className="tab-panel" key={selectedToolId ?? "none"}>
+        <div className="actions-columns">
+          <ColumnList
+            title="Enabled"
+            tone="ok"
+            skills={enabled}
+            pending={pending}
+            onToggle={toggle}
+            actionLabel="disable"
+            emptyText="none enabled."
+          />
+          <ColumnList
+            title="Disabled"
+            tone="dim"
+            skills={disabled}
+            pending={pending}
+            onToggle={toggle}
+            actionLabel="enable"
+            emptyText="none disabled."
+          />
+        </div>
       </div>
 
       {hasPending && (

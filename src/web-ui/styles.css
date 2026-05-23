@@ -7,6 +7,9 @@
   --accent: #c8a96a;
   --danger: #d96c6c;
   --ok: #79b079;
+  --dur-fast: 160ms;
+  --dur-base: 220ms;
+  --ease-out: cubic-bezier(0.2, 0.8, 0.2, 1);
 }
 
 * {
@@ -60,11 +63,25 @@ nav button {
   cursor: pointer;
   font: inherit;
   border-radius: 4px;
+  transition:
+    color var(--dur-fast) var(--ease-out),
+    border-color var(--dur-fast) var(--ease-out);
 }
 
 nav button.active {
   color: var(--accent);
   border-color: var(--accent);
+}
+
+/* ── tab panel fade-in ─────────────────────────────────────────── */
+
+.tab-panel {
+  animation: ank-tab-in 180ms var(--ease-out) both;
+}
+
+@keyframes ank-tab-in {
+  from { opacity: 0; transform: translateY(4px); }
+  to   { opacity: 1; transform: translateY(0);   }
 }
 
 button.action {
@@ -279,6 +296,32 @@ code {
 
 .scroll-hint.hidden { opacity: 0; pointer-events: none; }
 
+.tools-acc {
+  display: grid;
+  grid-template-rows: 0fr;
+  opacity: 0;
+  transition:
+    grid-template-rows var(--dur-base) var(--ease-out),
+    opacity var(--dur-fast) var(--ease-out) 40ms;
+}
+
+.tools-acc.open {
+  grid-template-rows: 1fr;
+  opacity: 1;
+}
+
+.tools-acc > .tools-acc-inner {
+  min-height: 0;
+  overflow: hidden;
+}
+
+.caret {
+  display: inline-block;
+  transition: transform 200ms var(--ease-out);
+}
+
+.caret.open { transform: rotate(90deg); }
+
 /* ── Actions tab (Round 3) ─────────────────────────────────────── */
 
 .actions-toolnav {
@@ -296,6 +339,9 @@ code {
   font: inherit;
   border-radius: 4px;
   cursor: pointer;
+  transition:
+    color var(--dur-fast) var(--ease-out),
+    border-color var(--dur-fast) var(--ease-out);
 }
 
 .actions-toolnav button:hover { border-color: var(--accent); }
@@ -486,4 +532,17 @@ code {
   10%  { opacity: 0.75; transform: translateX(0); }
   85%  { opacity: 0.75; }
   100% { opacity: 0; }
+}
+
+/* ── reduced motion ────────────────────────────────────────────── */
+
+@media (prefers-reduced-motion: reduce) {
+  .tab-panel { animation: none; }
+  .tools-acc,
+  .tools-acc.open,
+  .caret,
+  nav button,
+  .actions-toolnav button {
+    transition: none;
+  }
 }

@@ -13,21 +13,30 @@ export function ToolsView(props: {
   const tools = props.scan.userScope.tools;
   return (
     <>
-      {tools.map((tool) => (
-        <div className="row" key={tool.id}>
-          <h3
-            style={{ cursor: "pointer" }}
-            onClick={() => setOpen(open === tool.id ? null : tool.id)}
-          >
-            {open === tool.id ? "▾ " : "▸ "}
-            {tool.name}{" "}
-            <span className="dim">
-              {tool.detected ? `· ${tool.skills.length} skills` : "· not detected"}
-            </span>
-          </h3>
-          {open === tool.id && tool.detected && <ExpandedPanel tool={tool} />}
-        </div>
-      ))}
+      {tools.map((tool) => {
+        const isOpen = open === tool.id;
+        return (
+          <div className="row" key={tool.id}>
+            <h3
+              style={{ cursor: "pointer" }}
+              onClick={() => setOpen(isOpen ? null : tool.id)}
+            >
+              <span className={isOpen ? "caret open" : "caret"}>▸</span>{" "}
+              {tool.name}{" "}
+              <span className="dim">
+                {tool.detected ? `· ${tool.skills.length} skills` : "· not detected"}
+              </span>
+            </h3>
+            {tool.detected && (
+              <div className={isOpen ? "tools-acc open" : "tools-acc"}>
+                <div className="tools-acc-inner">
+                  <ExpandedPanel tool={tool} />
+                </div>
+              </div>
+            )}
+          </div>
+        );
+      })}
     </>
   );
 }
