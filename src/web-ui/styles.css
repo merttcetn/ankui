@@ -279,24 +279,98 @@ code {
 
 .scroll-hint.hidden { opacity: 0; pointer-events: none; }
 
-/* ── sticky save bar (Actions) ─────────────────────────────────── */
+/* ── Actions tab (Round 3) ─────────────────────────────────────── */
 
-.actions-savebar {
-  position: sticky;
-  top: 0;
-  z-index: 10;
-  background: var(--panel);
-  border: 1px solid var(--border);
-  border-radius: 4px;
-  padding: 10px 14px;
-  margin-bottom: 12px;
+.actions-toolnav {
   display: flex;
-  gap: 12px;
-  align-items: center;
-  box-shadow: 0 1px 0 var(--border);
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-bottom: 16px;
 }
 
-.actions-savebar .count { color: var(--accent); letter-spacing: 0.04em; }
+.actions-toolnav button {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  color: var(--dim);
+  padding: 5px 12px;
+  font: inherit;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.actions-toolnav button:hover { border-color: var(--accent); }
+
+.actions-toolnav button.active {
+  color: var(--accent);
+  border-color: var(--accent);
+}
+
+.actions-columns {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  transition: padding-bottom 200ms ease;
+}
+
+@media (max-width: 720px) {
+  .actions-columns { grid-template-columns: 1fr; }
+}
+
+.actions-col {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 14px 16px;
+}
+
+.actions-col h3 {
+  margin: 0 0 10px;
+  font-size: 13px;
+  letter-spacing: 0.04em;
+}
+
+.actions-float {
+  position: fixed;
+  left: 50%;
+  bottom: 24px;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  background: var(--panel);
+  border: 1px solid var(--accent);
+  border-radius: 999px;
+  padding: 10px 18px;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.45);
+  z-index: 50;
+  animation: ank-float-in 260ms cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+.actions-float .count {
+  color: var(--accent);
+  letter-spacing: 0.04em;
+  font-size: 12px;
+  margin-right: 4px;
+}
+
+.actions-float button.action.primary {
+  background: var(--accent);
+  color: var(--bg);
+  border-color: var(--accent);
+}
+
+.actions-float button.action.primary:hover { filter: brightness(1.1); }
+
+@keyframes ank-float-in {
+  from { opacity: 0; transform: translateX(-50%) translateY(16px); }
+  to   { opacity: 1; transform: translateX(-50%) translateY(0); }
+}
+
+.actions-status {
+  margin-top: 12px;
+  color: var(--dim);
+  font-style: italic;
+}
 
 /* ── empty-state whisper ──────────────────────────────────────── */
 
