@@ -162,3 +162,158 @@ ul {
 code {
   color: var(--accent);
 }
+
+/* ── loading splash ────────────────────────────────────────────── */
+
+.splash {
+  max-width: 480px;
+  margin: 60px auto;
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: var(--panel);
+  letter-spacing: 0.02em;
+}
+
+.splash-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 18px;
+  border-bottom: 1px solid var(--border);
+  color: var(--dim);
+  font-size: 12px;
+  text-transform: lowercase;
+  letter-spacing: 0.1em;
+}
+
+.splash-header .mark { color: var(--accent); }
+.splash-header .sep { opacity: 0.45; }
+
+.splash-body { padding: 22px 22px 6px; }
+
+.splash-line {
+  display: flex;
+  align-items: baseline;
+  gap: 14px;
+  font-size: 14px;
+}
+
+.splash-line .spinner {
+  color: var(--accent);
+  font-size: 18px;
+  width: 1ch;
+  font-variant-numeric: tabular-nums;
+}
+
+.splash-message {
+  min-height: 1.5em;
+  animation: ank-fade 260ms ease-out;
+}
+
+@keyframes ank-fade {
+  from { opacity: 0; transform: translateY(2px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.splash-signals {
+  margin-top: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  color: var(--dim);
+  font-size: 12px;
+}
+
+.splash-signal { display: flex; gap: 10px; align-items: baseline; }
+.splash-signal.active { color: var(--text); }
+.splash-signal.active .glyph { color: var(--accent); }
+.splash-signal .glyph { width: 1ch; }
+.splash-signal .status { color: var(--dim); margin-left: auto; font-size: 11px; }
+
+.splash-footer {
+  margin-top: 14px;
+  padding: 10px 22px;
+  border-top: 1px solid var(--border);
+  color: var(--dim);
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  text-transform: lowercase;
+}
+
+.splash-done {
+  padding: 32px 22px;
+  text-align: center;
+  color: var(--accent);
+  font-size: 16px;
+  letter-spacing: 0.1em;
+}
+
+.splash-done .mark { margin-right: 8px; }
+
+/* ── tools accordion (scroll within) ───────────────────────────── */
+
+.tools-expanded {
+  max-height: 50vh;
+  overflow-y: auto;
+  margin-top: 6px;
+  padding-right: 8px;
+  scrollbar-width: thin;
+  scrollbar-color: var(--border) transparent;
+}
+
+.tools-expanded::-webkit-scrollbar { width: 6px; }
+.tools-expanded::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 3px;
+}
+.tools-expanded::-webkit-scrollbar-track { background: transparent; }
+
+/* ── sticky save bar (Actions) ─────────────────────────────────── */
+
+.actions-savebar {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 10px 14px;
+  margin-bottom: 12px;
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  box-shadow: 0 1px 0 var(--border);
+}
+
+.actions-savebar .count { color: var(--accent); letter-spacing: 0.04em; }
+
+/* ── empty-state whisper ──────────────────────────────────────── */
+
+.empty-whisper {
+  color: var(--dim);
+  font-style: italic;
+  letter-spacing: 0.02em;
+  padding: 8px 0;
+}
+
+/* ── idle whisper (bottom-right) ──────────────────────────────── */
+
+.idle-whisper {
+  position: fixed;
+  right: 18px;
+  bottom: 14px;
+  color: var(--dim);
+  font-style: italic;
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  pointer-events: none;
+  animation: ank-whisper 5s ease-in-out forwards;
+}
+
+@keyframes ank-whisper {
+  0%   { opacity: 0; transform: translateX(4px); }
+  10%  { opacity: 0.75; transform: translateX(0); }
+  85%  { opacity: 0.75; }
+  100% { opacity: 0; }
+}

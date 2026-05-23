@@ -25,7 +25,7 @@ export function ToolsView(props: {
               </span>
             </h3>
             {open === tool.id && tool.detected && (
-              <>
+              <div className="tools-expanded">
                 {tool.detectedPaths.map((p) => (
                   <div className="dim" key={p}>
                     {p}
@@ -50,7 +50,7 @@ export function ToolsView(props: {
                     </div>
                   );
                 })}
-              </>
+              </div>
             )}
           </div>
         );

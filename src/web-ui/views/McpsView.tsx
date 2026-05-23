@@ -1,6 +1,7 @@
 import React from "react";
 
 import type { MultiProjectScanResult } from "../../types.js";
+import { EMPTY_STATE_WHISPERS } from "../../tui/messages.js";
 import { aggregateMcps, formatCapabilityTag } from "../../tui/util/mcp-grouping.js";
 
 export function McpsView(props: {
@@ -8,7 +9,7 @@ export function McpsView(props: {
 }): React.ReactElement {
   const groups = aggregateMcps(props.scan);
   if (groups.length === 0) {
-    return <div className="dim">no MCP servers configured.</div>;
+    return <div className="empty-whisper">{EMPTY_STATE_WHISPERS.noMcps}</div>;
   }
   return (
     <>

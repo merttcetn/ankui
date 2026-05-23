@@ -2,6 +2,8 @@ import React, { useCallback, useEffect, useState } from "react";
 
 import type { MultiProjectScanResult } from "../types.js";
 import { fetchScan } from "./api.js";
+import { LoadingSplash } from "./components/LoadingSplash.js";
+import { IdleWhisper } from "./components/IdleWhisper.js";
 import { Overview } from "./views/Overview.js";
 import { ToolsView } from "./views/ToolsView.js";
 import { McpsView } from "./views/McpsView.js";
@@ -20,27 +22,34 @@ const TABS: ReadonlyArray<{ id: TabId; label: string }> = [
   { id: "actions", label: "Actions" }
 ];
 
+const DONE_FLASH_MS = 600;
+
 export function App(): React.ReactElement {
   const [tab, setTab] = useState<TabId>("overview");
   const [scan, setScan] = useState<MultiProjectScanResult | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [loading, setLoading] = useState(false);
+  const [justLoaded, setJustLoaded] = useState(false);
 
   const refresh = useCallback(async () => {
-    setLoading(true);
     setError(null);
+    setJustLoaded(false);
+    setScan(null);
     try {
-      setScan(await fetchScan());
+      const result = await fetchScan();
+      setScan(result);
+      setJustLoaded(true);
+      window.setTimeout(() => setJustLoaded(false), DONE_FLASH_MS);
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
-    } finally {
-      setLoading(false);
     }
   }, []);
 
   useEffect(() => {
     void refresh();
   }, [refresh]);
+
+  const loading = scan === null && !error;
+  const showDone = scan !== null && justLoaded;
 
   return (
     <>
@@ -49,7 +58,11 @@ export function App(): React.ReactElement {
           <h1>ANKUI</h1>
           <div className="tagline">remember what your AI agents can access</div>
         </div>
-        <button className="action" onClick={() => void refresh()} disabled={loading}>
+        <button
+          className="action"
+          onClick={() => void refresh()}
+          disabled={loading}
+        >
           {loading ? "scanning…" : "refresh"}
         </button>
       </header>
@@ -67,8 +80,13 @@ export function App(): React.ReactElement {
       </nav>
 
       {error && <div className="banner danger">scan failed: {error}</div>}
-      {!scan && !error && <div className="dim">loading scan…</div>}
-      {scan && <Body tab={tab} scan={scan} onScan={setScan} />}
+      {loading && <LoadingSplash phase="loading" />}
+      {showDone && <LoadingSplash phase="done" />}
+      {scan && !justLoaded && (
+        <Body tab={tab} scan={scan} onScan={setScan} />
+      )}
+
+      <IdleWhisper enabled={scan !== null && !justLoaded} />
     </>
   );
 }

@@ -1,6 +1,7 @@
 import React from "react";
 
 import type { MultiProjectScanResult } from "../../types.js";
+import { EMPTY_STATE_WHISPERS } from "../../tui/messages.js";
 import {
   buildDoctorBoard,
   groupWarningsByReason
@@ -27,7 +28,9 @@ export function DoctorView(props: {
       ))}
 
       <h3 style={{ marginTop: 16 }}>warnings</h3>
-      {warningGroups.length === 0 && <div className="dim">quiet tonight.</div>}
+      {warningGroups.length === 0 && (
+        <div className="empty-whisper">{EMPTY_STATE_WHISPERS.noWarnings}</div>
+      )}
       {warningGroups.map((group) => (
         <div className="row" key={group.reason}>
           <strong>

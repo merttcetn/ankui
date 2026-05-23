@@ -66,14 +66,17 @@ export function ActionsView(props: {
 
   return (
     <>
-      <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
+      <div className="actions-savebar">
         <button
           className="action"
           disabled={saving || pending.length === 0}
           onClick={() => void save()}
         >
-          {saving ? "saving…" : `save (${pending.length})`}
+          {saving ? "saving…" : "save"}
         </button>
+        {pending.length > 0 && (
+          <span className="count">{pending.length} pending</span>
+        )}
         {status && <span className="dim">{status}</span>}
       </div>
 

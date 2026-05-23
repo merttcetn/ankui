@@ -1,6 +1,7 @@
 import React from "react";
 
 import type { MultiProjectScanResult } from "../../types.js";
+import { EMPTY_STATE_WHISPERS } from "../../tui/messages.js";
 import { aggregateFindings } from "../../tui/util/finding-grouping.js";
 
 export function AccessView(props: {
@@ -8,7 +9,7 @@ export function AccessView(props: {
 }): React.ReactElement {
   const sections = aggregateFindings(props.scan);
   if (sections.length === 0) {
-    return <div className="dim">the talismans are holding. no findings.</div>;
+    return <div className="empty-whisper">{EMPTY_STATE_WHISPERS.noFindings}</div>;
   }
   return (
     <>
