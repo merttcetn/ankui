@@ -28,20 +28,21 @@ Running `ankui` with no arguments opens the interactive terminal UI. Running `an
 ```
 Ankui scan complete
 
-Detected tools: 5
-MCP servers: 6 configured, 4 unique
-Agent skills: 154
-Commands/prompts/agents/rules/tools: 12
+Detected tools: 6
+MCP servers: 8 configured, 6 unique
+Agent skills: 178
+Commands/prompts/agents/rules/tools: 19
 Memory files: 0
-Access findings: 12
-Warnings: 0
+Access findings: 14
+Warnings: 1
 
 Tools:
-✓ Claude    1 MCP · 49 agent skills · 1 rules · 6 plugins · 3 findings
+✓ Claude    1 MCP · 49 agent skills · 3 rules · 7 plugins · 3 findings
 ✓ Codex     3 MCP · 58 agent skills · 1 rules · 5 findings
 ✓ Cursor    1 MCP · 1 findings
 ✓ Gemini    1 MCP · 47 agent skills · 4 plugins · 3 findings
 ✓ OpenCode  detected
+✓ Antigravity 2 MCP · 24 agent skills · 4 plugins · 2 findings
 - skills.sh not detected
 ```
 
@@ -63,6 +64,10 @@ From the **Actions** tab — in the TUI or the `ankui web` browser UI — you ca
 - Disabled skills still appear in scans (marked disabled), so the inventory stays honest.
 
 Only `agent_skill` and skills.sh skills (a directory with `SKILL.md`) at user scope are eligible. MCP servers, config entries, and built-in defaults are never written.
+
+## Managing dev roots (Settings)
+
+The **Settings** tab — in the TUI (bottom row, alongside Actions) and the `ankui web` browser UI — manages the dev-root list in `~/.config/ankui/config.json` that powers `ankui scan-all` and the per-project rows on every other tab. Add a new root by typing its path; remove one with `[d]` in the TUI (or the row's delete control in web). The panel also shows `last scan · YYYY-MM-DD HH:MM · N skills`. Changes are written atomically via `POST /api/config` (web) or directly to the config file (TUI); the next scan picks up the new roots immediately.
 
 ## Privacy and safety
 
@@ -178,7 +183,7 @@ Options:
   --no-open      do not open the browser automatically
 ```
 
-Starts a loopback HTTP server bound to `127.0.0.1` and opens your default browser at it. The single-page app has six tabs mirroring the TUI — Overview, Tools, MCPs, Access, Doctor, Actions — backed by `GET /api/scan` and `POST /api/actions`. The Actions tab applies skill enable/disable to disk through the same staged-changes + save flow as the TUI Actions tab. `--port` sets the preferred port; if it is taken the server tries the next free port up to +20. `--no-open` skips launching the browser. Runs until `Ctrl-C`.
+Starts a loopback HTTP server bound to `127.0.0.1` and opens your default browser at it. The single-page app has seven tabs mirroring the TUI — Overview, Tools, MCPs, Access, Doctor, Actions, Settings — backed by `GET /api/scan` and `POST /api/actions` (Settings additionally calls `POST /api/config` to update the dev-root list). The Actions tab applies skill enable/disable to disk through the same staged-changes + save flow as the TUI Actions tab. `--port` sets the preferred port; if it is taken the server tries the next free port up to +20. `--no-open` skips launching the browser. Runs until `Ctrl-C`.
 
 ```
 $ ankui web
@@ -363,6 +368,8 @@ Crawls your home directory (max depth 6, concurrency 16) for directories that co
 ---
 
 ## TUI keybindings
+
+Tab structure: the top row is **Overview** plus one tab per detected tool; the bottom row is `MCPs · Access · Doctor · Actions · Settings`. `←` / `→` cycles between them.
 
 | Key | Action |
 |-----|--------|
