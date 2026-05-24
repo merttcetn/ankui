@@ -14,14 +14,39 @@ import { serveStatic } from "./static.js";
 
 export interface RouteContext {
   token: string;
-  /** The server's own origin; set after the server starts listening. */
+  /** The server's own canonical origin; set after the server starts listening. */
   expectedOrigin: string;
+  /**
+   * All loopback origins this server answers on (127.0.0.1, localhost, [::1]).
+   * Used by both the Host guard and the Origin guard so they can't drift.
+   * Set after the server starts listening.
+   */
+  allowedOrigins: ReadonlySet<string>;
   homeDir: string;
   env: Record<string, string | undefined>;
   /** Test seam — defaults to a real multi-project scan. */
   loadScan?: () => Promise<MultiProjectScanResult>;
   /** Test seam — overrides the built SPA directory. */
   spaDir?: string;
+}
+
+/**
+ * Returns every loopback origin the server should answer on. The Host guard
+ * already accepts these three aliases as Host headers, so writes from a page
+ * loaded on any of them need their Origin to be accepted too — otherwise
+ * `http://localhost:<port>` and `http://[::1]:<port>` load the SPA but fail
+ * every POST with 403.
+ */
+export function buildAllowedLoopbackOrigins(canonical: string): Set<string> {
+  const u = new URL(canonical);
+  const port = u.port;
+  const protocol = u.protocol;
+  return new Set([
+    canonical,
+    `${protocol}//127.0.0.1:${port}`,
+    `${protocol}//localhost:${port}`,
+    `${protocol}//[::1]:${port}`
+  ]);
 }
 
 const MAX_BODY_BYTES = 1_000_000;
@@ -34,7 +59,7 @@ export async function handleRequest(
   // DNS rebinding guard: reject any request whose Host header doesn't match
   // a loopback alias of the bound origin. A malicious page that rebinds DNS
   // to 127.0.0.1 still sends its own Host header, which lands here.
-  if (!isHostAllowed(req, ctx.expectedOrigin)) {
+  if (!isHostAllowed(req, ctx.allowedOrigins)) {
     res.writeHead(421, { "content-type": "text/plain; charset=utf-8" });
     res.end("misdirected request");
     return;
@@ -185,18 +210,14 @@ function withConfigLock<T>(fn: () => Promise<T>): Promise<T> {
 
 function isHostAllowed(
   req: IncomingMessage,
-  expectedOrigin: string
+  allowedOrigins: ReadonlySet<string>
 ): boolean {
   const host = req.headers.host;
   if (typeof host !== "string") return false;
-  const expected = new URL(expectedOrigin);
-  const port = expected.port;
-  return (
-    host === `${expected.hostname}:${port}` ||
-    host === `127.0.0.1:${port}` ||
-    host === `localhost:${port}` ||
-    host === `[::1]:${port}`
-  );
+  for (const origin of allowedOrigins) {
+    if (new URL(origin).host === host) return true;
+  }
+  return false;
 }
 
 function parseChanges(body: unknown): ActionRequest[] | null {

@@ -9,8 +9,14 @@ export function generateToken(): string {
 export interface AuthContext {
   /** The live session token. */
   token: string;
-  /** The server's own origin, e.g. "http://127.0.0.1:7373". */
+  /** The server's canonical origin, e.g. "http://127.0.0.1:7373". */
   expectedOrigin: string;
+  /**
+   * Every loopback origin the server answers on. The Host guard accepts the
+   * same set as Host headers, so writes from a page loaded on any of those
+   * aliases (`localhost`, `[::1]`) must also pass the Origin check.
+   */
+  allowedOrigins: ReadonlySet<string>;
 }
 
 export type AuthResult =
@@ -41,7 +47,7 @@ export function authorize(
   const method = (req.method ?? "GET").toUpperCase();
   if (method !== "GET" && method !== "HEAD") {
     const origin = req.headers["origin"];
-    if (origin !== ctx.expectedOrigin) {
+    if (typeof origin !== "string" || !ctx.allowedOrigins.has(origin)) {
       return { ok: false, status: 403, message: "bad origin" };
     }
   }

@@ -6,7 +6,11 @@ import os from "node:os";
 import path from "node:path";
 
 import { createWebServer } from "../../src/web/server.js";
-import { handleRequest, type RouteContext } from "../../src/web/routes.js";
+import {
+  buildAllowedLoopbackOrigins,
+  handleRequest,
+  type RouteContext
+} from "../../src/web/routes.js";
 import { TOKEN_PLACEHOLDER } from "../../src/web/static.js";
 import type { MultiProjectScanResult } from "../../src/types.js";
 
@@ -36,6 +40,42 @@ function rawHttpGet(
       }
     );
     req.on("error", reject);
+    req.end();
+  });
+}
+
+function rawHttpPost(
+  url: string,
+  pathname: string,
+  headers: Record<string, string>,
+  body: string
+): Promise<{ status: number; body: string }> {
+  // fetch() refuses to override the Host header, so loopback-alias tests
+  // (Host: localhost:<port>, etc.) need a raw http.request that still
+  // connects to 127.0.0.1 but advertises a different Host. Mirror rawHttpGet.
+  const u = new URL(url);
+  return new Promise((resolve, reject) => {
+    const req = http.request(
+      {
+        host: u.hostname,
+        port: Number(u.port),
+        path: pathname,
+        method: "POST",
+        headers: { "content-length": Buffer.byteLength(body).toString(), ...headers }
+      },
+      (res) => {
+        const chunks: Buffer[] = [];
+        res.on("data", (c: Buffer) => chunks.push(c));
+        res.on("end", () =>
+          resolve({
+            status: res.statusCode ?? 0,
+            body: Buffer.concat(chunks).toString("utf8")
+          })
+        );
+      }
+    );
+    req.on("error", reject);
+    req.write(body);
     req.end();
   });
 }
@@ -89,6 +129,7 @@ async function startServer(): Promise<{
   const ctx: RouteContext = {
     token: "test-token-abc",
     expectedOrigin: "",
+    allowedOrigins: new Set<string>(),
     homeDir: "/home/u",
     env: {},
     loadScan: async () => emptyResult(),
@@ -99,6 +140,7 @@ async function startServer(): Promise<{
     handler: (req, res) => handleRequest(req, res, ctx)
   });
   ctx.expectedOrigin = handle.url;
+  ctx.allowedOrigins = buildAllowedLoopbackOrigins(handle.url);
   return { url: handle.url, token: ctx.token, close: handle.close };
 }
 
@@ -146,6 +188,7 @@ test("GET /api/scan surfaces config-read warnings (missing config)", async () =>
   const ctx: RouteContext = {
     token: "test-token-abc",
     expectedOrigin: "",
+    allowedOrigins: new Set<string>(),
     homeDir: home,
     env: {},
     spaDir: dir
@@ -155,6 +198,7 @@ test("GET /api/scan surfaces config-read warnings (missing config)", async () =>
     handler: (req, res) => handleRequest(req, res, ctx)
   });
   ctx.expectedOrigin = handle.url;
+  ctx.allowedOrigins = buildAllowedLoopbackOrigins(handle.url);
   try {
     const res = await fetch(`${handle.url}/api/scan`, {
       headers: { "x-ankui-token": ctx.token }
@@ -190,6 +234,7 @@ test("GET /api/scan surfaces config-read warnings (malformed config)", async () 
   const ctx: RouteContext = {
     token: "test-token-abc",
     expectedOrigin: "",
+    allowedOrigins: new Set<string>(),
     homeDir: home,
     env: {},
     spaDir: dir
@@ -199,6 +244,7 @@ test("GET /api/scan surfaces config-read warnings (malformed config)", async () 
     handler: (req, res) => handleRequest(req, res, ctx)
   });
   ctx.expectedOrigin = handle.url;
+  ctx.allowedOrigins = buildAllowedLoopbackOrigins(handle.url);
   try {
     const res = await fetch(`${handle.url}/api/scan`, {
       headers: { "x-ankui-token": ctx.token }
@@ -329,6 +375,7 @@ test("POST /api/config writes config and returns a fresh scan", async () => {
   const ctx: RouteContext = {
     token: "test-token-abc",
     expectedOrigin: "",
+    allowedOrigins: new Set<string>(),
     homeDir: home,
     env: {},
     loadScan: async () => emptyResult(),
@@ -339,6 +386,7 @@ test("POST /api/config writes config and returns a fresh scan", async () => {
     handler: (req, res) => handleRequest(req, res, ctx)
   });
   ctx.expectedOrigin = handle.url;
+  ctx.allowedOrigins = buildAllowedLoopbackOrigins(handle.url);
   try {
     const res = await fetch(`${handle.url}/api/config`, {
       method: "POST",
@@ -381,6 +429,7 @@ test("POST /api/config returns 409 when on-disk state has drifted", async () => 
   const ctx: RouteContext = {
     token: "test-token-abc",
     expectedOrigin: "",
+    allowedOrigins: new Set<string>(),
     homeDir: home,
     env: {},
     loadScan: async () => emptyResult(),
@@ -391,6 +440,7 @@ test("POST /api/config returns 409 when on-disk state has drifted", async () => 
     handler: (req, res) => handleRequest(req, res, ctx)
   });
   ctx.expectedOrigin = handle.url;
+  ctx.allowedOrigins = buildAllowedLoopbackOrigins(handle.url);
   try {
     const res = await fetch(`${handle.url}/api/config`, {
       method: "POST",
@@ -437,6 +487,7 @@ test("POST /api/config returns 409 when on-disk only reordered the same entries"
   const ctx: RouteContext = {
     token: "test-token-abc",
     expectedOrigin: "",
+    allowedOrigins: new Set<string>(),
     homeDir: home,
     env: {},
     loadScan: async () => emptyResult(),
@@ -447,6 +498,7 @@ test("POST /api/config returns 409 when on-disk only reordered the same entries"
     handler: (req, res) => handleRequest(req, res, ctx)
   });
   ctx.expectedOrigin = handle.url;
+  ctx.allowedOrigins = buildAllowedLoopbackOrigins(handle.url);
   try {
     const res = await fetch(`${handle.url}/api/config`, {
       method: "POST",
@@ -496,6 +548,7 @@ test("POST /api/config accepts a non-normalized expected list", async () => {
   const ctx: RouteContext = {
     token: "test-token-abc",
     expectedOrigin: "",
+    allowedOrigins: new Set<string>(),
     homeDir: home,
     env: {},
     loadScan: async () => emptyResult(),
@@ -506,6 +559,7 @@ test("POST /api/config accepts a non-normalized expected list", async () => {
     handler: (req, res) => handleRequest(req, res, ctx)
   });
   ctx.expectedOrigin = handle.url;
+  ctx.allowedOrigins = buildAllowedLoopbackOrigins(handle.url);
   try {
     const res = await fetch(`${handle.url}/api/config`, {
       method: "POST",
@@ -548,6 +602,7 @@ test("two concurrent POST /api/config requests cannot lose-update each other", a
   const ctx: RouteContext = {
     token: "test-token-abc",
     expectedOrigin: "",
+    allowedOrigins: new Set<string>(),
     homeDir: home,
     env: {},
     loadScan: async () => emptyResult(),
@@ -558,6 +613,7 @@ test("two concurrent POST /api/config requests cannot lose-update each other", a
     handler: (req, res) => handleRequest(req, res, ctx)
   });
   ctx.expectedOrigin = handle.url;
+  ctx.allowedOrigins = buildAllowedLoopbackOrigins(handle.url);
   try {
     const post = (desired: string[]): Promise<Response> =>
       fetch(`${handle.url}/api/config`, {
@@ -607,6 +663,54 @@ test("requests with a mismatched Host header are rejected with 421", async () =>
 
     const staticRes = await rawHttpGet(s.url, { host: "evil.example" });
     assert.equal(staticRes.status, 421);
+  } finally {
+    await s.close();
+  }
+});
+
+test("POST /api/actions accepts loopback aliases (localhost, [::1])", async () => {
+  // The Host guard accepts 127.0.0.1, localhost, and [::1] aliases, so when a
+  // user opens http://localhost:<port> the page loads but the browser sends
+  // Origin: http://localhost:<port> on POSTs — the Origin guard must accept
+  // it too or every Action/Settings save fails with 403.
+  const s = await startServer();
+  try {
+    const port = new URL(s.url).port;
+    const aliases = [`localhost:${port}`, `[::1]:${port}`];
+    for (const hostAlias of aliases) {
+      const res = await rawHttpPost(
+        s.url,
+        "/api/actions",
+        {
+          "x-ankui-token": s.token,
+          "content-type": "application/json",
+          host: hostAlias,
+          origin: `http://${hostAlias}`
+        },
+        JSON.stringify({ changes: [] })
+      );
+      assert.equal(res.status, 200, `expected 200 for Host=${hostAlias}`);
+    }
+  } finally {
+    await s.close();
+  }
+});
+
+test("POST /api/actions still rejects a forged non-loopback Origin", async () => {
+  // Sanity-check that widening to the three loopback aliases didn't accidentally
+  // open the gate for arbitrary origins.
+  const s = await startServer();
+  try {
+    const res = await fetch(`${s.url}/api/actions`, {
+      method: "POST",
+      headers: {
+        "x-ankui-token": s.token,
+        "content-type": "application/json",
+        origin: "http://attacker.local"
+      },
+      body: JSON.stringify({ changes: [] })
+    });
+    assert.equal(res.status, 403);
   } finally {
     await s.close();
   }

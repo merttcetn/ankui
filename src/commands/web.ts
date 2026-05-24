@@ -2,7 +2,11 @@ import os from "node:os";
 
 import { generateToken } from "../web/security.js";
 import { createWebServer } from "../web/server.js";
-import { handleRequest, type RouteContext } from "../web/routes.js";
+import {
+  buildAllowedLoopbackOrigins,
+  handleRequest,
+  type RouteContext
+} from "../web/routes.js";
 import { openBrowser } from "../web/open-browser.js";
 
 export interface RunWebCommandOptions {
@@ -37,6 +41,7 @@ export async function runWebCommand(
   const ctx: RouteContext = {
     token: generateToken(),
     expectedOrigin: "",
+    allowedOrigins: new Set<string>(),
     homeDir,
     env
   };
@@ -46,6 +51,7 @@ export async function runWebCommand(
     handler: (req, res) => handleRequest(req, res, ctx)
   });
   ctx.expectedOrigin = server.url;
+  ctx.allowedOrigins = buildAllowedLoopbackOrigins(server.url);
 
   write(
     `\n  Ankui web UI  ${server.url}\n` +
