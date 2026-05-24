@@ -1,4 +1,5 @@
 import type { MultiProjectScanResult, Skill } from "../types.js";
+import { isMarkdownSkill } from "../tui/util/actions-items.js";
 import type { SkillWriterResult, WriterContext } from "../writer/index.js";
 
 export interface ActionRequest {
@@ -91,9 +92,14 @@ function findUserScopeSkill(
   result: MultiProjectScanResult,
   skillId: string
 ): Skill | undefined {
+  // Only markdown-backed skills (agent_skill, skills_sh_skill) have a
+  // skill-dir layout the writer can safely rename. Accepting other kinds
+  // (mcp_server, plugin, rule, memory_file) would let an authenticated
+  // caller rename a tool's whole config dir into .disabled/ — see the
+  // Codex P1 finding for why this matters.
   for (const tool of result.userScope.tools) {
     for (const skill of tool.skills) {
-      if (skill.id === skillId) return skill;
+      if (skill.id === skillId && isMarkdownSkill(skill)) return skill;
     }
   }
   return undefined;

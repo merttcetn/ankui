@@ -53,9 +53,16 @@ export async function applyActions(
   return (await res.json()) as ActionsResponse;
 }
 
-/** Writes new dev roots to ~/.config/ankui/config.json and returns the post-write scan. */
+/**
+ * Writes new dev roots to ~/.config/ankui/config.json using optimistic
+ * concurrency: `expected` is the client's last-known on-disk list. If the
+ * server's on-disk list has drifted (e.g. a CLI run wrote to it), the call
+ * fails with 409 and a fresh scan, which the caller surfaces so the user
+ * can re-apply their edit.
+ */
 export async function applyConfig(
-  devRoots: string[]
+  expected: string[],
+  desired: string[]
 ): Promise<ConfigResponse> {
   const res = await fetch("/api/config", {
     method: "POST",
@@ -63,8 +70,14 @@ export async function applyConfig(
       "x-ankui-token": token(),
       "content-type": "application/json"
     },
-    body: JSON.stringify({ devRoots })
+    body: JSON.stringify({ expected, desired })
   });
+  if (res.status === 409) {
+    const data = (await res.json()) as { error: string; scan: MultiProjectScanResult };
+    const err = new Error(data.error) as Error & { freshScan?: MultiProjectScanResult };
+    err.freshScan = data.scan;
+    throw err;
+  }
   if (!res.ok) {
     throw new Error(`config request failed (${res.status})`);
   }

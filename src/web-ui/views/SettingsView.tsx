@@ -14,14 +14,20 @@ export function SettingsView(props: {
   const devRoots = props.scan.devRoots;
   const homeDir = props.scan.homeDir;
 
-  const apply = async (next: string[]): Promise<void> => {
+  const apply = async (next: string[]): Promise<boolean> => {
     setBusy(true);
     setError(null);
     try {
-      const res = await applyConfig(next);
+      const res = await applyConfig(devRoots, next);
       props.onScan(res.scan);
+      return true;
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
+      if (err && typeof err === "object" && "freshScan" in err) {
+        const fresh = (err as { freshScan?: MultiProjectScanResult }).freshScan;
+        if (fresh) props.onScan(fresh);
+      }
+      return false;
     } finally {
       setBusy(false);
     }
@@ -34,7 +40,9 @@ export function SettingsView(props: {
       setInput("");
       return;
     }
-    void apply([...devRoots, trimmed]).then(() => setInput(""));
+    void apply([...devRoots, trimmed]).then((ok) => {
+      if (ok) setInput("");
+    });
   };
 
   const removeRoot = (root: string): void => {

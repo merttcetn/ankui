@@ -77,7 +77,8 @@ export function ActionsView(props: {
           ? `saved ${res.outcomes.length} change(s)`
           : `${failed.length} failed: ${failed[0].message}`
       );
-      setPending([]);
+      const failedIds = new Set(failed.map((o) => o.skillId));
+      setPending((prev) => prev.filter((p) => failedIds.has(p.id)));
       props.onScan(res.scan);
     } catch (err) {
       setStatus(err instanceof Error ? err.message : String(err));

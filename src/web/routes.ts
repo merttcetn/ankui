@@ -1,8 +1,12 @@
 import type { IncomingMessage, ServerResponse } from "node:http";
 
 import type { MultiProjectScanResult } from "../types.js";
-import { buildLaunchTuiResult } from "../commands/launch-tui.js";
-import { mergeDevRoots, writeAnkuiConfig } from "../config/ankui-config.js";
+import {
+  normalizeDevRoots,
+  readAnkuiConfig,
+  writeAnkuiConfig
+} from "../config/ankui-config.js";
+import { loadAllScans, readDevRootsConfig } from "../scanner/multi-project.js";
 import { disableSkill, enableSkill } from "../writer/index.js";
 import { applyActions, type ActionRequest } from "./actions.js";
 import { authorize } from "./security.js";
@@ -27,6 +31,15 @@ export async function handleRequest(
   res: ServerResponse,
   ctx: RouteContext
 ): Promise<void> {
+  // DNS rebinding guard: reject any request whose Host header doesn't match
+  // a loopback alias of the bound origin. A malicious page that rebinds DNS
+  // to 127.0.0.1 still sends its own Host header, which lands here.
+  if (!isHostAllowed(req, ctx.expectedOrigin)) {
+    res.writeHead(421, { "content-type": "text/plain; charset=utf-8" });
+    res.end("misdirected request");
+    return;
+  }
+
   const url = req.url ?? "/";
   const method = (req.method ?? "GET").toUpperCase();
   const pathOnly = url.split("?")[0];
@@ -72,15 +85,34 @@ export async function handleRequest(
     } catch {
       return sendJson(res, 400, { error: "invalid JSON body" });
     }
-    const devRoots = parseDevRoots(parsed);
-    if (!devRoots) return sendJson(res, 400, { error: "invalid devRoots payload" });
+    const payload = parseConfigPayload(parsed);
+    if (!payload) return sendJson(res, 400, { error: "invalid devRoots payload" });
 
-    await writeAnkuiConfig(
-      { version: 1, devRoots: mergeDevRoots([], devRoots) },
-      ctx.homeDir
-    );
-    const scan = await loadScan(ctx);
-    return sendJson(res, 200, { scan });
+    // Optimistic concurrency under a per-process mutex so two concurrent
+    // /api/config requests can't both pass the same on-disk check and then
+    // overwrite each other. The client's `expected` is the dev-root list it
+    // saw in the last scan; we normalize it before comparing because the
+    // scan endpoint returns the raw on-disk list while readAnkuiConfig
+    // returns a normalized one — without this both would always disagree
+    // for any config that contains whitespace-padded entries or dupes.
+    const expectedNormalized = normalizeDevRoots(payload.expected);
+    return await withConfigLock(async () => {
+      const existing = await readAnkuiConfig(ctx.homeDir);
+      if (!sameDevRoots(existing.config.devRoots, expectedNormalized)) {
+        const scan = await loadScan(ctx);
+        return sendJson(res, 409, {
+          error: "config changed on disk; refresh and try again",
+          scan
+        });
+      }
+
+      await writeAnkuiConfig(
+        { version: 1, devRoots: payload.desired },
+        ctx.homeDir
+      );
+      const scan = await loadScan(ctx);
+      return sendJson(res, 200, { scan });
+    });
   }
 
   const asset = await serveStatic(url, ctx.token, ctx.spaDir);
@@ -88,21 +120,83 @@ export async function handleRequest(
   res.end(asset.body);
 }
 
-function loadScan(ctx: RouteContext): Promise<MultiProjectScanResult> {
+async function loadScan(
+  ctx: RouteContext
+): Promise<MultiProjectScanResult> {
   if (ctx.loadScan) return ctx.loadScan();
-  return buildLaunchTuiResult({ homeDir: ctx.homeDir, env: ctx.env });
+  // Web has no first-run wizard like the TUI does, so we can't reuse
+  // buildLaunchTuiResult's empty-shortcut for empty devRoots — that would
+  // hide every user-scope tool from a first-time web user. Always do a
+  // full scan; loadAllScans handles user-scope regardless of devRoots.
+  const config = await readDevRootsConfig(ctx.homeDir);
+  const scan = await loadAllScans({
+    devRoots: config.devRoots,
+    homeDir: ctx.homeDir,
+    env: ctx.env
+  });
+  // Surface config-read warnings (missing/unreadable/malformed
+  // ~/.config/ankui/config.json) so the Doctor view can flag a first-run or
+  // parse-error state. loadAllScans only sees devRoots — not why the list is
+  // empty — so without this the actionable warning would be lost.
+  if (config.warnings.length === 0) return scan;
+  return { ...scan, warnings: [...config.warnings, ...scan.warnings] };
 }
 
-function parseDevRoots(body: unknown): string[] | null {
+function parseConfigPayload(
+  body: unknown
+): { expected: string[]; desired: string[] } | null {
   if (!body || typeof body !== "object") return null;
-  const raw = (body as { devRoots?: unknown }).devRoots;
-  if (!Array.isArray(raw)) return null;
+  const expected = parseStringArray((body as { expected?: unknown }).expected);
+  const desired = parseStringArray((body as { desired?: unknown }).desired);
+  if (!expected || !desired) return null;
+  return { expected, desired };
+}
+
+function parseStringArray(value: unknown): string[] | null {
+  if (!Array.isArray(value)) return null;
   const out: string[] = [];
-  for (const entry of raw) {
+  for (const entry of value) {
     if (typeof entry !== "string") return null;
     out.push(entry);
   }
   return out;
+}
+
+function sameDevRoots(a: readonly string[], b: readonly string[]): boolean {
+  // Order-sensitive: dev-root order drives discovery + display order in the
+  // scanner, and writeAnkuiConfig preserves insertion order. An out-of-band
+  // edit that only reorders the list is a real change the client must reconcile.
+  if (a.length !== b.length) return false;
+  return a.every((v, i) => v === b[i]);
+}
+
+// Per-process serialization for the read/compare/write sequence on
+// ~/.config/ankui/config.json. Doesn't protect against a CLI write landing
+// during the critical section — that would need OS file locking — but
+// closes the in-server race where two browser tabs race the same edit.
+let configLock: Promise<unknown> = Promise.resolve();
+
+function withConfigLock<T>(fn: () => Promise<T>): Promise<T> {
+  const previous = configLock;
+  const next = previous.then(fn, fn);
+  configLock = next.catch(() => undefined);
+  return next;
+}
+
+function isHostAllowed(
+  req: IncomingMessage,
+  expectedOrigin: string
+): boolean {
+  const host = req.headers.host;
+  if (typeof host !== "string") return false;
+  const expected = new URL(expectedOrigin);
+  const port = expected.port;
+  return (
+    host === `${expected.hostname}:${port}` ||
+    host === `127.0.0.1:${port}` ||
+    host === `localhost:${port}` ||
+    host === `[::1]:${port}`
+  );
 }
 
 function parseChanges(body: unknown): ActionRequest[] | null {
