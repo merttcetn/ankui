@@ -67,7 +67,7 @@ Only `agent_skill` and skills.sh skills (a directory with `SKILL.md`) at user sc
 
 ## Managing dev roots (Settings)
 
-The **Settings** tab — in the TUI (bottom row, alongside Actions) and the `ankui web` browser UI — manages the dev-root list in `~/.config/ankui/config.json` that powers `ankui scan-all` and the per-project rows on every other tab. Add a new root by typing its path; remove one with `[d]` in the TUI (or the row's delete control in web). The panel also shows `last scan · YYYY-MM-DD HH:MM · N skills`. Changes are written atomically via `POST /api/config` (web) or directly to the config file (TUI); the next scan picks up the new roots immediately.
+The **Settings** tab — in the TUI (bottom row, alongside Actions) and the `ankui web` browser UI — manages the dev-root list in `~/.config/ankui/config.json` that powers `ankui scan-all` and the per-project rows on every other tab. Add a new root by typing its path; remove one with `[d]` in the TUI (or the row's delete control in web). The panel also shows `last scan · YYYY-MM-DD HH:MM · N skills`. Changes are written atomically via `POST /api/config` (web) or directly to the config file (TUI); the next scan picks up the new roots immediately. The web endpoint uses optimistic concurrency — if the on-disk config has drifted (e.g. a CLI run rewrote it), the request gets a 409 with the fresh scan and the UI re-applies your edit on top of it.
 
 ## Privacy and safety
 
@@ -75,7 +75,7 @@ Ankui sends no data anywhere and calls no external APIs.
 
 **The only write Ankui makes is the explicit skill enable/disable, and it only happens when you save staged changes.** Triggered only from the Actions tab — in the TUI (`[s]`) or the `ankui web` browser UI — it moves a skill directory into or out of a sibling `.disabled/` folder via a single rename — reversible, never a delete or overwrite, and refused if it would escape `$HOME`/`$CWD`, clobber an existing directory, or act on a missing source. Everything else Ankui does is strictly read-only.
 
-**The `ankui web` server is loopback-only.** It binds `127.0.0.1`, generates a fresh per-session token, and rejects any `/api/*` request without it; write requests additionally require an `Origin` header matching the server's own origin. It serves only local files and calls no external APIs.
+**The `ankui web` server is loopback-only.** It binds `127.0.0.1`, generates a fresh per-session token, and rejects any `/api/*` request without it; write requests additionally require an `Origin` header matching the server's own origin, and every request must carry a `Host` header pointing at a loopback alias of the bound origin (any mismatch is rejected with `421 Misdirected Request`, which defeats DNS-rebinding attacks). It serves only local files and calls no external APIs.
 
 **Sensitive files skipped.** Any file matching these patterns is skipped with a `sensitive_file_skipped` warning rather than read:
 
@@ -192,7 +192,7 @@ $ ankui web
   local files only · read-only scan · Ctrl+C to stop
 ```
 
-The server binds `127.0.0.1` only and generates a fresh per-session token. Every `/api/*` request must carry that token in an `x-ankui-token` header, and write requests (`POST /api/actions`) additionally require an `Origin` header matching the server's own origin — this defeats localhost CSRF from other browser tabs. It serves only local files; nothing is sent anywhere.
+The server binds `127.0.0.1` only and generates a fresh per-session token. Every `/api/*` request must carry that token in an `x-ankui-token` header, and write requests (`POST /api/actions`, `POST /api/config`) additionally require an `Origin` header matching the server's own origin — this defeats localhost CSRF from other browser tabs. A DNS-rebinding guard rejects any request whose `Host` header isn't a loopback alias of the bound origin (`421 Misdirected Request`). It serves only local files; nothing is sent anywhere.
 
 ---
 
