@@ -10,6 +10,7 @@ import {
   type Warning
 } from "../types.js";
 import { enrichSkill } from "./capability-map.js";
+import { enrichSkillsWithBundleOrigin } from "./bundle-origin.js";
 import { reviewTools } from "./access-review.js";
 import { expandBuiltinsForTool } from "./builtins.js";
 import { antigravityAdapter } from "./adapters/antigravity.js";
@@ -114,6 +115,10 @@ export async function scan(options: ScanOptions = {}): Promise<ScanResult> {
     for (const skill of tool.skills) {
       enrichSkill(skill);
     }
+  }
+
+  for (const tool of tools) {
+    enrichSkillsWithBundleOrigin(tool.skills);
   }
 
   const reviewFindings = reviewTools(tools);
