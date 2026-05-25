@@ -48,7 +48,9 @@ import { ProjectDrillIn } from "./screens/ProjectDrillIn.js";
 import { McpsTab } from "./screens/McpsTab.js";
 import { AccessTab } from "./screens/AccessTab.js";
 import { DoctorTab } from "./screens/DoctorTab.js";
+import { BundlesScreen } from "./screens/BundlesScreen.js";
 import { Settings } from "./screens/Settings.js";
+import { readRegistry, type BundleRegistry } from "../bundles/registry.js";
 import {
   ActionsTab,
   type PendingChange,
@@ -98,6 +100,7 @@ const CROSS_TOOL_TABS: ReadonlyArray<TabItem> = [
   { id: "access", label: "Access" },
   { id: "doctor", label: "Doctor" },
   { id: "actions", label: "Actions" },
+  { id: "bundles", label: "Bundles" },
   { id: "settings", label: "Settings" }
 ];
 
@@ -112,6 +115,7 @@ const NON_DRILLABLE_TAB_IDS: ReadonlySet<TabId> = new Set<TabId>([
   "access",
   "doctor",
   "actions",
+  "bundles",
   "settings"
 ]);
 
@@ -178,6 +182,10 @@ function MainShell(props: MainShellProps): React.ReactElement {
   const [saveSummary, setSaveSummary] = useState<string | null>(null);
   const [confirmQuit, setConfirmQuit] = useState(false);
   const confirmQuitRef = useRef(false);
+  // Phase 11a: registry powers the Bundles tab. Loaded once on mount (and again
+  // after onRefresh, since both code paths re-run mount-time effects via props
+  // changing). Failures leave the empty default in place.
+  const [bundleRegistry, setBundleRegistry] = useState<BundleRegistry>({ version: 1, bundles: [] });
 
   const setPendingState = (next: PendingChange[]): void => {
     pendingRef.current = next;
@@ -194,6 +202,22 @@ function MainShell(props: MainShellProps): React.ReactElement {
       mountedRef.current = false;
     };
   }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    const homeDir = props.homeDir;
+    if (!homeDir) return;
+    readRegistry(homeDir)
+      .then((reg) => {
+        if (!cancelled) setBundleRegistry(reg);
+      })
+      .catch(() => {
+        /* leave default empty registry */
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [props.homeDir]);
 
   useEffect(() => {
     if (!props.dataSource?.subscribe) return;
@@ -540,7 +564,8 @@ function MainShell(props: MainShellProps): React.ReactElement {
               actionFeedback,
               pending,
               saving,
-              saveSummary
+              saveSummary,
+              bundleRegistry
             )}
           </Box>
         </Box>
@@ -579,7 +604,8 @@ function renderScreen(
   actionFeedback: SkillActionFeedback | null,
   pendingChanges: ReadonlyArray<PendingChange>,
   saving: boolean,
-  saveSummary: string | null
+  saveSummary: string | null,
+  bundleRegistry: BundleRegistry
 ): React.ReactElement {
   if (state.drillStack.length > 0) {
     const top = state.drillStack[state.drillStack.length - 1];
@@ -625,6 +651,8 @@ function renderScreen(
           collapsed={state.actionsCollapsed}
         />
       );
+    case "bundles":
+      return <BundlesScreen registry={bundleRegistry} cursor={state.listCursor} />;
     case "settings":
       return (
         <Settings
