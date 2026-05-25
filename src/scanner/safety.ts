@@ -5,6 +5,9 @@ import path from "node:path";
 
 import { createWarning, type Warning } from "../types.js";
 import { isPathInside, splitPathSegments } from "./paths.js";
+import { isSecretLikeKey } from "./secret-keys.js";
+
+export { isSecretLikeKey } from "./secret-keys.js";
 
 export const MAX_SAFE_FILE_BYTES = 1024 * 1024;
 export const MASKED_SECRET = "......";
@@ -216,27 +219,6 @@ export function isSensitivePath(filePath: string): boolean {
   return createSensitivePathWarning(filePath) !== undefined;
 }
 
-export function isSecretLikeKey(key: string): boolean {
-  const normalizedKey = key.toLowerCase().replace(/[^a-z0-9]+/g, "_");
-  const compactKey = normalizedKey.replace(/_/g, "");
-
-  return (
-    normalizedKey === "auth" ||
-    normalizedKey === "authorization" ||
-    normalizedKey.includes("token") ||
-    normalizedKey.includes("secret") ||
-    normalizedKey.includes("credential") ||
-    normalizedKey.includes("password") ||
-    normalizedKey.includes("passwd") ||
-    compactKey.includes("apikey") ||
-    compactKey.includes("privatekey") ||
-    compactKey.includes("accesstoken") ||
-    compactKey.includes("refreshtoken") ||
-    compactKey.includes("authtoken") ||
-    compactKey.includes("clientsecret")
-  );
-}
-
 export function maskSecrets<T>(value: T): T {
   return sanitizeValue(value, false) as T;
 }
@@ -288,7 +270,7 @@ function createSensitivePathWarning(
   });
 }
 
-function hasSensitivePathSegment(filePath: string): boolean {
+export function hasSensitivePathSegment(filePath: string): boolean {
   const segments = splitPathSegments(filePath);
   const lowerSegments = segments.map((segment) => segment.toLowerCase());
   const isOpenCodePath = lowerSegments.some(

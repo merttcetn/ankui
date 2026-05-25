@@ -7,7 +7,7 @@ import type {
   Skill,
   ToolId
 } from "../../types.js";
-import { isSecretLikeKey } from "../../scanner/safety.js";
+import { isSecretLikeKey } from "../../scanner/secret-keys.js";
 
 export interface McpConfiguration {
   toolId: ToolId;

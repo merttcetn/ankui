@@ -4,7 +4,7 @@
 
 ## What Ankui is
 
-AI coding tools accumulate configuration, skills, rules, and MCP servers across your filesystem, and it is easy to lose track of what each one can access. Ankui is a local-first scanner and terminal UI that inventories those resources and surfaces access findings — it never executes user code, follows remote URLs, or sends data anywhere. The one thing it can write is reversible: from the TUI you can disable or re-enable an individual skill, which only moves its directory into or out of a sibling `.disabled/` folder — no file is read, modified, or deleted. Supported tools: Claude, Codex, Cursor, Gemini, OpenCode, Antigravity, and skills.sh.
+AI coding tools accumulate configuration, skills, rules, and MCP servers across your filesystem, and it is easy to lose track of what each one can access. Ankui is a local-first scanner and terminal UI that inventories those resources and surfaces access findings — it never executes user code, follows remote URLs, or sends data anywhere. The one thing it can write is reversible: from the TUI or the `ankui web` browser UI you can disable or re-enable an individual skill, which only moves its directory into or out of a sibling `.disabled/` folder — no file is read, modified, or deleted. Supported tools: Claude, Codex, Cursor, Gemini, OpenCode, Antigravity, and skills.sh.
 
 ## Try it
 
@@ -28,20 +28,21 @@ Running `ankui` with no arguments opens the interactive terminal UI. Running `an
 ```
 Ankui scan complete
 
-Detected tools: 5
-MCP servers: 6 configured, 4 unique
-Agent skills: 154
-Commands/prompts/agents/rules/tools: 12
+Detected tools: 6
+MCP servers: 8 configured, 6 unique
+Agent skills: 178
+Commands/prompts/agents/rules/tools: 19
 Memory files: 0
-Access findings: 12
-Warnings: 0
+Access findings: 14
+Warnings: 1
 
 Tools:
-✓ Claude    1 MCP · 49 agent skills · 1 rules · 6 plugins · 3 findings
+✓ Claude    1 MCP · 49 agent skills · 3 rules · 7 plugins · 3 findings
 ✓ Codex     3 MCP · 58 agent skills · 1 rules · 5 findings
 ✓ Cursor    1 MCP · 1 findings
 ✓ Gemini    1 MCP · 47 agent skills · 4 plugins · 3 findings
 ✓ OpenCode  detected
+✓ Antigravity 2 MCP · 24 agent skills · 4 plugins · 2 findings
 - skills.sh not detected
 ```
 
@@ -55,7 +56,7 @@ ankui --json | jq '[.tools[] | select(.id == "claude") | .skills[]] | length'
 
 ## Managing skills (enable / disable)
 
-From the TUI **Actions** tab you can turn individual markdown-backed skills off or back on. Changes are **staged in the UI and only written when you press `[s]`** — nothing touches disk until then.
+From the **Actions** tab — in the TUI or the `ankui web` browser UI — you can turn individual markdown-backed skills off or back on. Changes are **staged in the UI and only written when you save them** — nothing touches disk until then.
 
 - `↑` / `↓` selects a skill. `[d]` stages a disable, `[e]` stages an enable. The row marker flips immediately (`●` enabled / `○` disabled) like a checkbox, and every staged change is listed under **Pending (unsaved)** in the right panel. Toggling a skill back to its on-disk state removes its pending entry.
 - `[s]` saves. Each pending change moves the skill directory between `<skills>/<name>/` and `<skills>/.disabled/<name>/`. Saved skills move to **Saved this session**; any that fail stay pending with the reason shown. The move is a single directory rename and is **refused** if it would escape `$HOME`/`$CWD`, if the source is missing, or if it would overwrite an existing directory. Nothing is read, modified, or deleted.
@@ -64,11 +65,17 @@ From the TUI **Actions** tab you can turn individual markdown-backed skills off 
 
 Only `agent_skill` and skills.sh skills (a directory with `SKILL.md`) at user scope are eligible. MCP servers, config entries, and built-in defaults are never written.
 
+## Managing dev roots (Settings)
+
+The **Settings** tab — in the TUI (bottom row, alongside Actions) and the `ankui web` browser UI — manages the dev-root list in `~/.config/ankui/config.json` that powers `ankui scan-all` and the per-project rows on every other tab. Add a new root by typing its path; remove one with `[d]` in the TUI (or the row's delete control in web). The panel also shows `last scan · YYYY-MM-DD HH:MM · N skills`. Changes are written atomically via `POST /api/config` (web) or directly to the config file (TUI); the next scan picks up the new roots immediately. The web endpoint uses optimistic concurrency — if the on-disk config has drifted (e.g. a CLI run rewrote it), the request gets a 409 with the fresh scan and the UI re-applies your edit on top of it.
+
 ## Privacy and safety
 
 Ankui sends no data anywhere and calls no external APIs.
 
-**The only write Ankui makes is the explicit skill enable/disable, and it only happens when you press `[s]` to save staged changes.** Triggered only from the TUI Actions tab, it moves a skill directory into or out of a sibling `.disabled/` folder via a single rename — reversible, never a delete or overwrite, and refused if it would escape `$HOME`/`$CWD`, clobber an existing directory, or act on a missing source. Everything else Ankui does is strictly read-only.
+**The only write Ankui makes is the explicit skill enable/disable, and it only happens when you save staged changes.** Triggered only from the Actions tab — in the TUI (`[s]`) or the `ankui web` browser UI — it moves a skill directory into or out of a sibling `.disabled/` folder via a single rename — reversible, never a delete or overwrite, and refused if it would escape `$HOME`/`$CWD`, clobber an existing directory, or act on a missing source. Everything else Ankui does is strictly read-only.
+
+**The `ankui web` server is loopback-only.** It binds `127.0.0.1`, generates a fresh per-session token, and rejects any `/api/*` request without it; write requests additionally require an `Origin` header matching the server's own origin, and every request must carry a `Host` header pointing at a loopback alias of the bound origin (any mismatch is rejected with `421 Misdirected Request`, which defeats DNS-rebinding attacks). It serves only local files and calls no external APIs.
 
 **Sensitive files skipped.** Any file matching these patterns is skipped with a `sensitive_file_skipped` warning rather than read:
 
@@ -159,6 +166,33 @@ Open the TUI and live-rescan when config files change.
 ```
 
 Uses chokidar to watch known tool directories and AI-project files under registered dev roots. File changes are debounced (300 ms stabilisation threshold). Sensitive directories are excluded from the watch list. Press `q` or `Ctrl-C` to quit.
+
+---
+
+### `ankui web`
+
+Open a local browser UI.
+
+```
+Usage: ankui web [options]
+
+Open a local browser UI.
+
+Options:
+  --port <port>  preferred port (default: 7373)
+  --no-open      do not open the browser automatically
+```
+
+Starts a loopback HTTP server bound to `127.0.0.1` and opens your default browser at it. The single-page app has seven tabs mirroring the TUI — Overview, Tools, MCPs, Access, Doctor, Actions, Settings — backed by `GET /api/scan` and `POST /api/actions` (Settings additionally calls `POST /api/config` to update the dev-root list). The Actions tab applies skill enable/disable to disk through the same staged-changes + save flow as the TUI Actions tab. `--port` sets the preferred port; if it is taken the server tries the next free port up to +20. `--no-open` skips launching the browser. Runs until `Ctrl-C`.
+
+```
+$ ankui web
+
+  Ankui web UI  http://127.0.0.1:7373
+  local files only · read-only scan · Ctrl+C to stop
+```
+
+The server binds `127.0.0.1` only and generates a fresh per-session token. Every `/api/*` request must carry that token in an `x-ankui-token` header, and write requests (`POST /api/actions`, `POST /api/config`) additionally require an `Origin` header matching the server's own origin — this defeats localhost CSRF from other browser tabs. A DNS-rebinding guard rejects any request whose `Host` header isn't a loopback alias of the bound origin (`421 Misdirected Request`). It serves only local files; nothing is sent anywhere.
 
 ---
 
@@ -335,6 +369,8 @@ Crawls your home directory (max depth 6, concurrency 16) for directories that co
 
 ## TUI keybindings
 
+Tab structure: the top row is **Overview** plus one tab per detected tool; the bottom row is `MCPs · Access · Doctor · Actions · Settings`. `←` / `→` cycles between them.
+
 | Key | Action |
 |-----|--------|
 | `←` / `→` | Cycle between tabs |
@@ -354,12 +390,14 @@ Note: `Tab` is reserved for future focus navigation and does not cycle tabs in t
 ```bash
 npm install
 npm run typecheck      # TypeScript strict-mode check (no emit)
-npm test               # runs 501 tests via node:test + tsx
-npm run build          # emits to dist/
+npm test               # runs 567 tests via node:test + tsx
+npm run build          # two-stage build (see below)
 node dist/cli.js scan  # smoke test against your real local config
 ```
 
 Tests use the built-in `node:test` runner via `tsx`. Do not add Jest or Vitest unless explicitly required.
+
+`npm run build` runs two stages: `build:cli` (tsc — the Node CLI, emitted to `dist/`) then `build:web` (Vite — the `ankui web` single-page app, emitted to `dist/web-ui/`). For front-end work, `npm run dev:web` runs the Vite dev server with hot reload.
 
 After a build, use `node dist/cli.js <command>` for local testing. All commands support `--json` for machine-readable output.
 

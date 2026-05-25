@@ -123,7 +123,7 @@ function isAnkuiConfigShape(value: unknown): value is { version: unknown; devRoo
   return Array.isArray(record.devRoots);
 }
 
-function normalizeDevRoots(input: readonly unknown[]): string[] {
+export function normalizeDevRoots(input: readonly unknown[]): string[] {
   const seen = new Set<string>();
   const out: string[] = [];
   for (const entry of input) {
