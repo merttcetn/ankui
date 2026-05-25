@@ -16,6 +16,14 @@ export interface SkillViewportProps {
 }
 
 const DEFAULT_VISIBLE_COUNT = 12;
+// Reserve space for the active "▶ " prefix even on inactive rows so the
+// label truncation budget stays stable as the cursor moves.
+const PREFIX_RESERVED = 2;
+// Minimum dot-leader gap we want to keep visible between label and metadata.
+const MIN_LEADER_GAP = 4;
+// Floor for the label budget — below this we'd rather let it overflow than
+// shrink to a useless 1-2 character stub.
+const MIN_LABEL_WIDTH = 8;
 
 interface SkillRow {
   skill: Skill;
@@ -42,14 +50,18 @@ export function SkillViewport({
         const origin = row.skill.details?.bundleOrigin as
           | BundleOrigin
           | undefined;
+        const originLabel = formatInlineOriginLabel(origin);
+        const metadata = formatKind(row.kind);
+        const labelBudget = computeLabelBudget(panelWidth, metadata, originLabel);
+        const label = fit(row.skill.name, labelBudget);
         return (
           <DotLeaderRow
             key={row.skill.id}
-            label={row.skill.name}
-            metadata={formatKind(row.kind)}
+            label={label}
+            metadata={metadata}
             width={panelWidth}
             active={index === safeCursor}
-            originLabel={formatInlineOriginLabel(origin)}
+            originLabel={originLabel}
           />
         );
       })}
@@ -70,4 +82,21 @@ function flattenSkills(skills: ReadonlyArray<Skill>): SkillRow[] {
 
 function formatKind(kind: SkillKind): string {
   return kind.replaceAll("_", " ");
+}
+
+function computeLabelBudget(
+  panelWidth: number,
+  metadata: string,
+  originLabel: string | undefined
+): number {
+  const originCost = originLabel ? originLabel.length + 1 : 0;
+  const budget =
+    panelWidth - PREFIX_RESERVED - metadata.length - originCost - MIN_LEADER_GAP;
+  return Math.max(MIN_LABEL_WIDTH, budget);
+}
+
+function fit(value: string, max: number): string {
+  if (value.length <= max) return value;
+  if (max <= 1) return value.slice(0, max);
+  return `${value.slice(0, max - 1)}…`;
 }
