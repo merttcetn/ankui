@@ -1,15 +1,15 @@
 import React, { useEffect, useRef, useState } from "react";
 
 import type { AITool, MultiProjectScanResult, ToolId } from "../../types.js";
-import {
-  groupSkillsByKind,
-  SKILL_KIND_ORDER
-} from "../../tui/util/skill-grouping.js";
+import { groupSkillsByOrigin } from "../../utils/skill-groups.js";
+import { SkillGroupSection } from "../components/SkillGroupSection.js";
+import { useExpandedGroups } from "../hooks/useExpandedGroups.js";
 
 export function ToolsView(props: {
   scan: MultiProjectScanResult;
 }): React.ReactElement {
   const [open, setOpen] = useState<ToolId | null>(null);
+  const { isExpanded, toggle } = useExpandedGroups("tools");
   const tools = props.scan.userScope.tools;
   return (
     <>
@@ -30,7 +30,11 @@ export function ToolsView(props: {
             {tool.detected && (
               <div className={isOpen ? "tools-acc open" : "tools-acc"}>
                 <div className="tools-acc-inner">
-                  <ExpandedPanel tool={tool} />
+                  <ExpandedPanel
+                    tool={tool}
+                    isExpanded={isExpanded}
+                    onToggle={toggle}
+                  />
                 </div>
               </div>
             )}
@@ -41,11 +45,16 @@ export function ToolsView(props: {
   );
 }
 
-function ExpandedPanel({ tool }: { tool: AITool }): React.ReactElement {
+function ExpandedPanel(props: {
+  tool: AITool;
+  isExpanded: (label: string, alwaysExpanded: boolean) => boolean;
+  onToggle: (label: string) => void;
+}): React.ReactElement {
+  const { tool, isExpanded, onToggle } = props;
   const ref = useRef<HTMLDivElement>(null);
   const [overflow, setOverflow] = useState(false);
   const [atBottom, setAtBottom] = useState(false);
-  const grouped = groupSkillsByKind(tool.skills);
+  const groups = groupSkillsByOrigin(tool.skills);
 
   useEffect(() => {
     const el = ref.current;
@@ -70,25 +79,23 @@ function ExpandedPanel({ tool }: { tool: AITool }): React.ReactElement {
             {p}
           </div>
         ))}
-        {SKILL_KIND_ORDER.map((kind) => {
-          const skills = grouped.get(kind);
-          if (!skills || skills.length === 0) return null;
-          return (
-            <div key={kind}>
-              <div className="dim" style={{ marginTop: 6 }}>
-                {kind} ({skills.length})
+        {groups.map((group) => (
+          <SkillGroupSection
+            key={group.label}
+            group={group}
+            expanded={isExpanded(group.label, group.alwaysExpanded)}
+            onToggle={() => onToggle(group.label)}
+          >
+            {group.skills.map((sk) => (
+              <div className="skill-line" key={sk.id}>
+                <span className="name">{sk.name}</span>
+                {sk.details?.disabled === true && (
+                  <span className="dim">disabled</span>
+                )}
               </div>
-              {skills.map((sk) => (
-                <div className="skill-line" key={sk.id}>
-                  <span className="name">{sk.name}</span>
-                  {sk.details?.disabled === true && (
-                    <span className="dim">disabled</span>
-                  )}
-                </div>
-              ))}
-            </div>
-          );
-        })}
+            ))}
+          </SkillGroupSection>
+        ))}
       </div>
       {overflow && <div className={hintClass}>↓ scroll for more</div>}
     </>

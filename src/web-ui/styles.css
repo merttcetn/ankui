@@ -396,6 +396,16 @@ code {
   border-top: 1px solid color-mix(in srgb, var(--border) 60%, transparent);
 }
 
+/* ToolsView: inner skill-group sits inside the already-bordered .row panel,
+   so strip its own chrome to avoid double-border / nested-panel feel. */
+.tools-expanded .skill-group {
+  background: transparent;
+  border: none;
+  border-radius: 0;
+  padding: 0;
+  margin-bottom: 4px;
+}
+
 .actions-float {
   position: fixed;
   left: 50%;
