@@ -364,6 +364,44 @@ test("POST /api/config rejects a malformed body with 400", async () => {
   }
 });
 
+test("POST /api/config rejects devRoots with invalid path shapes", async () => {
+  // A token-bearing tab must not be able to pin scans to arbitrary system
+  // paths or strings with control characters; discoverProjects calls
+  // fs.readdir without the scanner safety layer.
+  const cases: Array<{ entry: string; expectFragment: string }> = [
+    { entry: "relative/path", expectFragment: "must be an absolute path" },
+    { entry: "/Users/me/sessions", expectFragment: "sensitive path segment" },
+    { entry: "/Users/me/.env-staging", expectFragment: "sensitive path segment" },
+    { entry: "/Users/me/projects injected", expectFragment: "control character" },
+    { entry: "/Users/me/projects\nnewline", expectFragment: "control character" },
+    { entry: `/${"a".repeat(5000)}`, expectFragment: "path too long" }
+  ];
+
+  const s = await startServer();
+  try {
+    for (const { entry, expectFragment } of cases) {
+      const res = await fetch(`${s.url}/api/config`, {
+        method: "POST",
+        headers: {
+          "x-ankui-token": s.token,
+          "content-type": "application/json",
+          origin: s.url
+        },
+        body: JSON.stringify({ expected: [], desired: [entry] })
+      });
+      assert.equal(res.status, 400, `entry=${JSON.stringify(entry)} expected 400`);
+      const body = await res.json();
+      assert.match(
+        body.error,
+        new RegExp(expectFragment),
+        `entry=${JSON.stringify(entry)} expected error to contain "${expectFragment}", got "${body.error}"`
+      );
+    }
+  } finally {
+    await s.close();
+  }
+});
+
 test("POST /api/config writes config and returns a fresh scan", async () => {
   const home = await fs.mkdtemp(path.join(os.tmpdir(), "ankui-cfg-"));
   const dir = await fs.mkdtemp(path.join(os.tmpdir(), "ankui-routes-"));
@@ -758,5 +796,69 @@ test("POST /api/actions rejects malformed change entries with 400", async () => 
     }
   } finally {
     await s.close();
+  }
+});
+
+test("two concurrent POST /api/actions requests serialize", async () => {
+  // Without the actions lock, applyActions runs in parallel for both
+  // requests — each calls loadScan() (twice: before + after) so the max
+  // concurrent loadScan count peaks at 2+. With the lock, the second
+  // batch waits for the first to finish, so loadScan is never in flight
+  // more than once.
+  const dir = await fs.mkdtemp(path.join(os.tmpdir(), "ankui-routes-"));
+  await fs.writeFile(
+    path.join(dir, "index.html"),
+    `<!doctype html><script>window.T="${TOKEN_PLACEHOLDER}"</script>`,
+    "utf8"
+  );
+
+  let inFlight = 0;
+  let maxInFlight = 0;
+  const loadScan = async (): Promise<MultiProjectScanResult> => {
+    inFlight++;
+    maxInFlight = Math.max(maxInFlight, inFlight);
+    await new Promise((r) => setTimeout(r, 15));
+    inFlight--;
+    return emptyResult();
+  };
+
+  const ctx: RouteContext = {
+    token: "test-token-abc",
+    expectedOrigin: "",
+    allowedOrigins: new Set<string>(),
+    homeDir: "/home/u",
+    env: {},
+    loadScan,
+    spaDir: dir
+  };
+  const handle = await createWebServer({
+    port: 0,
+    handler: (req, res) => handleRequest(req, res, ctx)
+  });
+  ctx.expectedOrigin = handle.url;
+  ctx.allowedOrigins = buildAllowedLoopbackOrigins(handle.url);
+
+  try {
+    const post = (): Promise<Response> =>
+      fetch(`${handle.url}/api/actions`, {
+        method: "POST",
+        headers: {
+          "x-ankui-token": ctx.token,
+          "content-type": "application/json",
+          origin: handle.url
+        },
+        body: JSON.stringify({ changes: [{ skillId: "nope", action: "disable" }] })
+      });
+
+    const [a, b] = await Promise.all([post(), post()]);
+    assert.equal(a.status, 200);
+    assert.equal(b.status, 200);
+    assert.equal(
+      maxInFlight,
+      1,
+      `actions must serialize; max concurrent loadScan calls observed ${maxInFlight}`
+    );
+  } finally {
+    await handle.close();
   }
 });

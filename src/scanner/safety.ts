@@ -270,7 +270,7 @@ function createSensitivePathWarning(
   });
 }
 
-function hasSensitivePathSegment(filePath: string): boolean {
+export function hasSensitivePathSegment(filePath: string): boolean {
   const segments = splitPathSegments(filePath);
   const lowerSegments = segments.map((segment) => segment.toLowerCase());
   const isOpenCodePath = lowerSegments.some(

@@ -1,4 +1,5 @@
 import type { IncomingMessage, ServerResponse } from "node:http";
+import path from "node:path";
 
 import type { MultiProjectScanResult } from "../types.js";
 import {
@@ -7,6 +8,7 @@ import {
   writeAnkuiConfig
 } from "../config/ankui-config.js";
 import { loadAllScans, readDevRootsConfig } from "../scanner/multi-project.js";
+import { hasSensitivePathSegment } from "../scanner/safety.js";
 import { disableSkill, enableSkill } from "../writer/index.js";
 import { applyActions, type ActionRequest } from "./actions.js";
 import { authorize } from "./security.js";
@@ -90,12 +92,20 @@ export async function handleRequest(
     const changes = parseChanges(parsed);
     if (!changes) return sendJson(res, 400, { error: "invalid changes payload" });
 
-    const result = await applyActions(changes, {
-      loadScan: () => loadScan(ctx),
-      disableSkill,
-      enableSkill,
-      homeDir: ctx.homeDir
-    });
+    // Serialize concurrent action batches. Without this lock, two browser
+    // tabs (or a double-clicked save) hit applyActions in parallel: both
+    // call loadScan() and see the same on-disk state, both try to rename
+    // the same skill dir, and the second rename surfaces a noisy
+    // target_exists error to the user. With the lock, the second batch
+    // sees the post-write state and reports "already in desired state".
+    const result = await withActionsLock(() =>
+      applyActions(changes, {
+        loadScan: () => loadScan(ctx),
+        disableSkill,
+        enableSkill,
+        homeDir: ctx.homeDir
+      })
+    );
     return sendJson(res, 200, result);
   }
 
@@ -112,6 +122,19 @@ export async function handleRequest(
     }
     const payload = parseConfigPayload(parsed);
     if (!payload) return sendJson(res, 400, { error: "invalid devRoots payload" });
+
+    // Validate the *desired* list before touching disk so a token-bearing
+    // browser tab can't pin scans to arbitrary system paths (~/.ssh, /etc,
+    // strings with control characters, etc.). Discovery downstream calls
+    // fs.readdir on each devRoot without going through the scanner safety
+    // layer, so any string accepted here gets enumerated.
+    const desiredNormalized = normalizeDevRoots(payload.desired);
+    const validation = validateDevRoots(desiredNormalized);
+    if (!validation.ok) {
+      return sendJson(res, 400, {
+        error: `invalid devRoot at index ${validation.index}: ${validation.reason}`
+      });
+    }
 
     // Optimistic concurrency under a per-process mutex so two concurrent
     // /api/config requests can't both pass the same on-disk check and then
@@ -132,7 +155,7 @@ export async function handleRequest(
       }
 
       await writeAnkuiConfig(
-        { version: 1, devRoots: payload.desired },
+        { version: 1, devRoots: desiredNormalized },
         ctx.homeDir
       );
       const scan = await loadScan(ctx);
@@ -187,6 +210,26 @@ function parseStringArray(value: unknown): string[] | null {
   return out;
 }
 
+const MAX_DEV_ROOT_CHARS = 4096;
+
+function validateDevRoot(value: string): string | null {
+  if (value.length > MAX_DEV_ROOT_CHARS) return "path too long";
+  if (/[\u0000-\u001f\u007f]/.test(value)) return "contains control character";
+  if (!path.isAbsolute(value)) return "must be an absolute path";
+  if (hasSensitivePathSegment(value)) return "contains a sensitive path segment";
+  return null;
+}
+
+function validateDevRoots(
+  values: readonly string[]
+): { ok: true } | { ok: false; index: number; reason: string } {
+  for (let i = 0; i < values.length; i++) {
+    const reason = validateDevRoot(values[i]);
+    if (reason) return { ok: false, index: i, reason };
+  }
+  return { ok: true };
+}
+
 function sameDevRoots(a: readonly string[], b: readonly string[]): boolean {
   // Order-sensitive: dev-root order drives discovery + display order in the
   // scanner, and writeAnkuiConfig preserves insertion order. An out-of-band
@@ -205,6 +248,18 @@ function withConfigLock<T>(fn: () => Promise<T>): Promise<T> {
   const previous = configLock;
   const next = previous.then(fn, fn);
   configLock = next.catch(() => undefined);
+  return next;
+}
+
+// Mirror of configLock for /api/actions. Same in-server scope: closes the
+// race where two concurrent batches each read pre-write state and step on
+// each other's skill-dir renames.
+let actionsLock: Promise<unknown> = Promise.resolve();
+
+function withActionsLock<T>(fn: () => Promise<T>): Promise<T> {
+  const previous = actionsLock;
+  const next = previous.then(fn, fn);
+  actionsLock = next.catch(() => undefined);
   return next;
 }
 
