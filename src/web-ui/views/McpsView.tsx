@@ -25,6 +25,9 @@ export function McpsView(props: {
           {group.configurations.map((cfg, i) => (
             <div className="dim" key={`${cfg.toolId}:${cfg.sourcePath}:${i}`}>
               {cfg.toolId} · {cfg.scope} · {cfg.sourcePath}
+              {cfg.bundleOrigin && cfg.bundleOrigin.kind !== "yours" && (
+                <> · {cfg.bundleOrigin.name} · {cfg.bundleOrigin.kind}</>
+              )}
             </div>
           ))}
           {group.secretEnvKeys.length > 0 && (
