@@ -18,6 +18,19 @@ export async function gitFetch(repoDir: string): Promise<void> {
   await run("git", ["fetch", "--quiet", "origin"], repoDir, "git fetch failed");
 }
 
+export async function gitFetchUnshallow(repoDir: string): Promise<void> {
+  // Defensive: swallow "already complete" errors so we can run this idempotently.
+  try {
+    await run("git", ["fetch", "--unshallow", "--quiet", "origin"], repoDir, "git fetch --unshallow failed");
+  } catch (e) {
+    const msg = (e as Error).message;
+    if (/unshallow on a complete repository/i.test(msg) || /does not make sense/i.test(msg)) {
+      return;
+    }
+    throw e;
+  }
+}
+
 export async function gitCheckout(repoDir: string, ref: string): Promise<void> {
   await run("git", ["checkout", "--quiet", ref], repoDir, "git checkout failed");
 }

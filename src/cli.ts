@@ -12,6 +12,7 @@ import { runMcpCommand } from "./commands/mcp.js";
 import { runRemoveCommand } from "./commands/remove.js";
 import { runScanAllCommand } from "./commands/scan-all.js";
 import { runShowCommand } from "./commands/show.js";
+import { runUpdateCommand } from "./commands/update.js";
 import { runWatchCommand } from "./commands/watch.js";
 import { runWebCommand } from "./commands/web.js";
 import { buildLaunchTuiResult } from "./commands/launch-tui.js";
@@ -230,6 +231,51 @@ program
     for (const l of result.stdout) console.log(l);
     for (const l of result.stderr) console.error(l);
     process.exit(result.exitCode);
+  });
+
+program
+  .command("update [name]")
+  .description("Fetch upstream changes for a tracked bundle (or all of them with --all) and apply added/removed/modified skills.")
+  .option("--all", "update every tracked bundle")
+  .option("--yes", "skip the confirmation prompt")
+  .option("--force", "overwrite conflicting files on added skills")
+  .option("--skip-conflicts", "install non-conflicting added items, skip the rest")
+  .action(async (name: string | undefined, cmdOpts: { all?: boolean; yes?: boolean; force?: boolean; skipConflicts?: boolean }) => {
+    if (!cmdOpts.yes) {
+      process.stderr.write("ankui update: pass --yes to confirm update (v1 has no interactive prompt yet)\n");
+      process.exit(1);
+    }
+    const homeDir = os.homedir();
+    const cwd = process.cwd();
+    let names: string[] = [];
+    if (cmdOpts.all) {
+      const { readRegistry } = await import("./bundles/registry.js");
+      const reg = await readRegistry(homeDir);
+      names = reg.bundles.map((b) => b.name);
+      if (names.length === 0) {
+        console.log("No bundles installed.");
+        process.exit(0);
+      }
+    } else {
+      if (!name) {
+        process.stderr.write("ankui update: provide a bundle name (e.g., owner/repo) or pass --all\n");
+        process.exit(1);
+      }
+      names = [name];
+    }
+    let exit = 0;
+    for (const n of names) {
+      const result = await runUpdateCommand({
+        name: n,
+        flags: { yes: true, force: cmdOpts.force, skipConflicts: cmdOpts.skipConflicts },
+        homeDir,
+        cwd
+      });
+      for (const l of result.stdout) console.log(l);
+      for (const l of result.stderr) console.error(l);
+      if (result.exitCode !== 0) exit = result.exitCode;
+    }
+    process.exit(exit);
   });
 
 program
