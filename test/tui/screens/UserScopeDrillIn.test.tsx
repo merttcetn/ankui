@@ -15,7 +15,12 @@ import {
   type ToolId
 } from "../../../src/types.js";
 
-function makeSkill(kind: SkillKind, name: string, toolId: ToolId): Skill {
+function makeSkill(
+  kind: SkillKind,
+  name: string,
+  toolId: ToolId,
+  details?: Skill["details"]
+): Skill {
   const sourcePath = `/home/.${toolId}/${name}`;
   return {
     id: createSkillId({ toolId, kind, name, sourcePath }),
@@ -27,7 +32,8 @@ function makeSkill(kind: SkillKind, name: string, toolId: ToolId): Skill {
     sourcePath,
     source: "config",
     capabilityCategories: [],
-    accessLevel: "moderate"
+    accessLevel: "moderate",
+    details
   };
 }
 
@@ -107,6 +113,23 @@ test("UserScopeDrillIn renders SearchBox when searchOpen is true", () => {
   );
   const frame = inst.lastFrame() ?? "";
   assert.match(frame, /\/dep/);
+  inst.unmount();
+});
+
+test("UserScopeDrillIn renders the inline origin label for non-yours bundle skills", () => {
+  const skill = makeSkill("agent_skill", "autoplan", "claude", {
+    bundleOrigin: { kind: "bundle", name: "gstack", rootPath: "~/gstack" }
+  });
+  const inst = render(
+    <UserScopeDrillIn
+      toolId="claude"
+      result={multiProjectFixture([skill])}
+    />
+  );
+  const frame = inst.lastFrame() ?? "";
+  assert.match(frame, /autoplan/);
+  assert.match(frame, /gstack/);
+  assert.match(frame, /bundle/);
   inst.unmount();
 });
 

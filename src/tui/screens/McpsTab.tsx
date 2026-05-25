@@ -8,6 +8,7 @@ import { DotLeaderRow } from "../components/DotLeaderRow.js";
 import { StatusPill } from "../components/StatusPill.js";
 import { EMPTY_STATE_WHISPERS } from "../messages.js";
 import { relativizeHome } from "../../utils/paths.js";
+import { formatInlineOriginLabel } from "../../utils/skill-groups.js";
 import {
   aggregateMcps,
   formatCapabilityTag,
@@ -89,6 +90,7 @@ function McpGroupBlock({ group, homeDir, rowWidth }: McpGroupBlockProps): React.
             label={`   ${config.toolId}`}
             metadata={relativizeHome(config.sourcePath, homeDir)}
             width={rowWidth}
+            originLabel={formatInlineOriginLabel(config.bundleOrigin)}
           />
         </Fragment>
       ))}

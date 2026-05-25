@@ -4,6 +4,7 @@ import React from "react";
 import { render } from "ink-testing-library";
 
 import { McpsTab } from "../../../src/tui/screens/McpsTab.js";
+import type { BundleOrigin } from "../../../src/scanner/bundle-origin.js";
 import {
   createAllEmptyTools,
   createScanSummary,
@@ -22,9 +23,13 @@ function makeMcpSkill(
     envKeys?: string[];
     capabilityCategories?: Skill["capabilityCategories"];
     accessLevel?: Skill["accessLevel"];
+    bundleOrigin?: BundleOrigin;
   } = {}
 ): Skill {
   const sourcePath = options.sourcePath ?? `/home/${toolId}-${name}`;
+  const details: Record<string, unknown> = {};
+  if (options.envKeys) details.envKeys = options.envKeys;
+  if (options.bundleOrigin) details.bundleOrigin = options.bundleOrigin;
   return {
     id: createSkillId({ toolId, kind: "mcp_server", name, sourcePath }),
     toolId,
@@ -36,7 +41,7 @@ function makeMcpSkill(
     source: "config",
     capabilityCategories: options.capabilityCategories ?? ["database"],
     accessLevel: options.accessLevel ?? "broad",
-    details: options.envKeys ? { envKeys: options.envKeys } : undefined
+    details: Object.keys(details).length > 0 ? details : undefined
   };
 }
 
@@ -171,5 +176,32 @@ test("McpsTab renders one row per configuration with tool id and path", () => {
   // Tool id and home-relative path on the configuration row.
   assert.match(frame, /claude/);
   assert.match(frame, /~\/\.claude\/\.mcp\.json/);
+  inst.unmount();
+});
+
+test("McpsTab surfaces the inline origin label for non-yours bundle configurations", () => {
+  const origin: BundleOrigin = {
+    kind: "bundle",
+    name: "gstack",
+    rootPath: "~/gstack"
+  };
+  const inst = render(
+    <McpsTab
+      result={fixture({
+        userSkills: [
+          {
+            toolId: "claude",
+            skill: makeMcpSkill("claude", "Postgres", {
+              sourcePath: "/home/.claude/.mcp.json",
+              bundleOrigin: origin
+            })
+          }
+        ]
+      })}
+    />
+  );
+  const frame = inst.lastFrame() ?? "";
+  assert.match(frame, /gstack/);
+  assert.match(frame, /bundle/);
   inst.unmount();
 });

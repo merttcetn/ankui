@@ -7,9 +7,12 @@ import { ProjectDrillIn } from "../../../src/tui/screens/ProjectDrillIn.js";
 import {
   createAllEmptyTools,
   createScanSummary,
+  createSkillId,
   type MultiProjectScanResult,
   type ProjectScan,
   type ScanResult,
+  type Skill,
+  type SkillKind,
   type ToolId
 } from "../../../src/types.js";
 
@@ -64,5 +67,61 @@ test("ProjectDrillIn renders the noProjectSkills whisper when project has no ski
   );
   const frame = inst.lastFrame() ?? "";
   assert.match(frame, /nothing left here to remember\./);
+  inst.unmount();
+});
+
+function makeSkill(
+  kind: SkillKind,
+  name: string,
+  toolId: ToolId,
+  details?: Skill["details"]
+): Skill {
+  const sourcePath = `/p/ankui/.${toolId}/${name}`;
+  return {
+    id: createSkillId({ toolId, kind, name, sourcePath }),
+    toolId,
+    kind,
+    name,
+    summary: "",
+    scope: "project",
+    sourcePath,
+    source: "config",
+    capabilityCategories: [],
+    accessLevel: "moderate",
+    details
+  };
+}
+
+function projectFixtureWithSkills(
+  projectPath: string,
+  displayPath: string,
+  toolId: ToolId,
+  skills: Skill[]
+): ProjectScan {
+  const scan = emptyScanResult(projectPath);
+  scan.tools = scan.tools.map((t) =>
+    t.id === toolId
+      ? { ...t, detected: true, detectedPaths: [`${projectPath}/.${toolId}`], skills }
+      : t
+  );
+  return { projectPath, displayPath, scan };
+}
+
+test("ProjectDrillIn renders the inline origin label for non-yours bundle skills", () => {
+  const skill = makeSkill("agent_skill", "autoplan", TOOL, {
+    bundleOrigin: { kind: "bundle", name: "gstack", rootPath: "~/gstack" }
+  });
+  const project = projectFixtureWithSkills("/p/ankui", "ankui", TOOL, [skill]);
+  const inst = render(
+    <ProjectDrillIn
+      toolId={TOOL}
+      projectPath="/p/ankui"
+      result={fixtureWithProject([project])}
+    />
+  );
+  const frame = inst.lastFrame() ?? "";
+  assert.match(frame, /autoplan/);
+  assert.match(frame, /gstack/);
+  assert.match(frame, /bundle/);
   inst.unmount();
 });

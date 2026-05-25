@@ -3,7 +3,10 @@ import test from "node:test";
 
 import { buildSkill } from "../../src/scanner/adapters/shared.js";
 import type { BundleOrigin } from "../../src/scanner/bundle-origin.js";
-import { groupSkillsByOrigin } from "../../src/utils/skill-groups.js";
+import {
+  formatInlineOriginLabel,
+  groupSkillsByOrigin
+} from "../../src/utils/skill-groups.js";
 import type { Scope, Skill, SkillKind, SkillSource, ToolId } from "../../src/types.js";
 
 interface MakeSkillInput {
@@ -253,6 +256,49 @@ test("groupSkillsByOrigin omits the yours group entirely when no yours skills ar
   assert.equal(groups.length, 1);
   assert.equal(groups[0].label, "gstack · bundle");
   assert.equal(groups[0].alwaysExpanded, false);
+});
+
+test("formatInlineOriginLabel returns undefined for undefined origin", () => {
+  assert.equal(formatInlineOriginLabel(undefined), undefined);
+});
+
+test("formatInlineOriginLabel returns undefined for kind === 'yours'", () => {
+  assert.equal(
+    formatInlineOriginLabel({ kind: "yours", name: "yours" }),
+    undefined
+  );
+});
+
+test("formatInlineOriginLabel formats bundle origin as '<name> · <kind>'", () => {
+  assert.equal(
+    formatInlineOriginLabel({ kind: "bundle", name: "gstack", rootPath: "~/gstack" }),
+    "gstack · bundle"
+  );
+});
+
+test("formatInlineOriginLabel formats plugin origin as '<name> · <kind>'", () => {
+  assert.equal(
+    formatInlineOriginLabel({
+      kind: "plugin",
+      name: "superpowers",
+      rootPath: "~/.claude/plugins/cache/m/superpowers/1"
+    }),
+    "superpowers · plugin"
+  );
+});
+
+test("formatInlineOriginLabel formats builtin origin as '<name> · <kind>'", () => {
+  assert.equal(
+    formatInlineOriginLabel({ kind: "builtin", name: "claude" }),
+    "claude · builtin"
+  );
+});
+
+test("formatInlineOriginLabel formats external origin as '<name> · <kind>'", () => {
+  assert.equal(
+    formatInlineOriginLabel({ kind: "external", name: "external" }),
+    "external · external"
+  );
 });
 
 test("groupSkillsByOrigin marks alwaysExpanded false for every non-yours kind", () => {
