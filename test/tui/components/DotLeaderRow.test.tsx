@@ -47,3 +47,65 @@ test("DotLeaderRow renders without crashing on zero-length label or metadata", (
   assert.equal(typeof a(), "string");
   assert.equal(typeof b(), "string");
 });
+
+test("DotLeaderRow renders originLabel as dim italic suffix when set", () => {
+  const { lastFrame } = render(
+    <DotLeaderRow
+      label="autoplan"
+      metadata=""
+      width={40}
+      originLabel="gstack · bundle"
+    />
+  );
+  const frame = lastFrame() ?? "";
+
+  assert.ok(frame.includes("autoplan"), "label should render");
+  assert.ok(frame.includes("gstack · bundle"), "origin label should render");
+  assert.ok(frame.includes(" · "), "dot leader filler ' · ' should appear");
+  // Origin label sits after the metadata position (which is empty here),
+  // so it must come after the label and the dot leader.
+  const labelIdx = frame.indexOf("autoplan");
+  const originIdx = frame.indexOf("gstack · bundle");
+  assert.ok(originIdx > labelIdx, "origin label should follow the label");
+});
+
+test("DotLeaderRow omits originLabel suffix when prop is undefined", () => {
+  const withOrigin = render(
+    <DotLeaderRow
+      label="autoplan"
+      metadata="5 skills"
+      width={40}
+      originLabel="gstack · bundle"
+    />
+  ).lastFrame() ?? "";
+
+  const withoutOrigin = render(
+    <DotLeaderRow label="autoplan" metadata="5 skills" width={40} />
+  ).lastFrame() ?? "";
+
+  assert.ok(
+    !withoutOrigin.includes("gstack · bundle"),
+    "frame without originLabel must not contain origin text"
+  );
+  assert.ok(
+    withOrigin.includes("gstack · bundle"),
+    "frame with originLabel must contain origin text"
+  );
+  // The two frames must differ — at minimum by the origin suffix presence.
+  assert.notEqual(withOrigin, withoutOrigin);
+});
+
+test("DotLeaderRow omits originLabel suffix when prop is empty string", () => {
+  const empty = render(
+    <DotLeaderRow label="autoplan" metadata="5 skills" width={40} originLabel="" />
+  ).lastFrame() ?? "";
+
+  const undef = render(
+    <DotLeaderRow label="autoplan" metadata="5 skills" width={40} />
+  ).lastFrame() ?? "";
+
+  // Empty-string originLabel should be treated identically to undefined.
+  assert.equal(empty, undef);
+  assert.ok(empty.includes("autoplan"));
+  assert.ok(empty.includes("5 skills"));
+});

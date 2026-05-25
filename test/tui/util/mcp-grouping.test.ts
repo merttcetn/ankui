@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { aggregateMcps } from "../../../src/tui/util/mcp-grouping.js";
+import type { BundleOrigin } from "../../../src/scanner/bundle-origin.js";
 import {
   createAllEmptyTools,
   createScanSummary,
@@ -22,10 +23,14 @@ function makeMcpSkill(
     envKeys?: string[];
     capabilityCategories?: Skill["capabilityCategories"];
     accessLevel?: Skill["accessLevel"];
+    bundleOrigin?: BundleOrigin;
   } = {}
 ): Skill {
   const kind: SkillKind = "mcp_server";
   const sourcePath = options.sourcePath ?? `/tmp/${toolId}-${name}`;
+  const details: Record<string, unknown> = {};
+  if (options.envKeys) details.envKeys = options.envKeys;
+  if (options.bundleOrigin) details.bundleOrigin = options.bundleOrigin;
   return {
     id: createSkillId({ toolId, kind, name, sourcePath }),
     toolId,
@@ -37,7 +42,7 @@ function makeMcpSkill(
     source: "config",
     capabilityCategories: options.capabilityCategories ?? ["database"],
     accessLevel: options.accessLevel ?? "moderate",
-    details: options.envKeys ? { envKeys: options.envKeys } : undefined
+    details: Object.keys(details).length > 0 ? details : undefined
   };
 }
 
@@ -163,6 +168,55 @@ test("aggregateMcps surfaces capabilityCategories + accessLevel from the first s
   );
   assert.deepEqual(groups[0].capabilityCategories, ["database"]);
   assert.equal(groups[0].accessLevel, "broad");
+});
+
+test("aggregateMcps propagates bundleOrigin onto each configuration row", () => {
+  const bundleSkill = makeMcpSkill("claude", "shadcn", {
+    sourcePath: "/home/gstack/mcps/shadcn.json",
+    bundleOrigin: {
+      kind: "bundle",
+      name: "gstack",
+      rootPath: "~/gstack"
+    }
+  });
+  const yoursSkill = makeMcpSkill("claude", "shadcn", {
+    scope: "project",
+    sourcePath: "/p/ankui/.mcp.json",
+    bundleOrigin: { kind: "yours", name: "yours" }
+  });
+  const groups = aggregateMcps(
+    multiProjectResult({
+      userSkills: [{ toolId: "claude", skill: bundleSkill }],
+      projects: [
+        {
+          displayPath: "ankui",
+          skills: [{ toolId: "claude", skill: yoursSkill }]
+        }
+      ]
+    })
+  );
+  assert.equal(groups.length, 1);
+  assert.equal(groups[0].configurations.length, 2);
+
+  const bundleCfg = groups[0].configurations.find(
+    (c) => c.sourcePath === "/home/gstack/mcps/shadcn.json"
+  );
+  assert.ok(bundleCfg, "bundle configuration should be present");
+  assert.deepEqual(bundleCfg!.bundleOrigin, {
+    kind: "bundle",
+    name: "gstack",
+    rootPath: "~/gstack"
+  });
+
+  const yoursCfg = groups[0].configurations.find(
+    (c) => c.sourcePath === "/p/ankui/.mcp.json"
+  );
+  assert.ok(yoursCfg, "yours configuration should be present");
+  assert.deepEqual(yoursCfg!.bundleOrigin, {
+    kind: "yours",
+    name: "yours",
+    rootPath: undefined
+  });
 });
 
 test("aggregateMcps de-dupes identical (toolId, scope, sourcePath) configurations", () => {

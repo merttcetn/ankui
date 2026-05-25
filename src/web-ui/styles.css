@@ -351,40 +351,59 @@ code {
   border-color: var(--accent);
 }
 
-.actions-columns {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 16px;
-}
+/* ── skill-group section (origin-grouped accordion) ─────────────── */
 
-@media (max-width: 720px) {
-  .actions-columns { grid-template-columns: 1fr; }
-}
-
-.actions-col {
+.skill-group {
   background: var(--panel);
   border: 1px solid var(--border);
   border-radius: 6px;
-  padding: 0 16px 8px;
-  max-height: calc(100vh - 260px);
-  overflow-y: auto;
-  scrollbar-width: thin;
-  scrollbar-color: var(--border) transparent;
+  padding: 10px 14px;
+  margin-bottom: 8px;
 }
 
-.actions-col::-webkit-scrollbar { width: 6px; }
-.actions-col::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
-.actions-col::-webkit-scrollbar-track { background: transparent; }
+.skill-group-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
 
-.actions-col h3 {
-  margin: 0;
-  padding: 14px 0 10px;
-  font-size: 13px;
-  letter-spacing: 0.04em;
-  position: sticky;
-  top: 0;
-  background: var(--panel);
-  z-index: 1;
+.skill-group-toggle {
+  background: transparent;
+  border: none;
+  color: var(--text);
+  font: inherit;
+  padding: 4px 0;
+  cursor: pointer;
+  text-align: left;
+  flex: 1;
+}
+
+.skill-group-toggle:disabled {
+  /* yours group looks normal, just non-collapsible */
+  cursor: default;
+  opacity: 1;
+}
+
+.skill-group-bulk {
+  display: flex;
+  gap: 6px;
+}
+
+.skill-group-body {
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid color-mix(in srgb, var(--border) 60%, transparent);
+}
+
+/* ToolsView: inner skill-group sits inside the already-bordered .row panel,
+   so strip its own chrome to avoid double-border / nested-panel feel. */
+.tools-expanded .skill-group {
+  background: transparent;
+  border: none;
+  border-radius: 0;
+  padding: 0;
+  margin-bottom: 4px;
 }
 
 .actions-float {

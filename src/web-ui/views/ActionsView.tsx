@@ -10,11 +10,32 @@ import {
   isMarkdownSkill,
   makeDesiredDisabled
 } from "../../tui/util/actions-items.js";
+import { groupSkillsByOrigin, type SkillGroup } from "../../utils/skill-groups.js";
 import { applyActions, type ActionRequest } from "../api.js";
+import {
+  SkillGroupSection,
+  type BulkAction
+} from "../components/SkillGroupSection.js";
+import { useBundleStatus } from "../hooks/useBundleStatus.js";
+import { useExpandedGroups } from "../hooks/useExpandedGroups.js";
 
 interface PendingChange {
   id: string;
   action: "disable" | "enable";
+}
+
+/**
+ * A group is "Ankui-tracked" iff it's a bundle (origin kind) whose root path
+ * lives under `~/.ankui/bundles/` — i.e. installed via `ankui add` and
+ * therefore eligible for the check/update affordance. Bundles surfaced from
+ * other sources stay as informational rows with no update buttons.
+ */
+function isAnkuiTrackedBundle(group: SkillGroup): boolean {
+  return (
+    group.origin.kind === "bundle" &&
+    typeof group.origin.rootPath === "string" &&
+    group.origin.rootPath.startsWith("~/.ankui/bundles/")
+  );
 }
 
 export function ActionsView(props: {
@@ -40,9 +61,17 @@ export function ActionsView(props: {
   }, [tools, selectedToolId]);
 
   const selectedTool = tools.find((t) => t.id === selectedToolId);
-  const allSkills = selectedTool ? selectedTool.skills.filter(isMarkdownSkill) : [];
-  const enabled = allSkills.filter((s) => !desiredDisabled(s));
-  const disabled = allSkills.filter((s) => desiredDisabled(s));
+  const allSkills = useMemo(
+    () => (selectedTool ? selectedTool.skills.filter(isMarkdownSkill) : []),
+    [selectedTool]
+  );
+  const groups = useMemo(() => groupSkillsByOrigin(allSkills), [allSkills]);
+  const { isExpanded, toggle: toggleGroup } = useExpandedGroups("actions");
+  const {
+    statuses: bundleStatuses,
+    check: checkBundleStatus,
+    apply: applyBundleStatus
+  } = useBundleStatus();
 
   const toggle = (skill: Skill): void => {
     const nextDisabled = !desiredDisabled(skill);
@@ -55,6 +84,47 @@ export function ActionsView(props: {
         { id: skill.id, action: nextDisabled ? "disable" : "enable" }
       ];
     });
+  };
+
+  /**
+   * Stage bulk changes for a list of skills. We compare against on-disk state
+   * (not the staged-future state) so already-staged matching changes get
+   * replaced with no-ops, and changes that would match disk get dropped.
+   */
+  const stageBulk = (skills: Skill[], action: "disable" | "enable"): void => {
+    setPending((prev) => {
+      const ids = new Set(skills.map((s) => s.id));
+      const next = prev.filter((p) => !ids.has(p.id));
+      for (const skill of skills) {
+        const diskDisabled = skill.details?.disabled === true;
+        const wouldBeDisabled = action === "disable";
+        if (diskDisabled === wouldBeDisabled) continue; // matches disk → no-op
+        next.push({ id: skill.id, action });
+      }
+      return next;
+    });
+  };
+
+  const handleBulk = (group: SkillGroup, action: BulkAction): void => {
+    if (action === "disable-all") {
+      const targets = group.skills.filter((s) => !desiredDisabled(s));
+      stageBulk(targets, "disable");
+    } else {
+      const targets = group.skills.filter((s) => desiredDisabled(s));
+      stageBulk(targets, "enable");
+    }
+  };
+
+  const bulkFor = (
+    group: SkillGroup
+  ): "disable-all" | "enable-all" | "both" | "none" => {
+    if (group.alwaysExpanded) return "none";
+    if (group.skills.length === 0) return "none";
+    const enabled = group.skills.filter((s) => !desiredDisabled(s)).length;
+    const disabled = group.skills.length - enabled;
+    if (enabled === 0) return "enable-all";
+    if (disabled === 0) return "disable-all";
+    return "both";
   };
 
   const discard = (): void => {
@@ -99,26 +169,52 @@ export function ActionsView(props: {
       />
 
       <div className="tab-panel" key={selectedToolId ?? "none"}>
-        <div className="actions-columns">
-          <ColumnList
-            title="Enabled"
-            tone="ok"
-            skills={enabled}
-            pending={pending}
-            onToggle={toggle}
-            actionLabel="disable"
-            emptyText="none enabled."
-          />
-          <ColumnList
-            title="Disabled"
-            tone="dim"
-            skills={disabled}
-            pending={pending}
-            onToggle={toggle}
-            actionLabel="enable"
-            emptyText="none disabled."
-          />
-        </div>
+        {groups.length === 0 ? (
+          <div className="empty-whisper">no skills here.</div>
+        ) : (
+          groups.map((group) => (
+            <SkillGroupSection
+              key={group.label}
+              group={group}
+              expanded={isExpanded(group.label, group.alwaysExpanded)}
+              onToggle={() => toggleGroup(group.label)}
+              onBulkAction={(action) => handleBulk(group, action)}
+              bulkAvailable={bulkFor(group)}
+              onCheckUpdate={
+                isAnkuiTrackedBundle(group)
+                  ? () => checkBundleStatus(group.origin.name)
+                  : undefined
+              }
+              onApplyUpdate={
+                isAnkuiTrackedBundle(group)
+                  ? (sha) => applyBundleStatus(group.origin.name, sha, { onScan: props.onScan })
+                  : undefined
+              }
+              updateStatus={
+                isAnkuiTrackedBundle(group)
+                  ? bundleStatuses.get(group.origin.name)
+                  : undefined
+              }
+            >
+              {group.skills.map((skill) => {
+                const isDisabled = desiredDisabled(skill);
+                const staged = pending.some((p) => p.id === skill.id);
+                return (
+                  <div className="skill-line" key={skill.id}>
+                    <span className={isDisabled ? "dim" : "ok"}>
+                      {isDisabled ? "○" : "●"}
+                    </span>
+                    <span className="name">{skill.name}</span>
+                    {staged && <span className="dim">pending</span>}
+                    <button className="action" onClick={() => toggle(skill)}>
+                      {isDisabled ? "enable" : "disable"}
+                    </button>
+                  </div>
+                );
+              })}
+            </SkillGroupSection>
+          ))
+        )}
       </div>
 
       {hasPending && (
@@ -159,42 +255,6 @@ function ActionsToolNav(props: {
           </button>
         );
       })}
-    </div>
-  );
-}
-
-function ColumnList(props: {
-  title: string;
-  tone: "ok" | "dim";
-  skills: Skill[];
-  pending: PendingChange[];
-  onToggle: (s: Skill) => void;
-  actionLabel: "enable" | "disable";
-  emptyText: string;
-}): React.ReactElement {
-  return (
-    <div className="actions-col">
-      <h3>
-        <span className={props.tone}>{props.tone === "ok" ? "●" : "○"}</span>{" "}
-        {props.title}
-        <span className="dim">{` (${props.skills.length})`}</span>
-      </h3>
-      {props.skills.length === 0 ? (
-        <div className="empty-whisper">{props.emptyText}</div>
-      ) : (
-        props.skills.map((s) => {
-          const staged = props.pending.some((p) => p.id === s.id);
-          return (
-            <div className="skill-line" key={s.id}>
-              <span className="name">{s.name}</span>
-              {staged && <span className="dim">pending</span>}
-              <button className="action" onClick={() => props.onToggle(s)}>
-                {props.actionLabel}
-              </button>
-            </div>
-          );
-        })
-      )}
     </div>
   );
 }

@@ -75,6 +75,33 @@ test("discovers project-level config files and directories", async () => {
   assertToolPath(result.paths, "skills-sh", path.join(cwd, ".skills"));
 });
 
+test(
+  "discovers root project files without depending on recursive directory traversal",
+  {
+    skip:
+      process.platform === "win32" || process.getuid?.() === 0
+        ? "Permission behavior is environment-dependent here"
+        : false
+  },
+  async () => {
+    const cwd = await makeTempWorkspace("ankui-discovery-cwd-");
+    const homeDir = await makeTempWorkspace("ankui-discovery-home-");
+    const unreadableDir = path.join(cwd, "unreadable");
+
+    await fs.writeFile(path.join(cwd, "CLAUDE.md"), "# Claude");
+    await fs.mkdir(unreadableDir, { recursive: true });
+    await fs.chmod(unreadableDir, 0o000);
+
+    try {
+      const result = await discover({ cwd, homeDir, env: {} });
+
+      assertToolPath(result.paths, "claude", path.join(cwd, "CLAUDE.md"));
+    } finally {
+      await fs.chmod(unreadableDir, 0o755).catch(() => undefined);
+    }
+  }
+);
+
 test("project file discovery respects gitignore", async () => {
   const cwd = await makeTempWorkspace("ankui-discovery-cwd-");
   const homeDir = await makeTempWorkspace("ankui-discovery-home-");

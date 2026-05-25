@@ -7,6 +7,7 @@ import type {
   Skill,
   ToolId
 } from "../../types.js";
+import type { BundleOrigin } from "../../scanner/bundle-origin.js";
 import { isSecretLikeKey } from "../../scanner/secret-keys.js";
 
 export interface McpConfiguration {
@@ -14,6 +15,8 @@ export interface McpConfiguration {
   scope: Skill["scope"];
   sourcePath: string;
   envKeys: ReadonlyArray<string>;
+  /** Undefined when the skill had no bundleOrigin populated. */
+  bundleOrigin?: BundleOrigin;
 }
 
 export interface McpGroup {
@@ -95,7 +98,8 @@ function addSkill(
     toolId: tool.id,
     scope: skill.scope,
     sourcePath: skill.sourcePath,
-    envKeys: readEnvKeys(skill.details)
+    envKeys: readEnvKeys(skill.details),
+    bundleOrigin: readBundleOrigin(skill.details)
   };
   const existing = map.get(key);
   if (existing) {
@@ -126,6 +130,19 @@ function readEnvKeys(details: Skill["details"]): ReadonlyArray<string> {
   const raw = (details as Record<string, unknown>).envKeys;
   if (!Array.isArray(raw)) return [];
   return raw.filter((k): k is string => typeof k === "string");
+}
+
+function readBundleOrigin(details: Skill["details"]): BundleOrigin | undefined {
+  if (!details || typeof details !== "object") return undefined;
+  const candidate = (details as Record<string, unknown>).bundleOrigin;
+  if (candidate === null || typeof candidate !== "object") return undefined;
+  const record = candidate as { kind?: unknown; name?: unknown; rootPath?: unknown };
+  if (typeof record.kind !== "string" || typeof record.name !== "string") return undefined;
+  return {
+    kind: record.kind as BundleOrigin["kind"],
+    name: record.name,
+    rootPath: typeof record.rootPath === "string" ? record.rootPath : undefined
+  };
 }
 
 /** Returns the `"<capabilities> · <level>"` tag, or `"(uncatalogued)"` when unknown. */

@@ -3,6 +3,7 @@ import React from "react";
 import type { MultiProjectScanResult } from "../../types.js";
 import { EMPTY_STATE_WHISPERS } from "../../tui/messages.js";
 import { aggregateMcps, formatCapabilityTag } from "../../tui/util/mcp-grouping.js";
+import { formatInlineOriginLabel } from "../../utils/skill-groups.js";
 
 export function McpsView(props: {
   scan: MultiProjectScanResult;
@@ -22,11 +23,15 @@ export function McpsView(props: {
           {group.duplicatedAcrossTools && (
             <div className="dim">configured in multiple tools</div>
           )}
-          {group.configurations.map((cfg, i) => (
-            <div className="dim" key={`${cfg.toolId}:${cfg.sourcePath}:${i}`}>
-              {cfg.toolId} · {cfg.scope} · {cfg.sourcePath}
-            </div>
-          ))}
+          {group.configurations.map((cfg, i) => {
+            const originLabel = formatInlineOriginLabel(cfg.bundleOrigin);
+            return (
+              <div className="dim" key={`${cfg.toolId}:${cfg.sourcePath}:${i}`}>
+                {cfg.toolId} · {cfg.scope} · {cfg.sourcePath}
+                {originLabel && <> · {originLabel}</>}
+              </div>
+            );
+          })}
           {group.secretEnvKeys.length > 0 && (
             <div className="danger">
               secret env keys: {group.secretEnvKeys.join(", ")}

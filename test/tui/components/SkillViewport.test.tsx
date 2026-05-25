@@ -54,3 +54,25 @@ test("SkillViewport scrolls the window around the cursor", () => {
   assert.match(frame, /13\/15/);
   inst.unmount();
 });
+
+test("SkillViewport truncates skill names long enough to overflow the row", () => {
+  // 80-col fallback terminal -> panelWidth = 52. With "agent skill" metadata
+  // (11 chars), the " gstack · bundle" origin suffix (17 chars), the reserved
+  // ▶ prefix slot (2), and the minimum leader gap (4), the label budget caps
+  // at 52 - 2 - 11 - 17 - 4 = 18 chars. A 60-char name has to truncate.
+  const longName = "a".repeat(60);
+  const skill: Skill = {
+    ...makeSkill(longName),
+    details: { bundleOrigin: { kind: "bundle", name: "gstack", rootPath: "~/gstack" } }
+  };
+  const inst = render(<SkillViewport skills={[skill]} cursor={0} visibleCount={5} />);
+  const frame = inst.lastFrame() ?? "";
+
+  // Truncated label ends with the ellipsis marker.
+  assert.match(frame, /a+…/, "expected truncated label to end with …");
+  // The untruncated 60-char run must NOT appear anywhere in the frame.
+  assert.doesNotMatch(frame, new RegExp("a".repeat(60)));
+  // Origin suffix still visible after truncation.
+  assert.match(frame, /gstack/);
+  inst.unmount();
+});

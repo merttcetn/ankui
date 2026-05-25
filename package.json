@@ -18,7 +18,7 @@
     "build:cli": "tsc -p tsconfig.json",
     "build:web": "tsc -p src/web-ui/tsconfig.json && vite build",
     "typecheck": "tsc -p tsconfig.json --noEmit && tsc -p src/web-ui/tsconfig.json",
-    "test": "node --import tsx --test test/scanner/*.test.ts test/scanner/adapters/*.test.ts test/utils/*.test.ts test/commands/*.test.ts test/config/*.test.ts test/tui/*.test.ts test/tui/*.test.tsx test/tui/**/*.test.ts test/tui/**/*.test.tsx test/writer/*.test.ts test/web/*.test.ts",
+    "test": "node --import tsx --test test/scanner/*.test.ts test/scanner/adapters/*.test.ts test/utils/*.test.ts test/commands/*.test.ts test/config/*.test.ts test/tui/*.test.ts test/tui/*.test.tsx test/tui/**/*.test.ts test/tui/**/*.test.tsx test/writer/*.test.ts test/bundles/*.test.ts test/web/*.test.ts",
     "start": "node dist/cli.js",
     "prepublishOnly": "npm run build"
   },
@@ -43,7 +43,6 @@
     "node": ">=20"
   },
   "dependencies": {
-    "@vscode/ripgrep": "^1.15.14",
     "chokidar": "^4.0.3",
     "commander": "^13.1.0",
     "fuse.js": "^7.1.0",

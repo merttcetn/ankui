@@ -2,13 +2,17 @@
 import { Command } from "commander";
 
 import { runAccessCommand } from "./commands/access.js";
+import { runAddCommand } from "./commands/add.js";
+import { runBundlesCommand } from "./commands/bundles.js";
 import { runCapsCommand } from "./commands/caps.js";
 import { runDiscoverCommand } from "./commands/discover.js";
 import { runDoctorCommand } from "./commands/doctor.js";
 import { runListCommand } from "./commands/list.js";
 import { runMcpCommand } from "./commands/mcp.js";
+import { runRemoveCommand } from "./commands/remove.js";
 import { runScanAllCommand } from "./commands/scan-all.js";
 import { runShowCommand } from "./commands/show.js";
+import { runUpdateCommand } from "./commands/update.js";
 import { runWatchCommand } from "./commands/watch.js";
 import { runWebCommand } from "./commands/web.js";
 import { buildLaunchTuiResult } from "./commands/launch-tui.js";
@@ -174,6 +178,119 @@ program
       json: Boolean(globalOptions.json),
       write: (chunk) => process.stdout.write(chunk)
     });
+  });
+
+program
+  .command("add <url>")
+  .description("Clone a GitHub skill bundle and install its SKILL.md files.")
+  .option("--claude", "install for Claude only")
+  .option("--skills-sh", "install for skills-sh only")
+  .option("--all", "install for every applicable installed tool (default)")
+  .option("--project", "install into the current project's .claude/skills/ instead of ~")
+  .option("--force", "overwrite conflicting files")
+  .option("--skip-conflicts", "install non-conflicting items, skip the rest")
+  .option("--yes", "skip the confirmation prompt")
+  .option("--max-size <mb>", "cap the cloned bundle size in MB (default 50)", (v) => parseInt(v, 10))
+  .action(async (url: string, opts: { claude?: boolean; skillsSh?: boolean; all?: boolean; project?: boolean; force?: boolean; skipConflicts?: boolean; yes?: boolean; maxSize?: number }) => {
+    const flags = {
+      claude: opts.claude,
+      skillsSh: opts.skillsSh,
+      all: opts.all,
+      project: opts.project,
+      force: opts.force,
+      skipConflicts: opts.skipConflicts,
+      yes: opts.yes,
+      maxSizeMb: opts.maxSize
+    };
+    if (!flags.yes) {
+      process.stderr.write("ankui add: pass --yes to confirm install (v1 has no interactive prompt yet)\n");
+      process.exit(1);
+    }
+    const result = await runAddCommand({ urlOrPath: url, flags, homeDir: os.homedir(), cwd: process.cwd() });
+    for (const l of result.stdout) console.log(l);
+    for (const l of result.stderr) console.error(l);
+    process.exit(result.exitCode);
+  });
+
+program
+  .command("remove <name>")
+  .description("Uninstall a tracked bundle by name (e.g., 'owner/repo').")
+  .option("--yes", "skip the confirmation prompt")
+  .option("--keep-clone", "leave the cloned bundle on disk; only remove symlinks + registry entry")
+  .action(async (name: string, cmdOpts: { yes?: boolean; keepClone?: boolean }) => {
+    if (!cmdOpts.yes) {
+      process.stderr.write("ankui remove: pass --yes to confirm removal (v1 has no interactive prompt yet)\n");
+      process.exit(1);
+    }
+    const result = await runRemoveCommand({
+      name,
+      flags: { yes: true, keepClone: cmdOpts.keepClone },
+      homeDir: os.homedir(),
+      cwd: process.cwd()
+    });
+    for (const l of result.stdout) console.log(l);
+    for (const l of result.stderr) console.error(l);
+    process.exit(result.exitCode);
+  });
+
+program
+  .command("update [name]")
+  .description("Fetch upstream changes for a tracked bundle (or all of them with --all) and apply added/removed/modified skills.")
+  .option("--all", "update every tracked bundle")
+  .option("--yes", "skip the confirmation prompt")
+  .option("--force", "overwrite conflicting files on added skills")
+  .option("--skip-conflicts", "install non-conflicting added items, skip the rest")
+  .action(async (name: string | undefined, cmdOpts: { all?: boolean; yes?: boolean; force?: boolean; skipConflicts?: boolean }) => {
+    if (!cmdOpts.yes) {
+      process.stderr.write("ankui update: pass --yes to confirm update (v1 has no interactive prompt yet)\n");
+      process.exit(1);
+    }
+    const homeDir = os.homedir();
+    const cwd = process.cwd();
+    let names: string[] = [];
+    if (cmdOpts.all) {
+      const { readRegistry } = await import("./bundles/registry.js");
+      const reg = await readRegistry(homeDir);
+      names = reg.bundles.map((b) => b.name);
+      if (names.length === 0) {
+        console.log("No bundles installed.");
+        process.exit(0);
+      }
+    } else {
+      if (!name) {
+        process.stderr.write("ankui update: provide a bundle name (e.g., owner/repo) or pass --all\n");
+        process.exit(1);
+      }
+      names = [name];
+    }
+    let exit = 0;
+    for (const n of names) {
+      const result = await runUpdateCommand({
+        name: n,
+        flags: { yes: true, force: cmdOpts.force, skipConflicts: cmdOpts.skipConflicts },
+        homeDir,
+        cwd
+      });
+      for (const l of result.stdout) console.log(l);
+      for (const l of result.stderr) console.error(l);
+      if (result.exitCode !== 0) exit = result.exitCode;
+    }
+    process.exit(exit);
+  });
+
+program
+  .command("bundles")
+  .description("List installed Ankui-tracked bundles.")
+  .option("--verbose", "show each (tool, skill) install path")
+  .action(async (cmdOpts: { verbose?: boolean }) => {
+    const globalOptions = program.opts<GlobalOptions>();
+    const result = await runBundlesCommand({
+      homeDir: os.homedir(),
+      flags: { json: Boolean(globalOptions.json), verbose: cmdOpts.verbose }
+    });
+    for (const l of result.stdout) console.log(l);
+    for (const l of result.stderr) console.error(l);
+    process.exit(result.exitCode);
   });
 
 program

@@ -84,6 +84,9 @@ export interface Warning {
     | "remote_reference_skipped"
     | "non_disk_config_skipped"
     | "symlink_skipped"
+    | "symlink_missing"
+    | "symlink_diverged"
+    | "bundle_dir_missing"
     | "unknown";
 }
 
