@@ -1,3 +1,6 @@
+import os from "node:os";
+
+import { checkBundleIntegrity } from "../bundles/integrity.js";
 import { scan, type ScanOptions } from "../scanner/index.js";
 import { formatDoctor, formatDoctorJson } from "../utils/format-doctor.js";
 
@@ -9,11 +12,17 @@ export interface DoctorCommandOptions extends ScanOptions {
 export async function runDoctorCommand(options: DoctorCommandOptions): Promise<void> {
   const { json, write, ...scanOptions } = options;
   const result = await scan(scanOptions);
+  const resolvedHomeDir = scanOptions.homeDir ?? os.homedir();
+  const bundleWarnings = await checkBundleIntegrity(resolvedHomeDir);
+  const merged = {
+    ...result,
+    warnings: [...result.warnings, ...bundleWarnings]
+  };
 
   if (json) {
-    write(formatDoctorJson(result));
+    write(formatDoctorJson(merged));
     return;
   }
 
-  write(`${formatDoctor(result)}\n`);
+  write(`${formatDoctor(merged)}\n`);
 }
