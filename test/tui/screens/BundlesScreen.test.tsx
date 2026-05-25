@@ -38,9 +38,33 @@ test("BundlesScreen shows the empty-state whisper when registry is empty", () =>
   inst.unmount();
 });
 
-test("BundlesScreen shows '1 bundle installed' (singular) for one entry", () => {
+test("BundlesScreen shows the tracked/detected summary header", () => {
   const inst = render(<BundlesScreen registry={reg} cursor={0} />);
   const frame = inst.lastFrame() ?? "";
-  assert.match(frame, /1 bundle installed/);
+  assert.match(frame, /1 tracked/);
+  assert.match(frame, /0 detected/);
+  inst.unmount();
+});
+
+test("BundlesScreen renders a 'Detected (manually managed)' section when given detected entries", () => {
+  const inst = render(
+    <BundlesScreen
+      registry={{ version: 1, bundles: [] }}
+      detected={[{ name: "gstack", kind: "bundle", totalSkills: 136, perTool: [{ toolId: "claude", count: 136 }] }]}
+      cursor={0}
+    />
+  );
+  const frame = inst.lastFrame() ?? "";
+  assert.match(frame, /Detected \(manually managed\)/);
+  assert.match(frame, /gstack/);
+  inst.unmount();
+});
+
+test("BundlesScreen folds live ●enabled / ○disabled counts into row metadata", () => {
+  const counts = new Map([["tracked:foo/skills", { enabled: 1, disabled: 0 }]]);
+  const inst = render(<BundlesScreen registry={reg} cursor={0} counts={counts} />);
+  const frame = inst.lastFrame() ?? "";
+  assert.match(frame, /● 1/);
+  assert.match(frame, /○ 0/);
   inst.unmount();
 });

@@ -51,6 +51,9 @@ import { DoctorTab } from "./screens/DoctorTab.js";
 import { BundlesScreen } from "./screens/BundlesScreen.js";
 import { Settings } from "./screens/Settings.js";
 import { readRegistry, type BundleRegistry } from "../bundles/registry.js";
+import { detectBundlesFromScan, type DetectedBundle } from "../bundles/detect.js";
+import type { BundleRowCounts } from "./screens/BundlesScreen.js";
+import { isMarkdownSkill } from "./util/actions-items.js";
 import {
   ActionsTab,
   type PendingChange,
@@ -237,6 +240,14 @@ function MainShell(props: MainShellProps): React.ReactElement {
   resultRef.current = result;
   listCursorRef.current = state.listCursor;
   actionsCollapsedRef.current = state.actionsCollapsed;
+
+  // Detected bundles + per-bundle live skill counts for the Bundles tab.
+  // Recomputed every render (cheap — pure map over already-loaded scan).
+  const trackedNames = new Set(bundleRegistry.bundles.map((b) => b.name));
+  const detectedBundles: DetectedBundle[] = detectBundlesFromScan(result, trackedNames);
+  const bundleCounts = computeBundleCounts(result, bundleRegistry, detectedBundles, pending);
+  const bundleRowCount = bundleRegistry.bundles.length + detectedBundles.length;
+
   const { tools, crossTool } = buildTabList(result);
   // Flattened cycle order: tools row, then cross-tool row. Matches the
   // visual top-to-bottom, left-to-right reading of the two-row tab bar.
@@ -308,6 +319,64 @@ function MainShell(props: MainShellProps): React.ReactElement {
         message: `Staged ${action}: ${skill.toolId}/${skill.name} — [s] to save`
       });
     }
+    setSaveSummary(null);
+  };
+
+  /**
+   * Stage all markdown skills belonging to the bundle under the Bundles-tab
+   * cursor. Reuses the same `pending` queue + save flow as `stagePending` so
+   * `[s]` works the same way; the Actions tab will see the staged changes too.
+   */
+  const stageBundlePending = (action: "disable" | "enable"): void => {
+    if (confirmQuitRef.current) return;
+    const cursor = listCursorRef.current;
+    const tracked = bundleRegistry.bundles;
+    let originName: string | null = null;
+    if (cursor < tracked.length) {
+      originName = tracked[cursor].name;
+    } else {
+      const detIdx = cursor - tracked.length;
+      const det = detectedBundles[detIdx];
+      if (det) originName = det.name;
+    }
+    if (!originName) return;
+
+    const bundleSkills = collectSkillsForBundle(resultRef.current, originName);
+    if (bundleSkills.length === 0) return;
+
+    const wantDisabled = action === "disable";
+    let stagedCount = 0;
+    let next: PendingChange[] = pendingRef.current.filter((p) => {
+      const stillMatches = bundleSkills.some((s) => s.id === p.id);
+      return !stillMatches;
+    });
+    for (const skill of bundleSkills) {
+      const diskDisabled = skill.details?.disabled === true;
+      if (wantDisabled === diskDisabled) continue; // already in desired state
+      next = [
+        ...next,
+        {
+          id: skill.id,
+          toolId: skill.toolId,
+          kind: skill.kind,
+          name: skill.name,
+          action
+        }
+      ];
+      stagedCount += 1;
+    }
+    setPendingState(next);
+    setActionFeedback({
+      status: "noop",
+      action,
+      toolId: bundleSkills[0].toolId,
+      kind: bundleSkills[0].kind,
+      name: originName,
+      message:
+        stagedCount === 0
+          ? `No change: ${originName} already ${wantDisabled ? "disabled" : "enabled"}`
+          : `Staged ${action} for ${stagedCount} skill${stagedCount === 1 ? "" : "s"} in ${originName} — [s] to save`
+    });
     setSaveSummary(null);
   };
 
@@ -407,7 +476,7 @@ function MainShell(props: MainShellProps): React.ReactElement {
         cycleSidebar("next");
         return;
       }
-      const max = getListMax(state, result);
+      const max = getListMax(state, result, bundleRowCount);
       if (max > 0) {
         dispatch({ type: "listMove", direction: "down", max });
       }
@@ -418,7 +487,7 @@ function MainShell(props: MainShellProps): React.ReactElement {
         cycleSidebar("prev");
         return;
       }
-      const max = getListMax(state, result);
+      const max = getListMax(state, result, bundleRowCount);
       if (max > 0) {
         dispatch({ type: "listMove", direction: "up", max });
       }
@@ -511,6 +580,13 @@ function MainShell(props: MainShellProps): React.ReactElement {
         else if (ch === "s" || ch === "S") savePending();
         else if (ch === " ") toggleActionGroupAtCursor();
       }
+      // Bundles tab: d/e stage all skills in the bundle under the cursor;
+      // s saves. Mirrors the Actions tab keybindings — same pending queue.
+      if (state.activeTab === "bundles" && state.focus === "panel") {
+        if (ch === "d") stageBundlePending("disable");
+        else if (ch === "e") stageBundlePending("enable");
+        else if (ch === "s" || ch === "S") savePending();
+      }
     },
     onBackspace: () => {
       bump();
@@ -565,7 +641,9 @@ function MainShell(props: MainShellProps): React.ReactElement {
               pending,
               saving,
               saveSummary,
-              bundleRegistry
+              bundleRegistry,
+              detectedBundles,
+              bundleCounts
             )}
           </Box>
         </Box>
@@ -605,7 +683,9 @@ function renderScreen(
   pendingChanges: ReadonlyArray<PendingChange>,
   saving: boolean,
   saveSummary: string | null,
-  bundleRegistry: BundleRegistry
+  bundleRegistry: BundleRegistry,
+  detectedBundles: DetectedBundle[],
+  bundleCounts: Map<string, BundleRowCounts>
 ): React.ReactElement {
   if (state.drillStack.length > 0) {
     const top = state.drillStack[state.drillStack.length - 1];
@@ -652,7 +732,14 @@ function renderScreen(
         />
       );
     case "bundles":
-      return <BundlesScreen registry={bundleRegistry} cursor={state.listCursor} />;
+      return (
+        <BundlesScreen
+          registry={bundleRegistry}
+          detected={detectedBundles}
+          cursor={state.listCursor}
+          counts={bundleCounts}
+        />
+      );
     case "settings":
       return (
         <Settings
@@ -808,6 +895,77 @@ function formatSkillActionUnexpectedFailure(
   return `Could not ${verb} ${skill.toolId}/${skill.name}: operation failed`;
 }
 
+/**
+ * Walks every user-scope tool and returns the markdown skills whose detected
+ * `bundleOrigin.name` matches the given bundle. Used by the Bundles-tab `[d]`
+ * and `[e]` keys to stage a bulk toggle.
+ *
+ * Returns markdown-only skills since non-markdown (MCP servers, commands)
+ * don't have a disable mechanism in the writer.
+ */
+function collectSkillsForBundle(
+  result: MultiProjectScanResult,
+  originName: string
+): Skill[] {
+  const out: Skill[] = [];
+  for (const tool of result.userScope.tools) {
+    for (const skill of tool.skills) {
+      if (!isMarkdownSkill(skill)) continue;
+      const origin = skill.details?.bundleOrigin as
+        | { kind: string; name: string }
+        | undefined;
+      if (!origin) continue;
+      if (origin.name !== originName) continue;
+      out.push(skill);
+    }
+  }
+  return out;
+}
+
+/**
+ * Builds per-bundle live `● enabled ○ disabled` counts for the Bundles tab,
+ * with staged (pending) changes folded into the calculation so the UI reflects
+ * what would be saved on `[s]` rather than the stale on-disk state.
+ *
+ * Keyed `tracked:<name>` or `detected:<name>` to match BundlesScreen's row
+ * lookup. Tracked entries get one row per registry name; detected entries one
+ * per scanner-detected origin.
+ */
+function computeBundleCounts(
+  result: MultiProjectScanResult,
+  registry: BundleRegistry,
+  detected: DetectedBundle[],
+  pending: ReadonlyArray<PendingChange>
+): Map<string, BundleRowCounts> {
+  const out = new Map<string, BundleRowCounts>();
+  const desired = makeDesiredDisabled(pending);
+
+  const addCount = (key: string, skill: Skill): void => {
+    const entry = out.get(key) ?? { enabled: 0, disabled: 0 };
+    if (desired(skill)) entry.disabled += 1;
+    else entry.enabled += 1;
+    out.set(key, entry);
+  };
+
+  // Tracked: look up by bundle name (same as origin.name set by ankui add).
+  const trackedNames = new Set(registry.bundles.map((b) => b.name));
+  for (const tool of result.userScope.tools) {
+    for (const skill of tool.skills) {
+      if (!isMarkdownSkill(skill)) continue;
+      const origin = skill.details?.bundleOrigin as
+        | { kind: string; name: string }
+        | undefined;
+      if (!origin) continue;
+      if (trackedNames.has(origin.name)) {
+        addCount(`tracked:${origin.name}`, skill);
+      } else if (detected.some((d) => d.name === origin.name)) {
+        addCount(`detected:${origin.name}`, skill);
+      }
+    }
+  }
+  return out;
+}
+
 function getDrillSkillCount(state: TuiState, result: MultiProjectScanResult): number {
   const top = state.drillStack[state.drillStack.length - 1];
   if (!top) return 0;
@@ -828,13 +986,20 @@ function getDrillSkillCount(state: TuiState, result: MultiProjectScanResult): nu
  * the Access tab scrolls flattened findings. Everything else has no
  * scrollable list and returns 0 (which short-circuits arrow handling).
  */
-function getListMax(state: TuiState, result: MultiProjectScanResult): number {
+function getListMax(
+  state: TuiState,
+  result: MultiProjectScanResult,
+  bundleRowCount: number
+): number {
   if (state.drillStack.length > 0) return getDrillSkillCount(state, result);
   if (state.activeTab === "access") {
     return aggregateFindings(result).reduce((n, s) => n + s.findings.length, 0);
   }
   if (state.activeTab === "actions") {
     return actionsNavigableCount(result, new Set(state.actionsCollapsed));
+  }
+  if (state.activeTab === "bundles") {
+    return bundleRowCount;
   }
   return 0;
 }
