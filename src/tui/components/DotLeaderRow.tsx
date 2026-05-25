@@ -13,21 +13,29 @@ export interface DotLeaderRowProps {
   width: number;
   /** When true, prefix with ▶ and tint the label cyan. Default false. */
   active?: boolean;
+  /** Optional origin label appended after metadata as dim italic. */
+  originLabel?: string;
 }
 
 /**
  * Renders one row of `<label> · · · · · <metadata>` padded to exactly `width`
  * characters wide. When `active`, prepends `▶ ` and tints the prefix +
- * label with the accent color.
+ * label with the accent color. When `originLabel` is set and non-empty,
+ * a dim italic suffix is appended after the metadata (separated by a single
+ * space) and counted against the reserved width.
  */
 export function DotLeaderRow({
   label,
   metadata,
   width,
-  active = false
+  active = false,
+  originLabel
 }: DotLeaderRowProps): React.ReactElement {
   const prefix = active ? `${ACTIVE_PREFIX} ` : "";
-  const reserved = prefix.length + label.length + metadata.length;
+  const originSuffix =
+    originLabel && originLabel.length > 0 ? ` ${originLabel}` : "";
+  const reserved =
+    prefix.length + label.length + metadata.length + originSuffix.length;
   const gap = Math.max(0, width - reserved);
   const leader = buildLeader(gap);
 
@@ -37,6 +45,11 @@ export function DotLeaderRow({
       <Text color={active ? ACCENT : undefined}>{label}</Text>
       <Text dimColor>{leader}</Text>
       <Text>{metadata}</Text>
+      {originSuffix.length > 0 ? (
+        <Text dimColor italic>
+          {originSuffix}
+        </Text>
+      ) : null}
     </Box>
   );
 }
