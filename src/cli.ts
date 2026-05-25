@@ -3,6 +3,7 @@ import { Command } from "commander";
 
 import { runAccessCommand } from "./commands/access.js";
 import { runAddCommand } from "./commands/add.js";
+import { runBundlesCommand } from "./commands/bundles.js";
 import { runCapsCommand } from "./commands/caps.js";
 import { runDiscoverCommand } from "./commands/discover.js";
 import { runDoctorCommand } from "./commands/doctor.js";
@@ -204,6 +205,21 @@ program
       process.exit(1);
     }
     const result = await runAddCommand({ urlOrPath: url, flags, homeDir: os.homedir(), cwd: process.cwd() });
+    for (const l of result.stdout) console.log(l);
+    for (const l of result.stderr) console.error(l);
+    process.exit(result.exitCode);
+  });
+
+program
+  .command("bundles")
+  .description("List installed Ankui-tracked bundles.")
+  .option("--verbose", "show each (tool, skill) install path")
+  .action(async (cmdOpts: { verbose?: boolean }) => {
+    const globalOptions = program.opts<GlobalOptions>();
+    const result = await runBundlesCommand({
+      homeDir: os.homedir(),
+      flags: { json: Boolean(globalOptions.json), verbose: cmdOpts.verbose }
+    });
     for (const l of result.stdout) console.log(l);
     for (const l of result.stderr) console.error(l);
     process.exit(result.exitCode);
