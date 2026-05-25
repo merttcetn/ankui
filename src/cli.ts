@@ -9,6 +9,7 @@ import { runDiscoverCommand } from "./commands/discover.js";
 import { runDoctorCommand } from "./commands/doctor.js";
 import { runListCommand } from "./commands/list.js";
 import { runMcpCommand } from "./commands/mcp.js";
+import { runRemoveCommand } from "./commands/remove.js";
 import { runScanAllCommand } from "./commands/scan-all.js";
 import { runShowCommand } from "./commands/show.js";
 import { runWatchCommand } from "./commands/watch.js";
@@ -205,6 +206,27 @@ program
       process.exit(1);
     }
     const result = await runAddCommand({ urlOrPath: url, flags, homeDir: os.homedir(), cwd: process.cwd() });
+    for (const l of result.stdout) console.log(l);
+    for (const l of result.stderr) console.error(l);
+    process.exit(result.exitCode);
+  });
+
+program
+  .command("remove <name>")
+  .description("Uninstall a tracked bundle by name (e.g., 'owner/repo').")
+  .option("--yes", "skip the confirmation prompt")
+  .option("--keep-clone", "leave the cloned bundle on disk; only remove symlinks + registry entry")
+  .action(async (name: string, cmdOpts: { yes?: boolean; keepClone?: boolean }) => {
+    if (!cmdOpts.yes) {
+      process.stderr.write("ankui remove: pass --yes to confirm removal (v1 has no interactive prompt yet)\n");
+      process.exit(1);
+    }
+    const result = await runRemoveCommand({
+      name,
+      flags: { yes: true, keepClone: cmdOpts.keepClone },
+      homeDir: os.homedir(),
+      cwd: process.cwd()
+    });
     for (const l of result.stdout) console.log(l);
     for (const l of result.stderr) console.error(l);
     process.exit(result.exitCode);
