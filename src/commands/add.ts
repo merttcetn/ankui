@@ -128,8 +128,62 @@ export async function runAddCommand(input: AddCommandInput): Promise<CommandResu
       throw new Error("aborted due to conflicts");
     }
 
-    const finalInstalls = input.flags.skipConflicts ? plan.installs : plan.installs;
-    // skipConflicts already drops conflicting items at planning time; non-conflicting set proceeds.
+    // --force: pre-remove conflicting targets so they can be reinstalled.
+    // Two-pass to avoid silent partial-clear: pass 1 inspects every conflict;
+    // if any can't be cleared (directory, EPERM, etc.) we abort BEFORE
+    // touching disk. Without this, --force would delete N user files, hit a
+    // directory it refuses to clobber, then silently install only N skills
+    // and report success — user files gone, conflicting skill never installed.
+    const forcedInstalls: PlannedInstall[] = [];
+    if (input.flags.force && plan.conflicts.length > 0) {
+      const skillByName = new Map(skills.map((s) => [s.skillName, s] as const));
+
+      const unresolvable: Array<{ path: string; reason: string }> = [];
+      for (const c of plan.conflicts) {
+        if (!skillByName.has(c.skillName)) continue;
+        try {
+          const st = await fs.lstat(c.symlinkPath);
+          if (st.isDirectory() && !st.isSymbolicLink()) {
+            unresolvable.push({ path: c.symlinkPath, reason: "refusing to overwrite directory" });
+          }
+        } catch (err) {
+          if ((err as NodeJS.ErrnoException).code !== "ENOENT") {
+            unresolvable.push({ path: c.symlinkPath, reason: (err as Error).message });
+          }
+        }
+      }
+
+      if (unresolvable.length > 0) {
+        for (const u of unresolvable) {
+          stderr.push(`  ! ${u.path}: ${u.reason}`);
+        }
+        throw new Error(`aborted — ${unresolvable.length} forced conflict(s) could not be cleared. No changes applied.`);
+      }
+
+      for (const c of plan.conflicts) {
+        const skill = skillByName.get(c.skillName);
+        if (!skill) continue;
+        try {
+          await fs.unlink(c.symlinkPath);
+        } catch (err) {
+          if ((err as NodeJS.ErrnoException).code !== "ENOENT") {
+            // Raced with another writer between pass 1 and pass 2.
+            throw new Error(`forced conflict cleanup raced at ${c.symlinkPath}: ${(err as Error).message}`);
+          }
+        }
+        forcedInstalls.push({
+          toolId: c.toolId,
+          skillName: c.skillName,
+          source: skill.skillMdPath,
+          symlinkPath: c.symlinkPath
+        });
+      }
+    }
+
+    // --skip-conflicts: conflicts were never added to plan.installs, so the
+    // non-conflicting set just proceeds. --force adds the cleared conflicts on
+    // top of the non-conflicting set.
+    const finalInstalls = [...plan.installs, ...forcedInstalls];
 
     // 13. Execute installs with rollback on mid-flight failure
     const rollbacks: Array<() => Promise<void>> = [];

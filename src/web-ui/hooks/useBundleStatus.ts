@@ -1,5 +1,6 @@
 import { useCallback, useState } from "react";
 
+import type { MultiProjectScanResult } from "../../types.js";
 import { checkBundle, updateBundle } from "../api.js";
 
 export type UpdateStatus =
@@ -16,10 +17,15 @@ export type UpdateStatus =
   | { state: "applying" }
   | { state: "error"; message: string };
 
+export interface ApplyOptions {
+  /** Called with the post-update scan so the page can refresh state. */
+  onScan?: (scan: MultiProjectScanResult) => void;
+}
+
 export interface BundleStatusHook {
   statuses: Map<string, UpdateStatus>;
   check: (name: string) => Promise<void>;
-  apply: (name: string, expectedSha: string) => Promise<void>;
+  apply: (name: string, expectedSha: string, opts?: ApplyOptions) => Promise<void>;
   reset: (name: string) => void;
 }
 
@@ -60,10 +66,21 @@ export function useBundleStatus(): BundleStatusHook {
   }, []);
 
   const apply = useCallback(
-    async (name: string, expectedSha: string): Promise<void> => {
+    async (name: string, expectedSha: string, opts?: ApplyOptions): Promise<void> => {
       set(name, { state: "applying" });
       try {
-        await updateBundle(name, expectedSha);
+        const result = await updateBundle(name, expectedSha);
+        // The /api/bundles/update route returns HTTP 200 even when the
+        // underlying runUpdateCommand failed (e.g. an added-skill conflict);
+        // exitCode is the real signal. Without this check the UI would falsely
+        // mark a broken update as "up to date" and the user would see no
+        // surfaced stderr.
+        if (result.exitCode !== 0) {
+          const message = result.stderr.join("\n").trim() || `update failed (exit ${result.exitCode})`;
+          set(name, { state: "error", message });
+          return;
+        }
+        opts?.onScan?.(result.scan);
         set(name, { state: "up_to_date", pinnedSha: expectedSha });
       } catch (e) {
         set(name, { state: "error", message: (e as Error).message });

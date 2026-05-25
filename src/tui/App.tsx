@@ -206,11 +206,16 @@ function MainShell(props: MainShellProps): React.ReactElement {
     };
   }, []);
 
+  // Prefer the explicit homeDir prop (tests pass this), then fall back to the
+  // homeDir embedded in the scan result. Without the fallback, the standard
+  // renderTui/LauncherShell path renders <App result={...}> without the prop
+  // and the Bundles tab would always show an empty registry.
+  const resultHomeDir = props.result?.homeDir ?? props.dataSource?.initial.homeDir;
+  const effectiveHomeDir = props.homeDir ?? resultHomeDir;
   useEffect(() => {
     let cancelled = false;
-    const homeDir = props.homeDir;
-    if (!homeDir) return;
-    readRegistry(homeDir)
+    if (!effectiveHomeDir) return;
+    readRegistry(effectiveHomeDir)
       .then((reg) => {
         if (!cancelled) setBundleRegistry(reg);
       })
@@ -220,7 +225,7 @@ function MainShell(props: MainShellProps): React.ReactElement {
     return () => {
       cancelled = true;
     };
-  }, [props.homeDir]);
+  }, [effectiveHomeDir]);
 
   useEffect(() => {
     if (!props.dataSource?.subscribe) return;

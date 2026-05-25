@@ -60,8 +60,8 @@ test("App routes activeTab='settings' to the Settings screen", async () => {
   );
   // From sidebar focus on `overview`, ↓ cycles through the flattened tab list:
   // TOOLS section (overview + 7 tools = 8) + VIEWS section (mcps, access,
-  // doctor, actions, settings). 12 down arrows land on `settings`.
-  await pressDownArrows(inst.stdin, 12);
+  // doctor, actions, bundles, settings). 13 down arrows land on `settings`.
+  await pressDownArrows(inst.stdin, 13);
   const frame = inst.lastFrame() ?? "";
   // The Sidebar renders the active row uppercased with a ▶ prefix when focus
   // is on the sidebar. Look for the active-sidebar variant.

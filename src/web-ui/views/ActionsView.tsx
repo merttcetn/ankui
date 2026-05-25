@@ -187,7 +187,7 @@ export function ActionsView(props: {
               }
               onApplyUpdate={
                 isAnkuiTrackedBundle(group)
-                  ? (sha) => applyBundleStatus(group.origin.name, sha)
+                  ? (sha) => applyBundleStatus(group.origin.name, sha, { onScan: props.onScan })
                   : undefined
               }
               updateStatus={
