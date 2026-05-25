@@ -2,6 +2,7 @@
 import { Command } from "commander";
 
 import { runAccessCommand } from "./commands/access.js";
+import { runAddCommand } from "./commands/add.js";
 import { runCapsCommand } from "./commands/caps.js";
 import { runDiscoverCommand } from "./commands/discover.js";
 import { runDoctorCommand } from "./commands/doctor.js";
@@ -174,6 +175,38 @@ program
       json: Boolean(globalOptions.json),
       write: (chunk) => process.stdout.write(chunk)
     });
+  });
+
+program
+  .command("add <url>")
+  .description("Clone a GitHub skill bundle and install its SKILL.md files.")
+  .option("--claude", "install for Claude only")
+  .option("--skills-sh", "install for skills-sh only")
+  .option("--all", "install for every applicable installed tool (default)")
+  .option("--project", "install into the current project's .claude/skills/ instead of ~")
+  .option("--force", "overwrite conflicting files")
+  .option("--skip-conflicts", "install non-conflicting items, skip the rest")
+  .option("--yes", "skip the confirmation prompt")
+  .option("--max-size <mb>", "cap the cloned bundle size in MB (default 50)", (v) => parseInt(v, 10))
+  .action(async (url: string, opts: { claude?: boolean; skillsSh?: boolean; all?: boolean; project?: boolean; force?: boolean; skipConflicts?: boolean; yes?: boolean; maxSize?: number }) => {
+    const flags = {
+      claude: opts.claude,
+      skillsSh: opts.skillsSh,
+      all: opts.all,
+      project: opts.project,
+      force: opts.force,
+      skipConflicts: opts.skipConflicts,
+      yes: opts.yes,
+      maxSizeMb: opts.maxSize
+    };
+    if (!flags.yes) {
+      process.stderr.write("ankui add: pass --yes to confirm install (v1 has no interactive prompt yet)\n");
+      process.exit(1);
+    }
+    const result = await runAddCommand({ urlOrPath: url, flags, homeDir: os.homedir(), cwd: process.cwd() });
+    for (const l of result.stdout) console.log(l);
+    for (const l of result.stderr) console.error(l);
+    process.exit(result.exitCode);
   });
 
 program
