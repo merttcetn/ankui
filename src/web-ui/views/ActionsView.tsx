@@ -16,11 +16,26 @@ import {
   SkillGroupSection,
   type BulkAction
 } from "../components/SkillGroupSection.js";
+import { useBundleStatus } from "../hooks/useBundleStatus.js";
 import { useExpandedGroups } from "../hooks/useExpandedGroups.js";
 
 interface PendingChange {
   id: string;
   action: "disable" | "enable";
+}
+
+/**
+ * A group is "Ankui-tracked" iff it's a bundle (origin kind) whose root path
+ * lives under `~/.ankui/bundles/` — i.e. installed via `ankui add` and
+ * therefore eligible for the check/update affordance. Bundles surfaced from
+ * other sources stay as informational rows with no update buttons.
+ */
+function isAnkuiTrackedBundle(group: SkillGroup): boolean {
+  return (
+    group.origin.kind === "bundle" &&
+    typeof group.origin.rootPath === "string" &&
+    group.origin.rootPath.startsWith("~/.ankui/bundles/")
+  );
 }
 
 export function ActionsView(props: {
@@ -52,6 +67,11 @@ export function ActionsView(props: {
   );
   const groups = useMemo(() => groupSkillsByOrigin(allSkills), [allSkills]);
   const { isExpanded, toggle: toggleGroup } = useExpandedGroups("actions");
+  const {
+    statuses: bundleStatuses,
+    check: checkBundleStatus,
+    apply: applyBundleStatus
+  } = useBundleStatus();
 
   const toggle = (skill: Skill): void => {
     const nextDisabled = !desiredDisabled(skill);
@@ -160,6 +180,21 @@ export function ActionsView(props: {
               onToggle={() => toggleGroup(group.label)}
               onBulkAction={(action) => handleBulk(group, action)}
               bulkAvailable={bulkFor(group)}
+              onCheckUpdate={
+                isAnkuiTrackedBundle(group)
+                  ? () => checkBundleStatus(group.origin.name)
+                  : undefined
+              }
+              onApplyUpdate={
+                isAnkuiTrackedBundle(group)
+                  ? (sha) => applyBundleStatus(group.origin.name, sha)
+                  : undefined
+              }
+              updateStatus={
+                isAnkuiTrackedBundle(group)
+                  ? bundleStatuses.get(group.origin.name)
+                  : undefined
+              }
             >
               {group.skills.map((skill) => {
                 const isDisabled = desiredDisabled(skill);
