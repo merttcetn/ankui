@@ -43,7 +43,6 @@
     "node": ">=20"
   },
   "dependencies": {
-    "@vscode/ripgrep": "^1.15.14",
     "chokidar": "^4.0.3",
     "commander": "^13.1.0",
     "fuse.js": "^7.1.0",

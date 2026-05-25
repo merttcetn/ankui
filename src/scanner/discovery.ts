@@ -2,7 +2,6 @@ import path from "node:path";
 
 import { createWarning, type Scope, type ToolId, type Warning } from "../types.js";
 import { isPathInside, resolveLocalPath } from "./paths.js";
-import { listRipgrepFiles } from "./ripgrep.js";
 import { checkSafePath, safeReadTextFile } from "./safety.js";
 
 type ExpectedEntryType = "file" | "directory";
@@ -91,21 +90,9 @@ const PROJECT_DIRECTORY_PATHS: Array<
   { toolIds: ["skills-sh"], relativePath: ".skills", entryType: "directory" }
 ];
 
-const PROJECT_FILE_NAMES = PROJECT_FILE_PATHS.map((candidate) => candidate.relativePath);
-
 const PROJECT_KNOWN_FILE_PATHS: Array<Omit<KnownPathCandidate, "basePath" | "scope" | "source">> = [
   { toolIds: ["claude"], relativePath: ".claude/settings.json", entryType: "file" },
   { toolIds: ["claude"], relativePath: ".claude/settings.local.json", entryType: "file" }
-];
-
-const PROJECT_DISCOVERY_EXCLUDES = [
-  "**/.git/**",
-  "**/node_modules/**",
-  "**/dist/**",
-  "**/build/**",
-  "**/{session,sessions,history,histories,conversation,conversations}/**",
-  "**/.opencode/{auth,cache,log,logs,share,database,databases,db,runtime,session,sessions}/**",
-  "**/opencode/{auth,cache,log,logs,share,database,databases,db,runtime,session,sessions}/**"
 ];
 
 export async function discover(options: DiscoveryOptions): Promise<DiscoveryResult> {
@@ -200,25 +187,8 @@ async function discoverProjectFiles(
   cwd: string,
   gitignorePatterns: string[]
 ): Promise<void> {
-  const rgResult = await listRipgrepFiles({
-    cwd,
-    excludeGlobs: PROJECT_DISCOVERY_EXCLUDES
-  });
-
-  for (const warning of rgResult.warnings) {
-    addWarning(state, warning);
-  }
-
-  const rootFiles = new Set(
-    rgResult.paths
-      .map((entry) => normalizeRelativePath(entry))
-      .filter((entry) => path.posix.dirname(entry) === ".")
-      .filter((entry) => PROJECT_FILE_NAMES.includes(entry))
-      .filter((entry) => !isIgnoredByRootGitignore(entry, gitignorePatterns))
-  );
-
-  const candidates = PROJECT_FILE_PATHS.filter((candidate) =>
-    rootFiles.has(candidate.relativePath)
+  const candidates = PROJECT_FILE_PATHS.filter(
+    (candidate) => !isIgnoredByRootGitignore(candidate.relativePath, gitignorePatterns)
   ).map((candidate) => ({
     ...candidate,
     basePath: cwd,
