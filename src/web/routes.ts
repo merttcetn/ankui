@@ -13,6 +13,9 @@ import { disableSkill, enableSkill } from "../writer/index.js";
 import { applyActions, type ActionRequest } from "./actions.js";
 import { authorize } from "./security.js";
 import { serveStatic } from "./static.js";
+import { readRegistry } from "../bundles/registry.js";
+import { checkBundleUpdate } from "../bundles/check.js";
+import { runUpdateCommand } from "../commands/update.js";
 
 export interface RouteContext {
   token: string;
@@ -163,6 +166,54 @@ export async function handleRequest(
     });
   }
 
+  if (pathOnly === "/api/bundles/check") {
+    const auth = authorize(req, ctx);
+    if (!auth.ok) return sendJson(res, auth.status, { error: auth.message });
+    if (method !== "POST") return sendJson(res, 405, { error: "method not allowed" });
+    let parsed: unknown;
+    try {
+      parsed = JSON.parse(await readBody(req));
+    } catch {
+      return sendJson(res, 400, { error: "invalid JSON body" });
+    }
+    const name = (parsed as { name?: unknown }).name;
+    if (typeof name !== "string") return sendJson(res, 400, { error: "name required" });
+    const result = await withBundleLock(() => checkBundleUpdate({ name, homeDir: ctx.homeDir }));
+    if (result.status === "not_found") return sendJson(res, 404, { error: "bundle not found" });
+    return sendJson(res, 200, result);
+  }
+
+  if (pathOnly === "/api/bundles/update") {
+    const auth = authorize(req, ctx);
+    if (!auth.ok) return sendJson(res, auth.status, { error: auth.message });
+    if (method !== "POST") return sendJson(res, 405, { error: "method not allowed" });
+    let parsed: unknown;
+    try {
+      parsed = JSON.parse(await readBody(req));
+    } catch {
+      return sendJson(res, 400, { error: "invalid JSON body" });
+    }
+    const name = (parsed as { name?: unknown }).name;
+    const expectedSha = (parsed as { expectedSha?: unknown }).expectedSha;
+    if (typeof name !== "string" || typeof expectedSha !== "string") {
+      return sendJson(res, 400, { error: "name and expectedSha required" });
+    }
+    const outcome = await withBundleLock(async () => {
+      const reg = await readRegistry(ctx.homeDir);
+      const entry = reg.bundles.find((b) => b.name === name);
+      if (!entry) return { status: 404 as const };
+      if (entry.pinnedSha !== expectedSha) {
+        return { status: 409 as const, body: { error: "bundle changed on disk; refresh and try again" } };
+      }
+      const cmd = await runUpdateCommand({ name, flags: { yes: true }, homeDir: ctx.homeDir, cwd: ctx.homeDir });
+      const scan = await loadScan(ctx);
+      return { status: 200 as const, body: { exitCode: cmd.exitCode, stdout: cmd.stdout, stderr: cmd.stderr, scan } };
+    });
+    if (outcome.status === 404) return sendJson(res, 404, { error: "bundle not found" });
+    if (outcome.status === 409) return sendJson(res, 409, outcome.body);
+    return sendJson(res, 200, outcome.body);
+  }
+
   const asset = await serveStatic(url, ctx.token, ctx.spaDir);
   res.writeHead(asset.status, { "content-type": asset.contentType });
   res.end(asset.body);
@@ -260,6 +311,20 @@ function withActionsLock<T>(fn: () => Promise<T>): Promise<T> {
   const previous = actionsLock;
   const next = previous.then(fn, fn);
   actionsLock = next.catch(() => undefined);
+  return next;
+}
+
+// Mirror of configLock/actionsLock for /api/bundles/*. Closes the in-server
+// race where a check and an update (or two updates) interleave and end up
+// reading or writing the registry concurrently. The CLI's own withRegistryLock
+// guards the on-disk write, but this lock also serializes the surrounding
+// fetch/diff/checkout sequence so the response payload is consistent.
+let bundleLock: Promise<unknown> = Promise.resolve();
+
+function withBundleLock<T>(fn: () => Promise<T>): Promise<T> {
+  const previous = bundleLock;
+  const next = previous.then(fn, fn);
+  bundleLock = next.catch(() => undefined);
   return next;
 }
 
