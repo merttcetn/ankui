@@ -54,6 +54,17 @@ ankui --json | jq '[.tools[] | select(.id == "claude") | .skills[]] | length'
 
 `.tools` is an array of `{ id, skills, findings, ... }` objects, not an object keyed by tool id.
 
+## How counts work
+
+Each item Ankui reports falls into exactly one **kind**, and the buckets do not overlap. The distinction worth knowing up front:
+
+- `agent_skill` counts your **first-party** `SKILL.md` directories — the ones living directly under `~/.{tool}/skills/` (and per-project `.{tool}/skills/`). One row per skill directory.
+- `plugins` counts the **plugin/extension entries** that are enabled — Claude plugins listed in `settings.json`, Gemini extensions under `~/.gemini/extensions/`, Antigravity plugins under `~/.gemini/antigravity-cli/plugins/`. Each plugin appears as exactly **one** row, regardless of how many `SKILL.md` files it bundles inside. Ankui treats a plugin as a single trust boundary — the decision you made was to enable the plugin; the skills it ships with are the plugin author's choice and belong under that one entry.
+
+So a per-tool line like `49 agent skills · 7 plugins` for Claude means 49 first-party skills under `~/.claude/skills/` plus 7 enabled plugins. The `SKILL.md` files inside those 7 plugins (often several hundred on a heavily-pluginned machine) are intentionally not added to the 49 — they live under each plugin entry. The same applies to Gemini extensions and Antigravity plugins.
+
+The other kinds (`mcp_server`, `custom_agents`, `custom_commands`, `custom_prompts`, `rules`, `memory_file`) each map one-to-one to the files or config entries that define them.
+
 ## Managing skills (enable / disable)
 
 From the **Actions** tab — in the TUI or the `ankui web` browser UI — you can turn individual markdown-backed skills off or back on. Changes are **staged in the UI and only written when you save them** — nothing touches disk until then.
