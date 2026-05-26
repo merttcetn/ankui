@@ -1,8 +1,8 @@
 import path from "node:path";
 
 import { countTextLines, createSanitizedPreview } from "../preview.js";
-import { readJsonFile, readMarkdownFile } from "../parsing.js";
-import { safeReadDirectory } from "../safety.js";
+import { parseJsonText, readJsonFile, readMarkdownFile } from "../parsing.js";
+import { safeReadDirectory, safeReadTextFile, type SafeResult } from "../safety.js";
 import {
   addSkillToState,
   addWarningsToState,
@@ -110,7 +110,7 @@ async function scanLegacyMcp(
   }
 
   const mcpPath = path.join(cliOldDir, "mcp_config.json");
-  const result = await readJsonFile(mcpPath, safeReadOptions(mcpPath, context));
+  const result = await readOptionalMcpConfig(mcpPath, context);
   addWarningsToState(state, result.warnings);
 
   if (!result.ok) {
@@ -207,7 +207,7 @@ async function scanPluginMcp(
   pluginName: string
 ): Promise<void> {
   const mcpPath = path.join(pluginDir, "mcp_config.json");
-  const result = await readJsonFile(mcpPath, safeReadOptions(mcpPath, context));
+  const result = await readOptionalMcpConfig(mcpPath, context);
   addWarningsToState(state, result.warnings);
 
   if (!result.ok) {
@@ -256,6 +256,36 @@ async function scanPluginSkills(
       details: { ...(skill.details ?? {}), pluginName }
     });
   }
+}
+
+async function readOptionalMcpConfig(
+  filePath: string,
+  context: AdapterContext
+): Promise<SafeResult<unknown>> {
+  const text = await safeReadTextFile(filePath, safeReadOptions(filePath, context));
+
+  if (!text.ok) {
+    return text;
+  }
+
+  if (text.value.trim().length === 0) {
+    return { ok: true, value: {}, warnings: text.warnings };
+  }
+
+  const parsed = parseJsonText(text.value, filePath);
+
+  if (!parsed.ok) {
+    return {
+      ok: false,
+      warnings: [...text.warnings, ...parsed.warnings]
+    };
+  }
+
+  return {
+    ok: true,
+    value: parsed.value,
+    warnings: [...text.warnings, ...parsed.warnings]
+  };
 }
 
 async function scanProjectMemory(

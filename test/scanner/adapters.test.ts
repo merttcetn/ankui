@@ -761,6 +761,22 @@ test("Antigravity adapter extracts IDE skills, CLI settings MCP, legacy MCP, plu
   }
 });
 
+test("Antigravity adapter ignores a blank legacy mcp_config.json", async () => {
+  const cwd = await makeTempWorkspace("ankui-antigravity-blank-cwd-");
+  const homeDir = await makeTempWorkspace("ankui-antigravity-blank-home-");
+  const cliOldDir = path.join(homeDir, ".gemini", "antigravity");
+
+  await fs.mkdir(cliOldDir, { recursive: true });
+  await fs.writeFile(path.join(cliOldDir, "mcp_config.json"), "");
+
+  const result = await scan({ cwd, homeDir, env: {} });
+  const ag = tool(result, "antigravity");
+
+  assert.equal(ag.detected, true);
+  assert.equal(ag.skills.filter((s) => s.kind === "mcp_server").length, 0);
+  assert.equal(ag.warnings.some((warning) => warning.reason === "parse_failed"), false);
+});
+
 test("Antigravity adapter is a no-op when nothing is discovered", async () => {
   const cwd = await makeTempWorkspace("ankui-antigravity-empty-cwd-");
   const homeDir = await makeTempWorkspace("ankui-antigravity-empty-home-");
