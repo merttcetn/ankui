@@ -28,3 +28,21 @@ test("canonicalMcpName handles the real-machine MCPs (shadcn, context7, reddit)"
   assert.equal(canonicalMcpName("context7").mcpId, "context7");
   assert.equal(canonicalMcpName("reddit").mcpId, "reddit");
 });
+
+test("canonicalMcpName handles Antigravity plugin MCPs", () => {
+  const swarm = canonicalMcpName("gemini-swarm");
+  assert.equal(swarm.mcpId, "gemini-swarm");
+  assert.equal(swarm.canonical, "Gemini Swarm");
+
+  const stitch = canonicalMcpName("stitch");
+  assert.equal(stitch.mcpId, "stitch");
+  assert.equal(stitch.canonical, "Stitch");
+});
+
+test("canonicalMcpName handles Expo MCP across spellings", () => {
+  for (const raw of ["expo", "expo-mcp", "Expo"]) {
+    const result = canonicalMcpName(raw);
+    assert.equal(result.mcpId, "expo", `raw=${raw}`);
+    assert.equal(result.canonical, "Expo", `raw=${raw}`);
+  }
+});

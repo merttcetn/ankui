@@ -35,6 +35,18 @@ test("mapMcpById marks the real-machine MCPs (shadcn/context7/reddit) conservati
   assert.equal(mapMcpById("reddit").accessLevel, "moderate");
 });
 
+test("mapMcpById classifies Antigravity plugin MCPs conservatively", () => {
+  assert.deepEqual(mapMcpById("gemini-swarm").capabilityCategories, ["automation"]);
+  assert.equal(mapMcpById("gemini-swarm").accessLevel, "broad");
+  assert.deepEqual(mapMcpById("stitch").capabilityCategories, ["network", "automation"]);
+  assert.equal(mapMcpById("stitch").accessLevel, "moderate");
+});
+
+test("mapMcpById classifies Expo MCP as network + automation", () => {
+  assert.deepEqual(mapMcpById("expo").capabilityCategories, ["network", "automation"]);
+  assert.equal(mapMcpById("expo").accessLevel, "moderate");
+});
+
 test("mapMcpById returns unknown/unknown when the id is not in the catalog", () => {
   const result = mapMcpById("totally-unknown-server");
   assert.deepEqual(result.capabilityCategories, ["unknown"]);

@@ -27,7 +27,10 @@ const MCP_CAPABILITY_MAP: Record<string, CapabilityClassification> = {
   context7: { capabilityCategories: ["network"], accessLevel: "limited" },
   shadcn: { capabilityCategories: ["network"], accessLevel: "limited" },
   vercel: { capabilityCategories: ["network", "automation"], accessLevel: "moderate" },
-  supabase: { capabilityCategories: ["database", "network"], accessLevel: "moderate" }
+  supabase: { capabilityCategories: ["database", "network"], accessLevel: "moderate" },
+  "gemini-swarm": { capabilityCategories: ["automation"], accessLevel: "broad" },
+  stitch: { capabilityCategories: ["network", "automation"], accessLevel: "moderate" },
+  expo: { capabilityCategories: ["network", "automation"], accessLevel: "moderate" }
 };
 
 const UNKNOWN_CLASSIFICATION: CapabilityClassification = {

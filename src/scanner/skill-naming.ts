@@ -28,7 +28,10 @@ const KNOWN_MCP_ALIASES: ReadonlyArray<{
   { mcpId: "shadcn", canonical: "shadcn", keys: ["shadcn"] },
   { mcpId: "reddit", canonical: "Reddit", keys: ["reddit"] },
   { mcpId: "vercel", canonical: "Vercel", keys: ["vercel"] },
-  { mcpId: "supabase", canonical: "Supabase", keys: ["supabase"] }
+  { mcpId: "supabase", canonical: "Supabase", keys: ["supabase"] },
+  { mcpId: "gemini-swarm", canonical: "Gemini Swarm", keys: ["geminiswarm"] },
+  { mcpId: "stitch", canonical: "Stitch", keys: ["stitch", "googlestitch"] },
+  { mcpId: "expo", canonical: "Expo", keys: ["expo"] }
 ];
 
 const KEY_TO_ALIAS = (() => {
