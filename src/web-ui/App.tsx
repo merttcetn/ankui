@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useState } from "react";
 
-import type { MultiProjectScanResult } from "../types.js";
+import type { MultiProjectScanResult, Skill } from "../types.js";
 import { applyActions, fetchScan, type ActionRequest } from "./api.js";
 import { Banner } from "./components/Banner.js";
 import { LoadingSplash } from "./components/LoadingSplash.js";
@@ -20,6 +20,20 @@ const DONE_FLASH_MS = 600;
 interface ActionsPending {
   id: string;
   action: "disable" | "enable";
+}
+
+function findSkillById(scan: MultiProjectScanResult, id: string): Skill | undefined {
+  for (const tool of scan.userScope.tools) {
+    const found = tool.skills.find((s) => s.id === id);
+    if (found) return found;
+  }
+  for (const project of scan.projects) {
+    for (const tool of project.scan.tools) {
+      const found = tool.skills.find((s) => s.id === id);
+      if (found) return found;
+    }
+  }
+  return undefined;
 }
 
 export function App(): React.ReactElement {
@@ -123,6 +137,19 @@ export function App(): React.ReactElement {
   useEffect(() => {
     void refresh();
   }, [refresh]);
+
+  useEffect(() => {
+    if (!scan) return;
+    setActionsPending((prev) =>
+      prev.filter((p) => {
+        const skill = findSkillById(scan, p.id);
+        if (!skill) return false;
+        const diskDisabled = skill.details?.disabled === true;
+        const wouldBeDisabled = p.action === "disable";
+        return diskDisabled !== wouldBeDisabled;
+      })
+    );
+  }, [scan]);
 
   const loading = scan === null && !error;
   const showDone = scan !== null && justLoaded;
