@@ -1,33 +1,36 @@
 import React from "react";
 
 import type { MultiProjectScanResult } from "../../types.js";
+import { DetailHeader } from "../components/DetailHeader.js";
+import { StatGrid } from "../components/StatGrid.js";
 
-export function Overview(props: {
-  scan: MultiProjectScanResult;
-}): React.ReactElement {
+export function Overview(props: { scan: MultiProjectScanResult }): {
+  rail: undefined;
+  detail: React.ReactElement;
+} {
   const s = props.scan.userScope.summary;
-  const cards: ReadonlyArray<{ label: string; num: number }> = [
-    { label: "tools detected", num: s.detectedTools },
-    { label: "skills (user)", num: s.totalSkills },
-    { label: "MCP servers", num: s.uniqueMcpServers },
-    { label: "agent skills", num: s.agentSkills },
-    { label: "findings", num: s.totalFindings },
-    { label: "projects", num: props.scan.totals.projectCount }
+  const items = [
+    { label: "tools", value: s.detectedTools },
+    { label: "skills (user)", value: s.totalSkills },
+    { label: "mcp servers", value: s.uniqueMcpServers },
+    { label: "agent skills", value: s.agentSkills },
+    { label: "findings", value: s.totalFindings },
+    { label: "projects", value: props.scan.totals.projectCount }
   ];
-  return (
-    <>
-      <div className="cards">
-        {cards.map((c) => (
-          <div className="card" key={c.label}>
-            <div className="num">{c.num}</div>
-            <div className="label">{c.label}</div>
-          </div>
-        ))}
-      </div>
-      <p className="dim">
-        scanned {new Date(props.scan.scannedAt).toLocaleString()} ·{" "}
-        {props.scan.totals.skillsAcrossProjects} skills across projects
-      </p>
-    </>
-  );
+
+  const scannedAt = new Date(props.scan.scannedAt).toLocaleString();
+  const meta = `SCANNED ${scannedAt.toUpperCase()} · LOCAL · READ-ONLY`;
+
+  return {
+    rail: undefined,
+    detail: (
+      <>
+        <DetailHeader crumb="OVERVIEW" title="ankui" meta={meta} />
+        <StatGrid items={items} />
+        <p className="ank-detail-meta">
+          {props.scan.totals.skillsAcrossProjects} skills across projects
+        </p>
+      </>
+    )
+  };
 }

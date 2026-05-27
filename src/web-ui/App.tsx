@@ -101,7 +101,7 @@ function Body(props: {
   selectFor: (which: TabId) => (id: string) => void;
 }): { rail: React.ReactNode; detail: React.ReactNode } {
   switch (props.tab) {
-    case "overview":  return { rail: undefined, detail: <Overview scan={props.scan} /> };
+    case "overview":  return Overview({ scan: props.scan });
     case "tools":     return ToolsView({
       scan: props.scan,
       selectedId: props.selections.tools,
