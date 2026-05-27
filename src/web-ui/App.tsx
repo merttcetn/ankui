@@ -107,7 +107,11 @@ function Body(props: {
       selectedId: props.selections.tools,
       onSelectId: props.selectFor("tools")
     });
-    case "mcps":      return { rail: undefined, detail: <McpsView scan={props.scan} /> };
+    case "mcps":      return McpsView({
+      scan: props.scan,
+      selectedId: props.selections.mcps,
+      onSelectId: props.selectFor("mcps")
+    });
     case "access":    return { rail: undefined, detail: <AccessView scan={props.scan} /> };
     case "doctor":    return { rail: undefined, detail: <DoctorView scan={props.scan} /> };
     case "actions":   return { rail: undefined, detail: <ActionsView scan={props.scan} onScan={props.onScan} /> };
