@@ -25,7 +25,19 @@ export function ToolsView(props: {
   onSelectId: (id: string) => void;
 }): { rail: React.ReactNode; detail: React.ReactNode } {
   const detectedTools = props.scan.userScope.tools.filter((t) => t.detected);
-  const selectedId = props.selectedId ?? detectedTools[0]?.id ?? null;
+  const projects = props.scan.projects;
+
+  const isValidSelection = (id: string | null): boolean => {
+    if (id === null) return false;
+    if (id.startsWith("proj:")) return projects.some((p) => `proj:${p.projectPath}` === id);
+    return detectedTools.some((t) => t.id === id);
+  };
+
+  const fallbackId =
+    detectedTools[0]?.id ??
+    (projects[0] ? `proj:${projects[0].projectPath}` : null);
+
+  const selectedId = isValidSelection(props.selectedId) ? props.selectedId : fallbackId;
 
   const sections: EntityRailSection[] = [
     {
@@ -39,7 +51,7 @@ export function ToolsView(props: {
     },
     {
       heading: "projects",
-      items: props.scan.projects.map((p) => ({
+      items: projects.map((p) => ({
         id: `proj:${p.projectPath}`,
         label: p.displayPath,
         count: p.scan.summary.totalSkills

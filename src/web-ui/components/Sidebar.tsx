@@ -1,6 +1,8 @@
 import React from "react";
 
 import type { MultiProjectScanResult } from "../../types.js";
+import { aggregateMcps } from "../../tui/util/mcp-grouping.js";
+import { aggregateFindings } from "../../tui/util/finding-grouping.js";
 
 export type TabId =
   | "overview"
@@ -27,6 +29,11 @@ export interface SidebarProps {
 }
 
 export function Sidebar({ scan, activeTab, onSelect, onRefresh, refreshing }: SidebarProps): React.ReactElement {
+  const mcpCount = scan ? aggregateMcps(scan).length : undefined;
+  const findingCount = scan
+    ? aggregateFindings(scan).reduce((sum, s) => sum + s.findings.length, 0)
+    : undefined;
+
   const items: NavItem[] = [
     { id: "overview", label: "Overview" },
     {
@@ -37,13 +44,13 @@ export function Sidebar({ scan, activeTab, onSelect, onRefresh, refreshing }: Si
     {
       id: "mcps",
       label: "MCPs",
-      badge: scan?.userScope.summary.uniqueMcpServers
+      badge: mcpCount
     },
     {
       id: "access",
       label: "Access",
-      badge: scan?.userScope.summary.totalFindings,
-      warn: (scan?.userScope.summary.totalFindings ?? 0) > 0
+      badge: findingCount,
+      warn: (findingCount ?? 0) > 0
     },
     { id: "doctor", label: "Doctor" },
     { id: "actions", label: "Actions" },

@@ -74,7 +74,11 @@ export function AccessView(props: {
             <span className="ank-finding-rec"> — {finding.recommendation}</span>
           )}
           {finding.sourcePaths.length > 0 && (
-            <span className="ank-finding-src"> &nbsp; {finding.sourcePaths[0]}</span>
+            <span className="ank-finding-src">
+              {finding.sourcePaths.map((p) => (
+                <span key={p} className="ank-finding-src-item">{p}</span>
+              ))}
+            </span>
           )}
         </Banner>
       ))}
