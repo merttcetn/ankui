@@ -845,3 +845,20 @@ code {
   color: var(--text-mute);
   letter-spacing: 0.04em;
 }
+
+/* ── Access finding text helpers ───────────────────────────── */
+
+.ank-finding-msg { color: inherit; opacity: 0.85; }
+.ank-finding-rec {
+  display: block;
+  margin-top: 4px;
+  font-size: var(--size-caption);
+  opacity: 0.75;
+}
+.ank-finding-src {
+  display: block;
+  margin-top: 4px;
+  font: var(--size-caption) var(--font-mono);
+  color: var(--text-mute);
+  opacity: 0.8;
+}
