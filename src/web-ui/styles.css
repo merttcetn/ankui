@@ -673,3 +673,31 @@ code {
   align-items: baseline;
 }
 .ank-sec-count { color: var(--text-faint); }
+
+/* ── shell (3-pane grid) ───────────────────────────────────── */
+
+.ank-shell {
+  display: grid;
+  min-height: 100vh;
+  background: var(--bg);
+}
+.ank-shell-3pane { grid-template-columns: 130px 220px 1fr; }
+.ank-shell-2pane { grid-template-columns: 130px 1fr; }
+
+.ank-shell-side {
+  background: var(--bg-side);
+  border-right: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+}
+.ank-shell-rail {
+  background: var(--bg-mid);
+  border-right: 1px solid var(--border);
+  overflow-y: auto;
+}
+.ank-shell-detail {
+  padding: 18px 22px 32px;
+  overflow-y: auto;
+  position: relative;
+}
+
