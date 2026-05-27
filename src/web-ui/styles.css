@@ -26,7 +26,8 @@
   --bg-muted:         #232328;  --fg-muted:         #8a8a96;
 
   /* ── type ────────────────────────────────────────────────── */
-  --font-sans:        -apple-system, "Inter", "Helvetica Neue", system-ui, sans-serif;
+  --font-display:     "Plus Jakarta Sans Variable", "Plus Jakarta Sans", -apple-system, "Helvetica Neue", system-ui, sans-serif;
+  --font-sans:        var(--font-display);
   --font-mono:        ui-monospace, "SF Mono", Menlo, Consolas, monospace;
 
   --size-display:     38px;   /* hero stat numbers — display weight */
@@ -37,6 +38,14 @@
   --size-label:       11px;   /* uppercase mono section labels */
   --weight-display:   500;
   --weight-bold:      600;
+
+  /* ── line-height (matches landing-page system) ──────────── */
+  --lh-tight:         0.95;   /* hero / display numbers */
+  --lh-snug:          1.02;   /* section + detail titles */
+  --lh-body:          1.6;    /* gövde metni — body default */
+  --lh-prose:         1.7;    /* longer prose, recommendation captions */
+  --lh-mono-label:    1.5;    /* mono uppercase labels */
+  --lh-pill:          1.4;    /* tight pill text */
 
   /* ── motion (kept from current) ──────────────────────────── */
   --dur-fast:         160ms;
@@ -61,7 +70,9 @@ body {
   margin: 0;
   background: var(--bg);
   color: var(--text);
-  font: var(--size-body)/1.5 var(--font-sans);
+  font: var(--size-body)/var(--lh-body) var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
 /* ── tab panel fade-in ─────────────────────────────────────────── */
@@ -427,7 +438,7 @@ code {
   padding: 2px 7px;
   border-radius: 3px;
   flex-shrink: 0;
-  line-height: 1.4;
+  line-height: var(--lh-pill);
 }
 .ank-pill-bundle  { background: var(--bg-muted);  color: var(--fg-muted); }
 .ank-pill-yours   { background: var(--bg-ok);     color: var(--fg-ok); }
@@ -529,7 +540,7 @@ code {
   font-family: var(--font-sans);
   font-style: italic;
   font-size: var(--size-caption);
-  line-height: 1.4;
+  line-height: var(--lh-mono-label);
   color: var(--text-mute);
   margin-top: 6px;
   letter-spacing: 0.02em;
@@ -651,7 +662,7 @@ code {
   margin-bottom: 4px;
 }
 .ank-detail-title {
-  font: var(--weight-bold) var(--size-h3)/1.2 var(--font-sans);
+  font: var(--weight-bold) var(--size-h3)/var(--lh-snug) var(--font-sans);
   letter-spacing: -0.02em;
   margin: 0 0 4px;
   color: var(--text);
@@ -677,7 +688,7 @@ code {
 }
 .ank-stat:first-child { border-left: none; padding-left: 0; }
 .ank-stat-n {
-  font: var(--weight-display) var(--size-display)/1 var(--font-sans);
+  font: var(--weight-display) var(--size-display)/var(--lh-tight) var(--font-sans);
   letter-spacing: -0.02em;
   color: var(--text);
 }
@@ -715,12 +726,14 @@ code {
   display: block;
   margin-top: 4px;
   font-size: var(--size-caption);
+  line-height: var(--lh-prose);
   opacity: 0.75;
 }
 .ank-finding-src {
   display: block;
   margin-top: 4px;
   font: var(--size-caption) var(--font-mono);
+  line-height: var(--lh-mono-label);
   color: var(--text-mute);
   opacity: 0.8;
 }

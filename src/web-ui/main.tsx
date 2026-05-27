@@ -2,6 +2,8 @@ import React from "react";
 import { createRoot } from "react-dom/client";
 
 import { App } from "./App.js";
+import "@fontsource-variable/plus-jakarta-sans";
+import "@fontsource-variable/plus-jakarta-sans/wght-italic.css";
 import "./styles.css";
 
 const rootEl = document.getElementById("root");
