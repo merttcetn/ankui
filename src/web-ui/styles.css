@@ -549,7 +549,7 @@ code {
   .tools-acc,
   .tools-acc.open,
   .caret,
-  nav button,
+  .ank-side-link,
   .actions-toolnav button {
     transition: none;
   }
@@ -696,7 +696,7 @@ code {
 .ank-side-link.is-active {
   color: var(--text);
   border-left-color: var(--text);
-  background: color-mix(in srgb, var(--bg-row-hover) 100%, transparent);
+  background: var(--bg-row-hover);
 }
 .ank-side-badge {
   font: var(--size-caption) var(--font-mono);
