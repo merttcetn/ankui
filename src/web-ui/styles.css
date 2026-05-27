@@ -730,3 +730,118 @@ code {
   letter-spacing: 0.14em;
   text-transform: uppercase;
 }
+
+/* ── EntityRail ────────────────────────────────────────────── */
+
+.ank-rail-section { padding-bottom: 8px; }
+.ank-rail-heading {
+  padding: 14px 14px 8px;
+  font: var(--size-label) var(--font-mono);
+  letter-spacing: 0.22em;
+  color: var(--text-mute);
+  text-transform: uppercase;
+}
+.ank-rail-heading-spaced { margin-top: 8px; }
+.ank-rail-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+  padding: 8px 14px;
+  font: var(--size-small) var(--font-sans);
+  color: var(--text-dim);
+  background: transparent;
+  border: none;
+  border-left: 2px solid transparent;
+  cursor: pointer;
+  text-align: left;
+}
+.ank-rail-row:hover { background: var(--bg-row-hover); color: var(--text); }
+.ank-rail-row.is-active {
+  background: color-mix(in srgb, var(--bg-row-hover) 150%, transparent);
+  color: var(--text);
+  border-left-color: var(--text);
+}
+.ank-rail-row-label { display: inline-flex; align-items: center; }
+.ank-rail-row-count {
+  font: var(--size-caption) var(--font-mono);
+  color: var(--text-mute);
+}
+.ank-rail-pip {
+  display: inline-block;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  margin-right: 7px;
+  vertical-align: middle;
+}
+.ank-rail-pip-ok   { background: #34c759; }
+.ank-rail-pip-warn { background: var(--fg-warn); }
+
+/* ── DetailHeader ──────────────────────────────────────────── */
+
+.ank-detail-header { margin-bottom: 14px; }
+.ank-detail-crumb {
+  font: var(--size-label) var(--font-mono);
+  letter-spacing: 0.18em;
+  color: var(--text-mute);
+  text-transform: uppercase;
+  margin-bottom: 4px;
+}
+.ank-detail-title {
+  font: var(--weight-bold) var(--size-h3)/1.2 var(--font-sans);
+  letter-spacing: -0.02em;
+  margin: 0 0 4px;
+  color: var(--text);
+}
+.ank-detail-meta {
+  font: var(--size-caption) var(--font-mono);
+  color: var(--text-mute);
+  letter-spacing: 0.06em;
+}
+
+/* ── StatGrid ──────────────────────────────────────────────── */
+
+.ank-stats {
+  display: grid;
+  gap: 0;
+  margin-bottom: 18px;
+  border-top: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+}
+.ank-stat {
+  padding: 12px 0 12px 14px;
+  border-left: 1px solid var(--border);
+}
+.ank-stat:first-child { border-left: none; padding-left: 0; }
+.ank-stat-n {
+  font: var(--weight-display) var(--size-display)/1 var(--font-sans);
+  letter-spacing: -0.02em;
+  color: var(--text);
+}
+.ank-stat-l {
+  font: var(--size-label) var(--font-mono);
+  color: var(--text-mute);
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  margin-top: 6px;
+}
+
+/* ── SkillRow ──────────────────────────────────────────────── */
+
+.ank-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 7px 0;
+  border-bottom: 1px solid var(--border);
+  font: var(--size-small) var(--font-sans);
+}
+.ank-row:last-child { border-bottom: none; }
+.ank-row:hover { background: var(--bg-row-hover); }
+.ank-row-name { flex: 1; color: var(--text-dim); }
+.ank-row-src {
+  font: var(--size-caption) var(--font-mono);
+  color: var(--text-mute);
+  letter-spacing: 0.04em;
+}
