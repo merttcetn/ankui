@@ -117,7 +117,11 @@ function Body(props: {
       selectedId: props.selections.access,
       onSelectId: props.selectFor("access")
     });
-    case "doctor":    return { rail: undefined, detail: <DoctorView scan={props.scan} /> };
+    case "doctor":    return DoctorView({
+      scan: props.scan,
+      selectedId: props.selections.doctor,
+      onSelectId: props.selectFor("doctor")
+    });
     case "actions":   return { rail: undefined, detail: <ActionsView scan={props.scan} onScan={props.onScan} /> };
     case "settings":  return { rail: undefined, detail: <SettingsView scan={props.scan} onScan={props.onScan} /> };
   }
