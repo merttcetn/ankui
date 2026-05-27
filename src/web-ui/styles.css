@@ -604,3 +604,72 @@ code {
     transition: none;
   }
 }
+
+/* ── atoms (Pill / Banner / SectionLabel) ──────────────────── */
+
+.ank-pill {
+  display: inline-block;
+  font: var(--size-label) var(--font-mono);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  padding: 2px 7px;
+  border-radius: 3px;
+  flex-shrink: 0;
+  line-height: 1.4;
+}
+.ank-pill-bundle  { background: var(--bg-muted);  color: var(--fg-muted); }
+.ank-pill-yours   { background: var(--bg-ok);     color: var(--fg-ok); }
+.ank-pill-builtin { background: var(--bg-info);   color: var(--fg-info); }
+.ank-pill-danger  { background: var(--bg-danger); color: var(--fg-danger); }
+.ank-pill-warn    { background: var(--bg-warn);   color: var(--fg-warn); }
+.ank-pill-info    { background: var(--bg-info);   color: var(--fg-info); }
+.ank-pill-ok      { background: var(--bg-ok);     color: var(--fg-ok); }
+.ank-pill-muted   { background: var(--bg-muted);  color: var(--fg-muted); }
+
+.ank-banner {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: 6px;
+  margin-bottom: 16px;
+  border: 1px solid transparent;
+}
+.ank-banner-danger {
+  background: color-mix(in srgb, var(--bg-danger) 25%, transparent);
+  border-color: color-mix(in srgb, var(--bg-danger) 60%, transparent);
+}
+.ank-banner-warn {
+  background: color-mix(in srgb, var(--bg-warn) 25%, transparent);
+  border-color: color-mix(in srgb, var(--bg-warn) 60%, transparent);
+}
+.ank-banner-info {
+  background: color-mix(in srgb, var(--bg-info) 25%, transparent);
+  border-color: color-mix(in srgb, var(--bg-info) 60%, transparent);
+}
+.ank-banner-txt   { font-size: var(--size-small); color: var(--text); flex: 1; }
+.ank-banner-danger .ank-banner-txt { color: var(--fg-danger); }
+.ank-banner-warn   .ank-banner-txt { color: var(--fg-warn); }
+.ank-banner-info   .ank-banner-txt { color: var(--fg-info); }
+.ank-banner-action {
+  margin-left: auto;
+  font: var(--size-label) var(--font-mono);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  border-bottom: 1px solid currentColor;
+  padding-bottom: 1px;
+  cursor: pointer;
+  opacity: 0.7;
+}
+
+.ank-sec {
+  font: var(--size-label) var(--font-mono);
+  letter-spacing: 0.22em;
+  color: var(--text-mute);
+  text-transform: uppercase;
+  margin: 4px 0 8px;
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+}
+.ank-sec-count { color: var(--text-faint); }
