@@ -43,8 +43,10 @@
   --dur-base:         220ms;
   --ease-out:         cubic-bezier(0.2, 0.8, 0.2, 1);
 
-  /* ── compat aliases (deleted in Task 16) ─────────────────── */
-  /* Keep the existing classes rendering during migration.      */
+  /* ── compat aliases ──────────────────────────────────────── */
+  /* Legacy tokens that map to canonical names. Kept as harmless */
+  /* one-liners because ~20 callsites + the .dim/.ok/.danger     */
+  /* utility classes still depend on them. Not worth churning.   */
   --panel:            var(--bg-mid);
   --dim:              var(--text-mute);
   --danger:           var(--fg-danger);
@@ -92,42 +94,6 @@ button.action:disabled {
   cursor: default;
 }
 
-.cards {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
-  gap: 10px;
-}
-
-.card {
-  background: var(--panel);
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  padding: 12px 14px;
-}
-
-.card .num {
-  font-size: 24px;
-  color: var(--accent);
-}
-
-.card .label {
-  color: var(--dim);
-  font-size: 12px;
-}
-
-.row {
-  background: var(--panel);
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  padding: 12px 14px;
-  margin-bottom: 8px;
-}
-
-.row h3 {
-  margin: 0 0 6px;
-  font-size: 14px;
-}
-
 .dim {
   color: var(--dim);
 }
@@ -149,15 +115,6 @@ button.action:disabled {
 
 .skill-line .name {
   flex: 1;
-}
-
-.banner {
-  background: var(--panel);
-  border: 1px solid var(--border);
-  border-left: 3px solid var(--accent);
-  border-radius: 4px;
-  padding: 8px 12px;
-  margin: 12px 0;
 }
 
 ul {
@@ -249,60 +206,7 @@ code {
 
 .splash-done .mark { margin-right: 8px; }
 
-/* ── tools accordion (scroll within) ───────────────────────────── */
-
-.tools-expanded {
-  max-height: 50vh;
-  overflow-y: auto;
-  margin-top: 6px;
-  padding-right: 8px;
-  scrollbar-width: thin;
-  scrollbar-color: var(--border) transparent;
-  -webkit-mask-image: linear-gradient(to bottom, black calc(100% - 24px), transparent 100%);
-          mask-image: linear-gradient(to bottom, black calc(100% - 24px), transparent 100%);
-}
-
-.tools-expanded.at-bottom {
-  -webkit-mask-image: none;
-          mask-image: none;
-}
-
-.tools-expanded::-webkit-scrollbar { width: 6px; }
-.tools-expanded::-webkit-scrollbar-thumb {
-  background: var(--border);
-  border-radius: 3px;
-}
-.tools-expanded::-webkit-scrollbar-track { background: transparent; }
-
-.scroll-hint {
-  color: var(--dim);
-  font-style: italic;
-  font-size: 11px;
-  letter-spacing: 0.04em;
-  padding: 6px 0 0;
-  transition: opacity 200ms ease;
-}
-
-.scroll-hint.hidden { opacity: 0; pointer-events: none; }
-
-.tools-acc {
-  display: grid;
-  grid-template-rows: 0fr;
-  opacity: 0;
-  transition:
-    grid-template-rows var(--dur-base) var(--ease-out),
-    opacity var(--dur-fast) var(--ease-out) 40ms;
-}
-
-.tools-acc.open {
-  grid-template-rows: 1fr;
-  opacity: 1;
-}
-
-.tools-acc > .tools-acc-inner {
-  min-height: 0;
-  overflow: hidden;
-}
+/* ── caret (used by SkillGroupSection) ─────────────────────────── */
 
 .caret {
   display: inline-block;
@@ -310,35 +214,6 @@ code {
 }
 
 .caret.open { transform: rotate(90deg); }
-
-/* ── Actions tab (Round 3) ─────────────────────────────────────── */
-
-.actions-toolnav {
-  display: flex;
-  gap: 6px;
-  flex-wrap: wrap;
-  margin-bottom: 16px;
-}
-
-.actions-toolnav button {
-  background: var(--panel);
-  border: 1px solid var(--border);
-  color: var(--dim);
-  padding: 5px 12px;
-  font: inherit;
-  border-radius: 4px;
-  cursor: pointer;
-  transition:
-    color var(--dur-fast) var(--ease-out),
-    border-color var(--dur-fast) var(--ease-out);
-}
-
-.actions-toolnav button:hover { border-color: var(--accent); }
-
-.actions-toolnav button.active {
-  color: var(--accent);
-  border-color: var(--accent);
-}
 
 /* ── skill-group section (origin-grouped accordion) ─────────────── */
 
@@ -383,16 +258,6 @@ code {
   margin-top: 8px;
   padding-top: 8px;
   border-top: 1px solid color-mix(in srgb, var(--border) 60%, transparent);
-}
-
-/* ToolsView: inner skill-group sits inside the already-bordered .row panel,
-   so strip its own chrome to avoid double-border / nested-panel feel. */
-.tools-expanded .skill-group {
-  background: transparent;
-  border: none;
-  border-radius: 0;
-  padding: 0;
-  margin-bottom: 4px;
 }
 
 .actions-float {
@@ -546,11 +411,8 @@ code {
 
 @media (prefers-reduced-motion: reduce) {
   .tab-panel { animation: none; }
-  .tools-acc,
-  .tools-acc.open,
   .caret,
-  .ank-side-link,
-  .actions-toolnav button {
+  .ank-side-link {
     transition: none;
   }
 }

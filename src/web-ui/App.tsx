@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useState } from "react";
 
 import type { MultiProjectScanResult } from "../types.js";
 import { applyActions, fetchScan, type ActionRequest } from "./api.js";
+import { Banner } from "./components/Banner.js";
 import { LoadingSplash } from "./components/LoadingSplash.js";
 import { IdleWhisper } from "./components/IdleWhisper.js";
 import { Shell } from "./components/Shell.js";
@@ -146,7 +147,7 @@ export function App(): React.ReactElement {
 
   const detail = (
     <>
-      {error && <div className="banner danger">scan failed: {error}</div>}
+      {error && <Banner variant="danger" badge="ERROR">scan failed: {error}</Banner>}
       {loading && <LoadingSplash phase="loading" />}
       {showDone && <LoadingSplash phase="done" />}
       {view && (
