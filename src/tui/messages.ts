@@ -27,7 +27,8 @@ export const EMPTY_STATE_WHISPERS = {
   noFindings: "the talismans are holding.",
   noMcps: "no servers configured. you haven't asked for help yet.",
   noWarnings: "quiet tonight.",
-  noProjectSkills: "nothing left here to remember."
+  noProjectSkills: "nothing left here to remember.",
+  noActions: "nothing staged. nothing to disturb."
 } as const;
 
 export type EmptyStateWhisperKey = keyof typeof EMPTY_STATE_WHISPERS;

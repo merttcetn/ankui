@@ -23,7 +23,7 @@ test("SCAN_COMPLETE is 'Remembered.'", () => {
   assert.equal(SCAN_COMPLETE, "Remembered.");
 });
 
-test("EMPTY_STATE_WHISPERS has the four keys from the spec", () => {
+test("EMPTY_STATE_WHISPERS has the five keys from the spec", () => {
   assert.equal(EMPTY_STATE_WHISPERS.noFindings, "the talismans are holding.");
   assert.equal(
     EMPTY_STATE_WHISPERS.noMcps,
@@ -31,6 +31,7 @@ test("EMPTY_STATE_WHISPERS has the four keys from the spec", () => {
   );
   assert.equal(EMPTY_STATE_WHISPERS.noWarnings, "quiet tonight.");
   assert.equal(EMPTY_STATE_WHISPERS.noProjectSkills, "nothing left here to remember.");
+  assert.equal(EMPTY_STATE_WHISPERS.noActions, "nothing staged. nothing to disturb.");
 });
 
 test("IDLE_WHISPERS has 7 entries", () => {
