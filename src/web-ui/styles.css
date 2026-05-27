@@ -29,12 +29,12 @@
   --font-sans:        -apple-system, "Inter", "Helvetica Neue", system-ui, sans-serif;
   --font-mono:        ui-monospace, "SF Mono", Menlo, Consolas, monospace;
 
-  --size-display:     26px;   /* hero stat numbers */
-  --size-h3:          22px;   /* detail-pane title */
-  --size-body:        12px;
-  --size-small:       11px;
-  --size-caption:     10px;   /* mono captions */
-  --size-label:        9px;   /* uppercase mono section labels */
+  --size-display:     38px;   /* hero stat numbers — display weight */
+  --size-h3:          28px;   /* detail-pane title */
+  --size-body:        14px;
+  --size-small:       13px;
+  --size-caption:     12px;   /* mono captions */
+  --size-label:       11px;   /* uppercase mono section labels */
   --weight-display:   500;
   --weight-bold:      600;
 
