@@ -1,15 +1,54 @@
 :root {
-  --bg: #16161a;
-  --panel: #1f1f25;
-  --border: #33333d;
-  --text: #e6e6ea;
-  --dim: #8a8a96;
-  --accent: #c8a96a;
-  --danger: #d96c6c;
-  --ok: #79b079;
-  --dur-fast: 160ms;
-  --dur-base: 220ms;
-  --ease-out: cubic-bezier(0.2, 0.8, 0.2, 1);
+  /* ── surface ─────────────────────────────────────────────── */
+  --bg:               #0e0e10;
+  --bg-side:          #0a0a0c;
+  --bg-mid:           #111114;
+  --bg-row-hover:     #14141680;
+  --border:           #1c1c20;
+  --border-soft:      #232328;
+
+  /* ── text ────────────────────────────────────────────────── */
+  --text:             #f0f0f3;
+  --text-dim:         #a8a8b0;
+  --text-mute:        #6e6e76;
+  --text-faint:       #3a3a40;
+
+  /* ── accent ──────────────────────────────────────────────── */
+  /* The only color shared with the TUI. Used sparingly:        */
+  /* beacon, brand mark, focused active row's left border.      */
+  --accent:           #c8a96a;
+
+  /* ── functional palette (pill backgrounds + text pairs) ──── */
+  --bg-danger:        #5a1f1f;  --fg-danger:        #f7c5c5;
+  --bg-warn:          #4a3a14;  --fg-warn:          #f5d88a;
+  --bg-info:          #1f3a52;  --fg-info:          #b8d8f5;
+  --bg-ok:            #1f3a26;  --fg-ok:            #b8e8c5;
+  --bg-muted:         #232328;  --fg-muted:         #8a8a96;
+
+  /* ── type ────────────────────────────────────────────────── */
+  --font-sans:        -apple-system, "Inter", "Helvetica Neue", system-ui, sans-serif;
+  --font-mono:        ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+
+  --size-display:     26px;   /* hero stat numbers */
+  --size-h3:          22px;   /* detail-pane title */
+  --size-body:        12px;
+  --size-small:       11px;
+  --size-caption:     10px;   /* mono captions */
+  --size-label:        9px;   /* uppercase mono section labels */
+  --weight-display:   500;
+  --weight-bold:      600;
+
+  /* ── motion (kept from current) ──────────────────────────── */
+  --dur-fast:         160ms;
+  --dur-base:         220ms;
+  --ease-out:         cubic-bezier(0.2, 0.8, 0.2, 1);
+
+  /* ── compat aliases (deleted in Task 16) ─────────────────── */
+  /* Keep the existing classes rendering during migration.      */
+  --panel:            var(--bg-mid);
+  --dim:              var(--text-mute);
+  --danger:           var(--fg-danger);
+  --ok:               var(--fg-ok);
 }
 
 * {
@@ -20,7 +59,7 @@ body {
   margin: 0;
   background: var(--bg);
   color: var(--text);
-  font: 14px/1.5 ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  font: var(--size-body)/1.5 var(--font-sans);
 }
 
 #root {
