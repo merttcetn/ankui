@@ -69,7 +69,7 @@ function readOrigin(skill: Skill): BundleOrigin {
   return DEFAULT_ORIGIN;
 }
 
-function isBundleOrigin(value: unknown): value is BundleOrigin {
+export function isBundleOrigin(value: unknown): value is BundleOrigin {
   if (value === null || typeof value !== "object") {
     return false;
   }

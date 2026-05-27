@@ -21,6 +21,22 @@ export function App(): React.ReactElement {
   const [scan, setScan] = useState<MultiProjectScanResult | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [justLoaded, setJustLoaded] = useState(false);
+  const [selections, setSelections] = useState<Record<TabId, string | null>>({
+    overview: null,
+    tools: null,
+    mcps: null,
+    access: null,
+    doctor: null,
+    actions: null,
+    settings: null
+  });
+
+  const selectFor = useCallback(
+    (which: TabId) => (id: string) => {
+      setSelections((prev) => ({ ...prev, [which]: id }));
+    },
+    []
+  );
 
   const refresh = useCallback(async () => {
     setError(null);
@@ -44,7 +60,7 @@ export function App(): React.ReactElement {
   const showDone = scan !== null && justLoaded;
 
   const view: { rail: React.ReactNode; detail: React.ReactNode } | null =
-    scan && !justLoaded ? Body({ tab, scan, onScan: setScan }) : null;
+    scan && !justLoaded ? Body({ tab, scan, onScan: setScan, selections, selectFor }) : null;
 
   const detail = (
     <>
@@ -81,10 +97,16 @@ function Body(props: {
   tab: TabId;
   scan: MultiProjectScanResult;
   onScan: (scan: MultiProjectScanResult) => void;
+  selections: Record<TabId, string | null>;
+  selectFor: (which: TabId) => (id: string) => void;
 }): { rail: React.ReactNode; detail: React.ReactNode } {
   switch (props.tab) {
     case "overview":  return { rail: undefined, detail: <Overview scan={props.scan} /> };
-    case "tools":     return ToolsView({ scan: props.scan });
+    case "tools":     return ToolsView({
+      scan: props.scan,
+      selectedId: props.selections.tools,
+      onSelectId: props.selectFor("tools")
+    });
     case "mcps":      return { rail: undefined, detail: <McpsView scan={props.scan} /> };
     case "access":    return { rail: undefined, detail: <AccessView scan={props.scan} /> };
     case "doctor":    return { rail: undefined, detail: <DoctorView scan={props.scan} /> };

@@ -1,13 +1,16 @@
-import React, { useState } from "react";
+import React from "react";
 
 import type { AITool, MultiProjectScanResult } from "../../types.js";
 import { EMPTY_STATE_WHISPERS } from "../../tui/messages.js";
+import { relativizeHome } from "../../utils/paths.js";
+import { isBundleOrigin } from "../../utils/skill-groups.js";
 import { DetailHeader } from "../components/DetailHeader.js";
 import { EntityRail, type EntityRailSection } from "../components/EntityRail.js";
 import { SectionLabel } from "../components/SectionLabel.js";
 import { SkillRow } from "../components/SkillRow.js";
 import { StatGrid } from "../components/StatGrid.js";
 import { type PillVariant } from "../components/Pill.js";
+import { originPill } from "../utils/origin-pill.js";
 
 const KIND_PILL: Record<string, PillVariant> = {
   agent_skill: "muted",
@@ -16,22 +19,13 @@ const KIND_PILL: Record<string, PillVariant> = {
   plugins: "muted"
 };
 
-function originPill(skill: { details?: { bundleOrigin?: { kind: string; name: string } } }): { variant: PillVariant; label: string } {
-  const k = skill.details?.bundleOrigin?.kind;
-  if (k === "bundle")  return { variant: "bundle", label: "BUNDLE" };
-  if (k === "builtin") return { variant: "builtin", label: "BUILTIN" };
-  if (k === "yours")   return { variant: "yours", label: "YOURS" };
-  if (k === "plugin")  return { variant: "info", label: "PLUGIN" };
-  if (k === "external") return { variant: "warn", label: "EXTERNAL" };
-  return { variant: "muted", label: "OTHER" };
-}
-
-export function ToolsView(props: { scan: MultiProjectScanResult }): {
-  rail: React.ReactNode;
-  detail: React.ReactNode;
-} {
+export function ToolsView(props: {
+  scan: MultiProjectScanResult;
+  selectedId: string | null;
+  onSelectId: (id: string) => void;
+}): { rail: React.ReactNode; detail: React.ReactNode } {
   const detectedTools = props.scan.userScope.tools.filter((t) => t.detected);
-  const [selectedId, setSelectedId] = useState<string | null>(detectedTools[0]?.id ?? null);
+  const selectedId = props.selectedId ?? detectedTools[0]?.id ?? null;
 
   const sections: EntityRailSection[] = [
     {
@@ -62,7 +56,7 @@ export function ToolsView(props: { scan: MultiProjectScanResult }): {
     <EntityRail
       sections={sections}
       selectedId={selectedId}
-      onSelect={setSelectedId}
+      onSelect={props.onSelectId}
     />
   );
 
@@ -113,12 +107,10 @@ function ToolDetail({ tool, homeDir }: { tool: AITool; homeDir: string }): React
           <SectionLabel count={agentSkills.length}>agent skills</SectionLabel>
           {agentSkills.map((sk) => {
             const origin = originPill(sk);
-            const bundleOrigin = sk.details?.bundleOrigin as
-              | { kind: string; name: string }
-              | undefined;
-            const src = bundleOrigin?.name
-              ? `${bundleOrigin.name} · ${shortPath(sk.sourcePath, homeDir)}`
-              : shortPath(sk.sourcePath, homeDir);
+            const bo = isBundleOrigin(sk.details?.bundleOrigin) ? sk.details?.bundleOrigin : undefined;
+            const src = bo?.name
+              ? `${bo.name} · ${relativizeHome(sk.sourcePath, homeDir)}`
+              : relativizeHome(sk.sourcePath, homeDir);
             return (
               <SkillRow
                 key={sk.id}
@@ -139,7 +131,7 @@ function ToolDetail({ tool, homeDir }: { tool: AITool; homeDir: string }): React
               key={sk.id}
               pill={originPill(sk)}
               name={sk.name}
-              source={shortPath(sk.sourcePath, homeDir)}
+              source={relativizeHome(sk.sourcePath, homeDir)}
             />
           ))}
         </>
@@ -153,7 +145,7 @@ function ToolDetail({ tool, homeDir }: { tool: AITool; homeDir: string }): React
               key={sk.id}
               pill={originPill(sk)}
               name={sk.name}
-              source={shortPath(sk.sourcePath, homeDir)}
+              source={relativizeHome(sk.sourcePath, homeDir)}
             />
           ))}
         </>
@@ -167,7 +159,7 @@ function ToolDetail({ tool, homeDir }: { tool: AITool; homeDir: string }): React
               key={sk.id}
               pill={{ variant: KIND_PILL[sk.kind] ?? "muted", label: sk.kind.toUpperCase() }}
               name={sk.name}
-              source={shortPath(sk.sourcePath, homeDir)}
+              source={relativizeHome(sk.sourcePath, homeDir)}
             />
           ))}
         </>
@@ -199,15 +191,11 @@ function ProjectDetail({
               key={sk.id}
               pill={originPill(sk)}
               name={sk.name}
-              source={shortPath(sk.sourcePath, homeDir)}
+              source={relativizeHome(sk.sourcePath, homeDir)}
             />
           ))}
         </div>
       ))}
     </>
   );
-}
-
-function shortPath(p: string, homeDir: string): string {
-  return p.startsWith(homeDir) ? "~" + p.slice(homeDir.length) : p;
 }
