@@ -1,17 +1,15 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useMemo } from "react";
 
 import type {
   AITool,
   MultiProjectScanResult,
-  Skill,
-  ToolId
+  Skill
 } from "../../types.js";
-import {
-  isMarkdownSkill,
-  makeDesiredDisabled
-} from "../../tui/util/actions-items.js";
+import { EMPTY_STATE_WHISPERS } from "../../tui/messages.js";
+import { isMarkdownSkill } from "../../tui/util/actions-items.js";
 import { groupSkillsByOrigin, type SkillGroup } from "../../utils/skill-groups.js";
-import { applyActions, type ActionRequest } from "../api.js";
+import { DetailHeader } from "../components/DetailHeader.js";
+import { EntityRail } from "../components/EntityRail.js";
 import {
   SkillGroupSection,
   type BulkAction
@@ -19,9 +17,20 @@ import {
 import { useBundleStatus } from "../hooks/useBundleStatus.js";
 import { useExpandedGroups } from "../hooks/useExpandedGroups.js";
 
-interface PendingChange {
-  id: string;
-  action: "disable" | "enable";
+export interface ActionsViewProps {
+  scan: MultiProjectScanResult;
+  selectedId: string | null;
+  onSelectId: (id: string) => void;
+  onScan: (scan: MultiProjectScanResult) => void;
+  pending: Array<{ id: string; action: "disable" | "enable" }>;
+  saving: boolean;
+  status: string | null;
+  onStage: (id: string, action: "disable" | "enable", diskDisabled: boolean) => void;
+  onBulkStage: (
+    changes: Array<{ id: string; action: "disable" | "enable"; diskDisabled: boolean }>
+  ) => void;
+  onDiscard: () => void;
+  onSave: () => void;
 }
 
 /**
@@ -38,32 +47,98 @@ function isAnkuiTrackedBundle(group: SkillGroup): boolean {
   );
 }
 
-export function ActionsView(props: {
-  scan: MultiProjectScanResult;
-  onScan: (scan: MultiProjectScanResult) => void;
-}): React.ReactElement {
-  const [pending, setPending] = useState<PendingChange[]>([]);
-  const [saving, setSaving] = useState(false);
-  const [status, setStatus] = useState<string | null>(null);
-
-  const desiredDisabled = useMemo(() => makeDesiredDisabled(pending), [pending]);
-
-  const tools = useMemo(
-    () => props.scan.userScope.tools.filter((t) => t.skills.some(isMarkdownSkill)),
-    [props.scan]
+/**
+ * Pure-function view (no hooks). Composes the rail + a JSX `<ActionsToolPanel>`
+ * for the selected tool. Bulk save/discard/pending all live in App; the panel
+ * is a real React component so its internal hooks (useExpandedGroups,
+ * useBundleStatus) register against a stable instance instead of being
+ * re-counted across function calls to the view itself.
+ */
+export function ActionsView(props: ActionsViewProps): {
+  rail: React.ReactNode;
+  detail: React.ReactNode;
+} {
+  const tools = props.scan.userScope.tools.filter((t) =>
+    t.skills.some(isMarkdownSkill)
   );
 
-  const [selectedToolId, setSelectedToolId] = useState<ToolId | null>(null);
-  useEffect(() => {
-    if (selectedToolId === null || !tools.some((t) => t.id === selectedToolId)) {
-      setSelectedToolId(tools[0]?.id ?? null);
-    }
-  }, [tools, selectedToolId]);
+  if (tools.length === 0) {
+    return {
+      rail: undefined,
+      detail: <div className="empty-whisper">{EMPTY_STATE_WHISPERS.noActions}</div>
+    };
+  }
 
-  const selectedTool = tools.find((t) => t.id === selectedToolId);
+  const selectedId = props.selectedId ?? tools[0].id;
+  const selectedTool = tools.find((t) => t.id === selectedId) ?? tools[0];
+
+  const desiredDisabled = (skill: Skill): boolean => {
+    const staged = props.pending.find((p) => p.id === skill.id);
+    if (staged) return staged.action === "disable";
+    return skill.details?.disabled === true;
+  };
+
+  const rail = (
+    <EntityRail
+      sections={[
+        {
+          heading: "tools",
+          items: tools.map((t) => {
+            const md = t.skills.filter(isMarkdownSkill);
+            const off = md.filter(desiredDisabled).length;
+            const on = md.length - off;
+            const pendingCount = props.pending.filter((p) =>
+              md.some((s) => s.id === p.id)
+            ).length;
+            return {
+              id: t.id,
+              label: `${t.name}  ${on}/${md.length}`,
+              count: pendingCount > 0 ? pendingCount : undefined,
+              pip: pendingCount > 0 ? "warn" : undefined
+            };
+          })
+        }
+      ]}
+      selectedId={selectedId}
+      onSelect={props.onSelectId}
+    />
+  );
+
+  const detail = (
+    <ActionsToolPanel
+      tool={selectedTool}
+      pending={props.pending}
+      saving={props.saving}
+      status={props.status}
+      desiredDisabled={desiredDisabled}
+      onStage={props.onStage}
+      onBulkStage={props.onBulkStage}
+      onDiscard={props.onDiscard}
+      onSave={props.onSave}
+      onScan={props.onScan}
+    />
+  );
+
+  return { rail, detail };
+}
+
+interface ActionsToolPanelProps {
+  tool: AITool;
+  pending: ActionsViewProps["pending"];
+  saving: boolean;
+  status: string | null;
+  desiredDisabled: (skill: Skill) => boolean;
+  onStage: ActionsViewProps["onStage"];
+  onBulkStage: ActionsViewProps["onBulkStage"];
+  onDiscard: () => void;
+  onSave: () => void;
+  onScan: (scan: MultiProjectScanResult) => void;
+}
+
+function ActionsToolPanel(props: ActionsToolPanelProps): React.ReactElement {
   const allSkills = useMemo(
-    () => (selectedTool ? selectedTool.skills.filter(isMarkdownSkill) : []),
-    [selectedTool]
+    () => props.tool.skills.filter(isMarkdownSkill),
+    [props.tool]
   );
   const groups = useMemo(() => groupSkillsByOrigin(allSkills), [allSkills]);
   const { isExpanded, toggle: toggleGroup } = useExpandedGroups("actions");
@@ -74,45 +149,23 @@ export function ActionsView(props: {
   } = useBundleStatus();
 
   const toggle = (skill: Skill): void => {
-    const nextDisabled = !desiredDisabled(skill);
+    const nextDisabled = !props.desiredDisabled(skill);
     const diskDisabled = skill.details?.disabled === true;
-    setPending((prev) => {
-      const without = prev.filter((p) => p.id !== skill.id);
-      if (nextDisabled === diskDisabled) return without;
-      return [
-        ...without,
-        { id: skill.id, action: nextDisabled ? "disable" : "enable" }
-      ];
-    });
-  };
-
-  /**
-   * Stage bulk changes for a list of skills. We compare against on-disk state
-   * (not the staged-future state) so already-staged matching changes get
-   * replaced with no-ops, and changes that would match disk get dropped.
-   */
-  const stageBulk = (skills: Skill[], action: "disable" | "enable"): void => {
-    setPending((prev) => {
-      const ids = new Set(skills.map((s) => s.id));
-      const next = prev.filter((p) => !ids.has(p.id));
-      for (const skill of skills) {
-        const diskDisabled = skill.details?.disabled === true;
-        const wouldBeDisabled = action === "disable";
-        if (diskDisabled === wouldBeDisabled) continue; // matches disk → no-op
-        next.push({ id: skill.id, action });
-      }
-      return next;
-    });
+    props.onStage(skill.id, nextDisabled ? "disable" : "enable", diskDisabled);
   };
 
   const handleBulk = (group: SkillGroup, action: BulkAction): void => {
-    if (action === "disable-all") {
-      const targets = group.skills.filter((s) => !desiredDisabled(s));
-      stageBulk(targets, "disable");
-    } else {
-      const targets = group.skills.filter((s) => desiredDisabled(s));
-      stageBulk(targets, "enable");
-    }
+    const targets =
+      action === "disable-all"
+        ? group.skills.filter((s) => !props.desiredDisabled(s))
+        : group.skills.filter((s) => props.desiredDisabled(s));
+    props.onBulkStage(
+      targets.map((s) => ({
+        id: s.id,
+        action: action === "disable-all" ? "disable" : "enable",
+        diskDisabled: s.details?.disabled === true
+      }))
+    );
   };
 
   const bulkFor = (
@@ -120,142 +173,87 @@ export function ActionsView(props: {
   ): "disable-all" | "enable-all" | "both" | "none" => {
     if (group.alwaysExpanded) return "none";
     if (group.skills.length === 0) return "none";
-    const enabled = group.skills.filter((s) => !desiredDisabled(s)).length;
+    const enabled = group.skills.filter((s) => !props.desiredDisabled(s)).length;
     const disabled = group.skills.length - enabled;
     if (enabled === 0) return "enable-all";
     if (disabled === 0) return "disable-all";
     return "both";
   };
 
-  const discard = (): void => {
-    setPending([]);
-    setStatus(null);
-  };
-
-  const save = async (): Promise<void> => {
-    setSaving(true);
-    setStatus(null);
-    try {
-      const changes: ActionRequest[] = pending.map((p) => ({
-        skillId: p.id,
-        action: p.action
-      }));
-      const res = await applyActions(changes);
-      const failed = res.outcomes.filter((o) => !o.ok);
-      setStatus(
-        failed.length === 0
-          ? `saved ${res.outcomes.length} change(s)`
-          : `${failed.length} failed: ${failed[0].message}`
-      );
-      const failedIds = new Set(failed.map((o) => o.skillId));
-      setPending((prev) => prev.filter((p) => failedIds.has(p.id)));
-      props.onScan(res.scan);
-    } catch (err) {
-      setStatus(err instanceof Error ? err.message : String(err));
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  const hasPending = pending.length > 0;
+  const hasPending = props.pending.length > 0;
+  const mdCount = allSkills.length;
 
   return (
     <>
-      <ActionsToolNav
-        tools={tools}
-        selectedId={selectedToolId}
-        onSelect={setSelectedToolId}
-        desiredDisabled={desiredDisabled}
+      <DetailHeader
+        crumb={`ACTIONS / ${props.tool.name.toUpperCase()}`}
+        title={props.tool.name}
+        meta={`${mdCount} MARKDOWN SKILL${mdCount === 1 ? "" : "S"}`}
       />
 
-      <div className="tab-panel" key={selectedToolId ?? "none"}>
-        {groups.length === 0 ? (
-          <div className="empty-whisper">no skills here.</div>
-        ) : (
-          groups.map((group) => (
-            <SkillGroupSection
-              key={group.label}
-              group={group}
-              expanded={isExpanded(group.label, group.alwaysExpanded)}
-              onToggle={() => toggleGroup(group.label)}
-              onBulkAction={(action) => handleBulk(group, action)}
-              bulkAvailable={bulkFor(group)}
-              onCheckUpdate={
-                isAnkuiTrackedBundle(group)
-                  ? () => checkBundleStatus(group.origin.name)
-                  : undefined
-              }
-              onApplyUpdate={
-                isAnkuiTrackedBundle(group)
-                  ? (sha) => applyBundleStatus(group.origin.name, sha, { onScan: props.onScan })
-                  : undefined
-              }
-              updateStatus={
-                isAnkuiTrackedBundle(group)
-                  ? bundleStatuses.get(group.origin.name)
-                  : undefined
-              }
-            >
-              {group.skills.map((skill) => {
-                const isDisabled = desiredDisabled(skill);
-                const staged = pending.some((p) => p.id === skill.id);
-                return (
-                  <div className="skill-line" key={skill.id}>
-                    <span className={isDisabled ? "dim" : "ok"}>
-                      {isDisabled ? "○" : "●"}
-                    </span>
-                    <span className="name">{skill.name}</span>
-                    {staged && <span className="dim">pending</span>}
-                    <button className="action" onClick={() => toggle(skill)}>
-                      {isDisabled ? "enable" : "disable"}
-                    </button>
-                  </div>
-                );
-              })}
-            </SkillGroupSection>
-          ))
-        )}
-      </div>
+      {groups.length === 0 ? (
+        <div className="empty-whisper">{EMPTY_STATE_WHISPERS.noActions}</div>
+      ) : (
+        groups.map((group) => (
+          <SkillGroupSection
+            key={group.label}
+            group={group}
+            expanded={isExpanded(group.label, group.alwaysExpanded)}
+            onToggle={() => toggleGroup(group.label)}
+            onBulkAction={(action) => handleBulk(group, action)}
+            bulkAvailable={bulkFor(group)}
+            onCheckUpdate={
+              isAnkuiTrackedBundle(group)
+                ? () => checkBundleStatus(group.origin.name)
+                : undefined
+            }
+            onApplyUpdate={
+              isAnkuiTrackedBundle(group)
+                ? (sha) =>
+                    applyBundleStatus(group.origin.name, sha, {
+                      onScan: props.onScan
+                    })
+                : undefined
+            }
+            updateStatus={
+              isAnkuiTrackedBundle(group)
+                ? bundleStatuses.get(group.origin.name)
+                : undefined
+            }
+          >
+            {group.skills.map((skill) => {
+              const isDisabled = props.desiredDisabled(skill);
+              const staged = props.pending.some((p) => p.id === skill.id);
+              return (
+                <div className="skill-line" key={skill.id}>
+                  <span className={isDisabled ? "dim" : "ok"}>
+                    {isDisabled ? "○" : "●"}
+                  </span>
+                  <span className="name">{skill.name}</span>
+                  {staged && <span className="dim">pending</span>}
+                  <button className="action" onClick={() => toggle(skill)}>
+                    {isDisabled ? "enable" : "disable"}
+                  </button>
+                </div>
+              );
+            })}
+          </SkillGroupSection>
+        ))
+      )}
 
       {hasPending && (
         <ActionsFloatBar
-          pending={pending.length}
-          saving={saving}
-          status={status}
-          onSave={() => void save()}
-          onDiscard={discard}
+          pending={props.pending.length}
+          saving={props.saving}
+          status={props.status}
+          onSave={props.onSave}
+          onDiscard={props.onDiscard}
         />
       )}
-      {status && !hasPending && <div className="actions-status">{status}</div>}
+      {props.status && !hasPending && (
+        <div className="actions-status">{props.status}</div>
+      )}
     </>
-  );
-}
-
-function ActionsToolNav(props: {
-  tools: AITool[];
-  selectedId: ToolId | null;
-  onSelect: (id: ToolId) => void;
-  desiredDisabled: (s: Skill) => boolean;
-}): React.ReactElement {
-  return (
-    <div className="actions-toolnav">
-      {props.tools.map((tool) => {
-        const md = tool.skills.filter(isMarkdownSkill);
-        const total = md.length;
-        const off = md.filter(props.desiredDisabled).length;
-        const on = total - off;
-        return (
-          <button
-            key={tool.id}
-            className={tool.id === props.selectedId ? "active" : ""}
-            onClick={() => props.onSelect(tool.id)}
-          >
-            {tool.name}
-            <span className="dim">{` · ${on}/${total}`}</span>
-          </button>
-        );
-      })}
-    </div>
   );
 }
 
