@@ -226,6 +226,11 @@ function Body(props: {
       onDiscard: props.discardActions,
       onSave: props.saveActions
     });
-    case "settings":  return { rail: undefined, detail: <SettingsView scan={props.scan} onScan={props.onScan} /> };
+    case "settings":  return SettingsView({
+      scan: props.scan,
+      selectedId: props.selections.settings,
+      onSelectId: props.selectFor("settings"),
+      onScan: props.onScan
+    });
   }
 }

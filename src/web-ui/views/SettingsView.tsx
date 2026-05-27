@@ -3,11 +3,59 @@ import React, { useState } from "react";
 import type { MultiProjectScanResult } from "../../types.js";
 import { relativizeHome } from "../../utils/paths.js";
 import { applyConfig } from "../api.js";
+import { Banner } from "../components/Banner.js";
+import { DetailHeader } from "../components/DetailHeader.js";
+import { EntityRail } from "../components/EntityRail.js";
+import { SectionLabel } from "../components/SectionLabel.js";
 
-export function SettingsView(props: {
+export interface SettingsViewProps {
+  scan: MultiProjectScanResult;
+  selectedId: string | null;
+  onSelectId: (id: string) => void;
+  onScan: (s: MultiProjectScanResult) => void;
+}
+
+/**
+ * Pure-function settings shell (zero hooks). The form sub-panel manages its own
+ * transient state (input text, busy flag, error) — it's a real JSX-rendered
+ * React component, so its hooks register against the right instance.
+ */
+export function SettingsView(props: SettingsViewProps): {
+  rail: React.ReactNode;
+  detail: React.ReactNode;
+} {
+  const devRoots = props.scan.devRoots;
+  const selectedId = props.selectedId ?? "dev-roots";
+
+  const rail = (
+    <EntityRail
+      sections={[
+        {
+          heading: "settings",
+          items: [{ id: "dev-roots", label: "dev roots", count: devRoots.length }]
+        }
+      ]}
+      selectedId={selectedId}
+      onSelect={props.onSelectId}
+    />
+  );
+
+  const detail = (
+    <DevRootsPanel
+      scan={props.scan}
+      onScan={props.onScan}
+    />
+  );
+
+  return { rail, detail };
+}
+
+interface DevRootsPanelProps {
   scan: MultiProjectScanResult;
   onScan: (s: MultiProjectScanResult) => void;
-}): React.ReactElement {
+}
+
+function DevRootsPanel(props: DevRootsPanelProps): React.ReactElement {
   const [input, setInput] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -54,63 +102,60 @@ export function SettingsView(props: {
   const scanned = new Date(props.scan.scannedAt).toLocaleString();
 
   return (
-    <div className="settings">
-      <div className="row">
-        <h3>
-          dev roots <span className="dim">({devRoots.length})</span>
-        </h3>
+    <>
+      <DetailHeader
+        crumb="SETTINGS / DEV ROOTS"
+        title="dev roots"
+        meta={`${devRoots.length} CONFIGURED · LAST SCAN ${scanned.toUpperCase()} · ${totalSkills} SKILLS`}
+      />
 
-        {devRoots.length === 0 && (
-          <div className="empty-whisper">
-            no dev roots yet. add one below, or run{" "}
-            <code>ankui discover --apply</code> from a terminal.
-          </div>
-        )}
+      {devRoots.length === 0 && (
+        <div className="empty-whisper">
+          no dev roots yet. add one below, or run <code>ankui discover --apply</code> from a terminal.
+        </div>
+      )}
 
-        {devRoots.map((root) => (
-          <div className="settings-row" key={root}>
-            <span className="name">{relativizeHome(root, homeDir)}</span>
-            <button
-              className="action settings-remove"
-              onClick={() => removeRoot(root)}
-              disabled={busy}
-              aria-label={`remove ${root}`}
-            >
-              ×
-            </button>
-          </div>
-        ))}
-
-        <div className="settings-add">
-          <input
-            type="text"
-            value={input}
-            placeholder="/Users/you/Developer"
-            spellCheck={false}
-            autoCorrect="off"
-            autoCapitalize="off"
-            disabled={busy}
-            onChange={(e) => setInput(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter") addRoot();
-            }}
-          />
+      <SectionLabel count={devRoots.length}>configured</SectionLabel>
+      {devRoots.map((root) => (
+        <div className="ank-row" key={root}>
+          <span className="ank-row-name">{relativizeHome(root, homeDir)}</span>
           <button
-            className="action primary"
-            onClick={addRoot}
-            disabled={busy || input.trim() === ""}
+            className="action settings-remove"
+            onClick={() => removeRoot(root)}
+            disabled={busy}
+            aria-label={`remove ${root}`}
           >
-            {busy ? "saving…" : "add"}
+            ×
           </button>
         </div>
+      ))}
 
-        {error && <div className="banner danger">{error}</div>}
+      <div className="settings-add">
+        <input
+          type="text"
+          value={input}
+          placeholder="/Users/you/Developer"
+          spellCheck={false}
+          autoCorrect="off"
+          autoCapitalize="off"
+          disabled={busy}
+          onChange={(e) => setInput(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") addRoot();
+          }}
+        />
+        <button
+          className="action primary"
+          onClick={addRoot}
+          disabled={busy || input.trim() === ""}
+        >
+          {busy ? "saving…" : "add"}
+        </button>
       </div>
 
-      <div className="settings-footer">
-        last scan · <span className="dim">{scanned}</span> ·{" "}
-        <span className="dim">{totalSkills} skills</span>
-      </div>
-    </div>
+      {error && (
+        <Banner variant="danger" badge="ERROR">{error}</Banner>
+      )}
+    </>
   );
 }
