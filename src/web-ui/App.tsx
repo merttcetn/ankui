@@ -43,14 +43,17 @@ export function App(): React.ReactElement {
   const loading = scan === null && !error;
   const showDone = scan !== null && justLoaded;
 
+  const view: { rail: React.ReactNode; detail: React.ReactNode } | null =
+    scan && !justLoaded ? Body({ tab, scan, onScan: setScan }) : null;
+
   const detail = (
     <>
       {error && <div className="banner danger">scan failed: {error}</div>}
       {loading && <LoadingSplash phase="loading" />}
       {showDone && <LoadingSplash phase="done" />}
-      {scan && !justLoaded && (
+      {view && (
         <div className="tab-panel" key={tab}>
-          <Body tab={tab} scan={scan} onScan={setScan} />
+          {view.detail}
         </div>
       )}
       <IdleWhisper enabled={scan !== null && !justLoaded} />
@@ -68,6 +71,7 @@ export function App(): React.ReactElement {
           refreshing={loading}
         />
       }
+      rail={view?.rail}
       detail={detail}
     />
   );
@@ -77,14 +81,14 @@ function Body(props: {
   tab: TabId;
   scan: MultiProjectScanResult;
   onScan: (scan: MultiProjectScanResult) => void;
-}): React.ReactElement {
+}): { rail: React.ReactNode; detail: React.ReactNode } {
   switch (props.tab) {
-    case "overview":  return <Overview scan={props.scan} />;
-    case "tools":     return <ToolsView scan={props.scan} />;
-    case "mcps":      return <McpsView scan={props.scan} />;
-    case "access":    return <AccessView scan={props.scan} />;
-    case "doctor":    return <DoctorView scan={props.scan} />;
-    case "actions":   return <ActionsView scan={props.scan} onScan={props.onScan} />;
-    case "settings":  return <SettingsView scan={props.scan} onScan={props.onScan} />;
+    case "overview":  return { rail: undefined, detail: <Overview scan={props.scan} /> };
+    case "tools":     return ToolsView({ scan: props.scan });
+    case "mcps":      return { rail: undefined, detail: <McpsView scan={props.scan} /> };
+    case "access":    return { rail: undefined, detail: <AccessView scan={props.scan} /> };
+    case "doctor":    return { rail: undefined, detail: <DoctorView scan={props.scan} /> };
+    case "actions":   return { rail: undefined, detail: <ActionsView scan={props.scan} onScan={props.onScan} /> };
+    case "settings":  return { rail: undefined, detail: <SettingsView scan={props.scan} onScan={props.onScan} /> };
   }
 }
