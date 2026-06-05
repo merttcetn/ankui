@@ -70,12 +70,14 @@ function renderDetail(
           title={tool.name}
           meta={tool.detected ? "DETECTED" : "NOT DETECTED"}
         />
-        <SectionLabel count={allPaths.length}>discovered paths</SectionLabel>
-        {allPaths.length === 0 ? (
-          <div className="empty-whisper">no paths discovered for this tool.</div>
-        ) : (
-          allPaths.map((p) => <SkillRow key={p} name={p} />)
-        )}
+        <div className="ank-view-body">
+          <SectionLabel count={allPaths.length}>discovered paths</SectionLabel>
+          {allPaths.length === 0 ? (
+            <div className="empty-whisper">no paths discovered for this tool.</div>
+          ) : (
+            allPaths.map((p) => <SkillRow key={p} name={p} />)
+          )}
+        </div>
       </>
     );
   }
@@ -90,9 +92,11 @@ function renderDetail(
           title={group.reason}
           meta={`${group.warnings.length} WARNING${group.warnings.length === 1 ? "" : "S"}`}
         />
-        {group.warnings.map((w) => (
-          <SkillRow key={w.id} name={w.message} source={w.path ?? undefined} />
-        ))}
+        <div className="ank-view-body">
+          {group.warnings.map((w) => (
+            <SkillRow key={w.id} name={w.message} source={w.path ?? undefined} />
+          ))}
+        </div>
       </>
     );
   }

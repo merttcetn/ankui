@@ -139,6 +139,26 @@ export function App(): React.ReactElement {
   }, [refresh]);
 
   useEffect(() => {
+    function onKey(event: KeyboardEvent): void {
+      if (event.key !== "r" && event.key !== "R") return;
+      if (event.metaKey || event.ctrlKey || event.altKey || event.shiftKey) return;
+      const el = document.activeElement;
+      if (el instanceof HTMLElement) {
+        const tag = el.tagName;
+        if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") return;
+        if (el.isContentEditable) return;
+      }
+      // Block only during an active load (scan null + no error). Error state
+      // should still allow retry — sidebar's refresh button is enabled there.
+      if (scan === null && error === null) return;
+      event.preventDefault();
+      void refresh();
+    }
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [refresh, scan, error]);
+
+  useEffect(() => {
     if (!scan) return;
     setActionsPending((prev) =>
       prev.filter((p) => {
@@ -195,6 +215,7 @@ export function App(): React.ReactElement {
           onSelect={setTab}
           onRefresh={() => void refresh()}
           refreshing={loading}
+          justDone={showDone}
         />
       }
       rail={view?.rail}

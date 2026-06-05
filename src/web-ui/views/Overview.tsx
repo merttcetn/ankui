@@ -19,17 +19,19 @@ export function Overview(props: { scan: MultiProjectScanResult }): {
   ];
 
   const scannedAt = new Date(props.scan.scannedAt).toLocaleString();
-  const meta = `SCANNED ${scannedAt.toUpperCase()} · LOCAL · READ-ONLY`;
+  const meta = `SCANNED ${scannedAt.toUpperCase()} · LOCAL · READ-ONLY SCAN`;
 
   return {
     rail: undefined,
     detail: (
       <>
         <DetailHeader crumb="OVERVIEW" title="ankui" meta={meta} />
-        <StatGrid items={items} />
-        <p className="ank-detail-meta">
-          {props.scan.totals.skillsAcrossProjects} skills across projects
-        </p>
+        <div className="ank-view-body">
+          <StatGrid items={items} />
+          <p className="ank-detail-meta">
+            {props.scan.totals.skillsAcrossProjects} skills across projects
+          </p>
+        </div>
       </>
     )
   };

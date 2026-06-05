@@ -16,6 +16,8 @@ export interface RunWebCommandOptions {
   port?: number;
   /** Open the browser automatically. Default true. */
   open?: boolean;
+  /** Force-disable ANSI colors. When undefined, falls back to NO_COLOR env + TTY detection. */
+  noColor?: boolean;
   write?: (chunk: string) => void;
 }
 
@@ -53,10 +55,11 @@ export async function runWebCommand(
   ctx.expectedOrigin = server.url;
   ctx.allowedOrigins = buildAllowedLoopbackOrigins(server.url);
 
-  write(
-    `\n  Ankui web UI  ${server.url}\n` +
-      `  local files only · read-only scan · Ctrl+C to stop\n\n`
-  );
+  // NO_COLOR spec: presence of the env var (incl. empty string) disables color.
+  const envDisablesColor = env.NO_COLOR !== undefined;
+  const useColor =
+    !options.noColor && !envDisablesColor && Boolean(process.stdout.isTTY);
+  write(renderBanner(server.url, useColor));
 
   if (options.open !== false) {
     openBrowser(server.url);
@@ -80,4 +83,23 @@ export async function runWebCommand(
   process.once("SIGTERM", onSignal);
 
   return { url: server.url, close: stop, done };
+}
+
+function renderBanner(url: string, color: boolean): string {
+  const wrap = (open: string) =>
+    color ? (s: string) => `${open}${s}\x1b[0m` : (s: string) => s;
+  const cyan = wrap("\x1b[36m");
+  const bold = wrap("\x1b[1m");
+  const dim = wrap("\x1b[2m");
+  const stopKey = process.platform === "darwin" ? "⌃C" : "ctrl+c";
+
+  return (
+    `\n` +
+    `  ${cyan("●")} ${bold("ankui")} ${dim("/ web ui")}\n` +
+    `  ${dim("remember what your agents can access")}\n` +
+    `\n` +
+    `     ${cyan("→")}  ${bold(url)}\n` +
+    `     ${dim(`local files · read-only scan · ${stopKey} to stop`)}\n` +
+    `\n`
+  );
 }

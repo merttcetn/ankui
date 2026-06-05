@@ -191,55 +191,52 @@ function ActionsToolPanel(props: ActionsToolPanelProps): React.ReactElement {
         meta={`${mdCount} MARKDOWN SKILL${mdCount === 1 ? "" : "S"}`}
       />
 
-      {groups.length === 0 ? (
-        <div className="empty-whisper">{EMPTY_STATE_WHISPERS.noActions}</div>
-      ) : (
-        groups.map((group) => (
-          <SkillGroupSection
-            key={group.label}
-            group={group}
-            expanded={isExpanded(group.label, group.alwaysExpanded)}
-            onToggle={() => toggleGroup(group.label)}
-            onBulkAction={(action) => handleBulk(group, action)}
-            bulkAvailable={bulkFor(group)}
-            onCheckUpdate={
-              isAnkuiTrackedBundle(group)
-                ? () => checkBundleStatus(group.origin.name)
-                : undefined
-            }
-            onApplyUpdate={
-              isAnkuiTrackedBundle(group)
-                ? (sha) =>
-                    applyBundleStatus(group.origin.name, sha, {
-                      onScan: props.onScan
-                    })
-                : undefined
-            }
-            updateStatus={
-              isAnkuiTrackedBundle(group)
-                ? bundleStatuses.get(group.origin.name)
-                : undefined
-            }
-          >
-            {group.skills.map((skill) => {
-              const isDisabled = props.desiredDisabled(skill);
-              const staged = props.pending.some((p) => p.id === skill.id);
-              return (
-                <div className="skill-line" key={skill.id}>
-                  <span className={isDisabled ? "dim" : "ok"}>
-                    {isDisabled ? "○" : "●"}
-                  </span>
-                  <span className="name">{skill.name}</span>
-                  {staged && <span className="dim">pending</span>}
-                  <button className="action" onClick={() => toggle(skill)}>
-                    {isDisabled ? "enable" : "disable"}
-                  </button>
-                </div>
-              );
-            })}
-          </SkillGroupSection>
-        ))
-      )}
+      <div className={`ank-view-body${hasPending ? " has-float-bar" : ""}`}>
+        {groups.length === 0 ? (
+          <div className="empty-whisper">{EMPTY_STATE_WHISPERS.noActions}</div>
+        ) : (
+          groups.map((group) => (
+            <SkillGroupSection
+              key={group.label}
+              group={group}
+              expanded={isExpanded(group.label, group.alwaysExpanded)}
+              onToggle={() => toggleGroup(group.label)}
+              onBulkAction={(action) => handleBulk(group, action)}
+              bulkAvailable={bulkFor(group)}
+              onCheckUpdate={
+                isAnkuiTrackedBundle(group)
+                  ? () => checkBundleStatus(group.origin.name)
+                  : undefined
+              }
+              onApplyUpdate={
+                isAnkuiTrackedBundle(group)
+                  ? (sha) =>
+                      applyBundleStatus(group.origin.name, sha, {
+                        onScan: props.onScan
+                      })
+                  : undefined
+              }
+              updateStatus={
+                isAnkuiTrackedBundle(group)
+                  ? bundleStatuses.get(group.origin.name)
+                  : undefined
+              }
+            >
+              {group.skills.map((skill) => {
+                const isDisabled = props.desiredDisabled(skill);
+                const staged = props.pending.some((p) => p.id === skill.id);
+                return (
+                  <div className={`skill-line${staged ? " is-pending" : ""}`} key={skill.id}>
+                    <span className="name">{skill.name}</span>
+                    {staged && <span className="ank-pill ank-pill-staged">STAGED</span>}
+                    <MagneticToggle enabled={!isDisabled} onToggle={() => toggle(skill)} />
+                  </div>
+                );
+              })}
+            </SkillGroupSection>
+          ))
+        )}
+      </div>
 
       {hasPending && (
         <ActionsFloatBar
@@ -257,6 +254,28 @@ function ActionsToolPanel(props: ActionsToolPanelProps): React.ReactElement {
   );
 }
 
+function MagneticToggle({
+  enabled,
+  onToggle
+}: {
+  enabled: boolean;
+  onToggle: () => void;
+}): React.ReactElement {
+  return (
+    <button
+      type="button"
+      className={`ank-toggle${enabled ? " is-on" : " is-off"}`}
+      onClick={onToggle}
+      role="switch"
+      aria-checked={enabled}
+    >
+      <span className="ank-toggle-seg ank-toggle-seg-on">on</span>
+      <span className="ank-toggle-seg ank-toggle-seg-off">off</span>
+      <span className="ank-toggle-dot" aria-hidden />
+    </button>
+  );
+}
+
 function ActionsFloatBar(props: {
   pending: number;
   saving: boolean;
@@ -266,9 +285,10 @@ function ActionsFloatBar(props: {
 }): React.ReactElement {
   return (
     <div className="actions-float" role="status" aria-live="polite">
-      <span className="count">{props.pending} pending</span>
+      <span className="actions-float-dot" aria-hidden />
+      <span className="count">{props.pending} STAGED</span>
       <button
-        className="action"
+        className="action ghost"
         onClick={props.onDiscard}
         disabled={props.saving}
       >
@@ -282,6 +302,7 @@ function ActionsFloatBar(props: {
         {props.saving ? "saving…" : "save"}
       </button>
       {props.status && <span className="dim">{props.status}</span>}
+      {props.saving && <span className="actions-float-shimmer" aria-hidden />}
     </div>
   );
 }

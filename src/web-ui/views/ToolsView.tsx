@@ -114,68 +114,70 @@ function ToolDetail({ tool, homeDir }: { tool: AITool; homeDir: string }): React
       />
       <StatGrid items={stats} />
 
-      {agentSkills.length > 0 && (
-        <>
-          <SectionLabel count={agentSkills.length}>agent skills</SectionLabel>
-          {agentSkills.map((sk) => {
-            const origin = originPill(sk);
-            const bo = isBundleOrigin(sk.details?.bundleOrigin) ? sk.details?.bundleOrigin : undefined;
-            const src = bo?.name
-              ? `${bo.name} · ${relativizeHome(sk.sourcePath, homeDir)}`
-              : relativizeHome(sk.sourcePath, homeDir);
-            return (
+      <div className="ank-view-body">
+        {agentSkills.length > 0 && (
+          <>
+            <SectionLabel count={agentSkills.length}>agent skills</SectionLabel>
+            {agentSkills.map((sk) => {
+              const origin = originPill(sk);
+              const bo = isBundleOrigin(sk.details?.bundleOrigin) ? sk.details?.bundleOrigin : undefined;
+              const src = bo?.name
+                ? `${bo.name} · ${relativizeHome(sk.sourcePath, homeDir)}`
+                : relativizeHome(sk.sourcePath, homeDir);
+              return (
+                <SkillRow
+                  key={sk.id}
+                  pill={origin}
+                  name={sk.name}
+                  source={src}
+                />
+              );
+            })}
+          </>
+        )}
+
+        {mcps.length > 0 && (
+          <>
+            <SectionLabel count={mcps.length}>mcp servers</SectionLabel>
+            {mcps.map((sk) => (
               <SkillRow
                 key={sk.id}
-                pill={origin}
+                pill={originPill(sk)}
                 name={sk.name}
-                source={src}
+                source={relativizeHome(sk.sourcePath, homeDir)}
               />
-            );
-          })}
-        </>
-      )}
+            ))}
+          </>
+        )}
 
-      {mcps.length > 0 && (
-        <>
-          <SectionLabel count={mcps.length}>mcp servers</SectionLabel>
-          {mcps.map((sk) => (
-            <SkillRow
-              key={sk.id}
-              pill={originPill(sk)}
-              name={sk.name}
-              source={relativizeHome(sk.sourcePath, homeDir)}
-            />
-          ))}
-        </>
-      )}
+        {commands.length > 0 && (
+          <>
+            <SectionLabel count={commands.length}>commands</SectionLabel>
+            {commands.map((sk) => (
+              <SkillRow
+                key={sk.id}
+                pill={originPill(sk)}
+                name={sk.name}
+                source={relativizeHome(sk.sourcePath, homeDir)}
+              />
+            ))}
+          </>
+        )}
 
-      {commands.length > 0 && (
-        <>
-          <SectionLabel count={commands.length}>commands</SectionLabel>
-          {commands.map((sk) => (
-            <SkillRow
-              key={sk.id}
-              pill={originPill(sk)}
-              name={sk.name}
-              source={relativizeHome(sk.sourcePath, homeDir)}
-            />
-          ))}
-        </>
-      )}
-
-      {others.length > 0 && (
-        <>
-          <SectionLabel count={others.length}>other</SectionLabel>
-          {others.map((sk) => (
-            <SkillRow
-              key={sk.id}
-              pill={{ variant: KIND_PILL[sk.kind] ?? "muted", label: sk.kind.toUpperCase() }}
-              name={sk.name}
-              source={relativizeHome(sk.sourcePath, homeDir)}
-            />
-          ))}
-        </>
-      )}
+        {others.length > 0 && (
+          <>
+            <SectionLabel count={others.length}>other</SectionLabel>
+            {others.map((sk) => (
+              <SkillRow
+                key={sk.id}
+                pill={{ variant: KIND_PILL[sk.kind] ?? "muted", label: sk.kind.toUpperCase() }}
+                name={sk.name}
+                source={relativizeHome(sk.sourcePath, homeDir)}
+              />
+            ))}
+          </>
+        )}
+      </div>
     </>
   );
 }
@@ -195,19 +197,21 @@ function ProjectDetail({
         title={project.displayPath}
         meta={`${totalSkills} SKILL${totalSkills === 1 ? "" : "S"}`}
       />
-      {project.scan.tools.filter((t) => t.detected).map((tool) => (
-        <div key={tool.id} style={{ marginBottom: 14 }}>
-          <SectionLabel count={tool.skills.length}>{tool.name}</SectionLabel>
-          {tool.skills.map((sk) => (
-            <SkillRow
-              key={sk.id}
-              pill={originPill(sk)}
-              name={sk.name}
-              source={relativizeHome(sk.sourcePath, homeDir)}
-            />
-          ))}
-        </div>
-      ))}
+      <div className="ank-view-body">
+        {project.scan.tools.filter((t) => t.detected).map((tool) => (
+          <div key={tool.id} style={{ marginBottom: 14 }}>
+            <SectionLabel count={tool.skills.length}>{tool.name}</SectionLabel>
+            {tool.skills.map((sk) => (
+              <SkillRow
+                key={sk.id}
+                pill={originPill(sk)}
+                name={sk.name}
+                source={relativizeHome(sk.sourcePath, homeDir)}
+              />
+            ))}
+          </div>
+        ))}
+      </div>
     </>
   );
 }

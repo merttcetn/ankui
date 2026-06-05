@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 
 import type { MultiProjectScanResult } from "../../types.js";
 import { aggregateMcps } from "../../tui/util/mcp-grouping.js";
@@ -26,9 +26,29 @@ export interface SidebarProps {
   onSelect: (id: TabId) => void;
   onRefresh: () => void;
   refreshing: boolean;
+  justDone: boolean;
 }
 
-export function Sidebar({ scan, activeTab, onSelect, onRefresh, refreshing }: SidebarProps): React.ReactElement {
+function formatAgo(ts: number, now: number): string {
+  const diff = Math.max(0, now - ts);
+  const s = Math.floor(diff / 1000);
+  if (s < 10) return "now";
+  if (s < 60) return `${s}s`;
+  const m = Math.floor(s / 60);
+  if (m < 60) return `${m}m`;
+  const h = Math.floor(m / 60);
+  if (h < 24) return `${h}h`;
+  const d = new Date(ts);
+  const mm = String(d.getMonth() + 1).padStart(2, "0");
+  const dd = String(d.getDate()).padStart(2, "0");
+  const hh = String(d.getHours()).padStart(2, "0");
+  const mi = String(d.getMinutes()).padStart(2, "0");
+  return `${mm}/${dd} ${hh}:${mi}`;
+}
+
+export function Sidebar({ scan, activeTab, onSelect, onRefresh, refreshing, justDone }: SidebarProps): React.ReactElement {
+  const parsedScanAt = scan ? Date.parse(scan.scannedAt) : NaN;
+  const lastScanAt = Number.isFinite(parsedScanAt) ? parsedScanAt : null;
   const mcpCount = scan ? aggregateMcps(scan).length : undefined;
   const findingCount = scan
     ? aggregateFindings(scan).reduce((sum, s) => sum + s.findings.length, 0)
@@ -60,8 +80,8 @@ export function Sidebar({ scan, activeTab, onSelect, onRefresh, refreshing }: Si
   return (
     <>
       <div className="ank-side-brand">
-        <div className="ank-side-name">ANKUI</div>
-        <div className="ank-side-tag">remember what your<br />agents can access</div>
+        <div className="ank-side-name">ankui</div>
+        <div className="ank-side-tag">remember what your agents can access</div>
       </div>
       <nav className="ank-side-nav">
         {items.map((item) => (
@@ -81,14 +101,37 @@ export function Sidebar({ scan, activeTab, onSelect, onRefresh, refreshing }: Si
       <div className="ank-side-foot">
         <button
           type="button"
-          className="ank-side-refresh"
+          className={`ank-side-refresh${refreshing ? " is-scanning" : ""}${justDone ? " is-done" : ""}`}
           onClick={onRefresh}
           disabled={refreshing}
+          aria-keyshortcuts="R"
         >
-          {refreshing ? "scanning…" : "refresh"}
+          <span className="ank-side-refresh-dot" aria-hidden />
+          <span className="ank-side-refresh-label">
+            {refreshing ? "scanning" : justDone ? "done" : "refresh"}
+          </span>
+          <span className="ank-side-refresh-key" aria-hidden>R</span>
+          <span className="ank-side-refresh-underline" aria-hidden />
         </button>
-        <div className="ank-side-foot-meta">LOCAL · READ-ONLY</div>
+        <FootMeta lastScanAt={lastScanAt} />
       </div>
     </>
+  );
+}
+
+function FootMeta({ lastScanAt }: { lastScanAt: number | null }): React.ReactElement {
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    if (lastScanAt === null) return;
+    const id = window.setInterval(() => setNow(Date.now()), 30_000);
+    return () => window.clearInterval(id);
+  }, [lastScanAt]);
+  if (lastScanAt === null) {
+    return <div className="ank-side-foot-meta">LOCAL · READ-ONLY SCAN</div>;
+  }
+  return (
+    <div className="ank-side-foot-meta">
+      LAST SCAN <span className="ank-side-foot-time">{formatAgo(lastScanAt, now)}</span>
+    </div>
   );
 }

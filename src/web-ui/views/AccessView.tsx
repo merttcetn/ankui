@@ -66,22 +66,24 @@ export function AccessView(props: {
         title={selected.label}
         meta={`${fCount} FINDING${fCount === 1 ? "" : "S"}`}
       />
-      {selected.findings.map((finding) => (
-        <Banner key={finding.id} variant={variant} badge={badge}>
-          <strong>{finding.title}</strong>
-          <span className="ank-finding-msg"> · {finding.message}</span>
-          {finding.recommendation && (
-            <span className="ank-finding-rec"> — {finding.recommendation}</span>
-          )}
-          {finding.sourcePaths.length > 0 && (
-            <span className="ank-finding-src">
-              {finding.sourcePaths.map((p) => (
-                <span key={p} className="ank-finding-src-item">{p}</span>
-              ))}
-            </span>
-          )}
-        </Banner>
-      ))}
+      <div className="ank-view-body">
+        {selected.findings.map((finding) => (
+          <Banner key={finding.id} variant={variant} badge={badge}>
+            <strong>{finding.title}</strong>
+            <span className="ank-finding-msg"> · {finding.message}</span>
+            {finding.recommendation && (
+              <span className="ank-finding-rec"> — {finding.recommendation}</span>
+            )}
+            {finding.sourcePaths.length > 0 && (
+              <span className="ank-finding-src">
+                {finding.sourcePaths.map((p) => (
+                  <span key={p} className="ank-finding-src-item">{p}</span>
+                ))}
+              </span>
+            )}
+          </Banner>
+        ))}
+      </div>
     </>
   );
 

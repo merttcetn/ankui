@@ -109,53 +109,55 @@ function DevRootsPanel(props: DevRootsPanelProps): React.ReactElement {
         meta={`${devRoots.length} CONFIGURED · LAST SCAN ${scanned.toUpperCase()} · ${totalSkills} SKILLS`}
       />
 
-      {devRoots.length === 0 && (
-        <div className="empty-whisper">
-          no dev roots yet. add one below, or run <code>ankui discover --apply</code> from a terminal.
-        </div>
-      )}
+      <div className="ank-view-body">
+        {devRoots.length === 0 && (
+          <div className="empty-whisper">
+            no dev roots yet. add one below, or run <code>ankui discover --apply</code> from a terminal.
+          </div>
+        )}
 
-      <SectionLabel count={devRoots.length}>configured</SectionLabel>
-      {devRoots.map((root) => (
-        <div className="ank-row" key={root}>
-          <span className="ank-row-name">{relativizeHome(root, homeDir)}</span>
-          <button
-            className="action settings-remove"
-            onClick={() => removeRoot(root)}
+        <SectionLabel count={devRoots.length}>configured</SectionLabel>
+        {devRoots.map((root) => (
+          <div className="ank-row" key={root}>
+            <span className="ank-row-name">{relativizeHome(root, homeDir)}</span>
+            <button
+              className="action settings-remove"
+              onClick={() => removeRoot(root)}
+              disabled={busy}
+              aria-label={`remove ${root}`}
+            >
+              ×
+            </button>
+          </div>
+        ))}
+
+        <div className="settings-add">
+          <input
+            type="text"
+            value={input}
+            placeholder="/Users/you/Developer"
+            spellCheck={false}
+            autoCorrect="off"
+            autoCapitalize="off"
             disabled={busy}
-            aria-label={`remove ${root}`}
+            onChange={(e) => setInput(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") addRoot();
+            }}
+          />
+          <button
+            className="action primary"
+            onClick={addRoot}
+            disabled={busy || input.trim() === ""}
           >
-            ×
+            {busy ? "saving…" : "add"}
           </button>
         </div>
-      ))}
 
-      <div className="settings-add">
-        <input
-          type="text"
-          value={input}
-          placeholder="/Users/you/Developer"
-          spellCheck={false}
-          autoCorrect="off"
-          autoCapitalize="off"
-          disabled={busy}
-          onChange={(e) => setInput(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === "Enter") addRoot();
-          }}
-        />
-        <button
-          className="action primary"
-          onClick={addRoot}
-          disabled={busy || input.trim() === ""}
-        >
-          {busy ? "saving…" : "add"}
-        </button>
+        {error && (
+          <Banner variant="danger" badge="ERROR">{error}</Banner>
+        )}
       </div>
-
-      {error && (
-        <Banner variant="danger" badge="ERROR">{error}</Banner>
-      )}
     </>
   );
 }

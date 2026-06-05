@@ -91,9 +91,12 @@ program
   })
   .option("--no-open", "do not open the browser automatically")
   .action(async (cmdOpts: { port?: number; open?: boolean }) => {
+    // Commander turns --no-color into opts().color === false.
+    const noColor = program.opts<{ color?: boolean }>().color === false;
     const handle = await runWebCommand({
       port: cmdOpts.port,
-      open: cmdOpts.open
+      open: cmdOpts.open,
+      noColor
     });
     await handle.done;
   });

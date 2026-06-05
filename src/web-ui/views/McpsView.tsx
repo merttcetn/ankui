@@ -72,21 +72,23 @@ export function McpsView(props: {
         </Banner>
       )}
 
-      <SectionLabel count={cfgCount}>configurations</SectionLabel>
-      {selected.configurations.map((cfg, i) => {
-        const originLabel = formatInlineOriginLabel(cfg.bundleOrigin);
-        const src = originLabel
-          ? `${cfg.scope} · ${cfg.sourcePath} · ${originLabel}`
-          : `${cfg.scope} · ${cfg.sourcePath}`;
-        return (
-          <SkillRow
-            key={`${cfg.toolId}:${cfg.sourcePath}:${i}`}
-            pill={{ variant: "muted", label: cfg.toolId.toUpperCase() }}
-            name={cfg.toolId}
-            source={src}
-          />
-        );
-      })}
+      <div className="ank-view-body">
+        <SectionLabel count={cfgCount}>configurations</SectionLabel>
+        {selected.configurations.map((cfg, i) => {
+          const originLabel = formatInlineOriginLabel(cfg.bundleOrigin);
+          const src = originLabel
+            ? `${cfg.scope} · ${cfg.sourcePath} · ${originLabel}`
+            : `${cfg.scope} · ${cfg.sourcePath}`;
+          return (
+            <SkillRow
+              key={`${cfg.toolId}:${cfg.sourcePath}:${i}`}
+              pill={{ variant: "muted", label: cfg.toolId.toUpperCase() }}
+              name={cfg.toolId}
+              source={src}
+            />
+          );
+        })}
+      </div>
     </>
   );
 
