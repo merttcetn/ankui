@@ -35,5 +35,8 @@ jobs:
       - name: Upgrade npm for OIDC trusted publishing
         run: npm install -g npm@11
 
-      - name: Publish to npm with provenance
-        run: npm publish --provenance --access public
+      # No --provenance: npm requires a public source repo to verify the
+      # Sigstore attestation. OIDC trusted publishing still authenticates
+      # the publish; we just skip the public attestation step.
+      - name: Publish to npm
+        run: npm publish --access public
