@@ -264,10 +264,64 @@ export function parseMarkdownFrontmatter(
   const parsed = parseYamlText(yamlText, sourcePath);
 
   if (!parsed.ok) {
+    const recovered = recoverFrontmatterFields(yamlText);
+
+    if (Object.keys(recovered).length > 0) {
+      return { metadata: recovered, warnings: [] };
+    }
+
     return { metadata: {}, warnings: parsed.warnings };
   }
 
   return { metadata: readRecord(parsed.value) ?? {}, warnings: parsed.warnings };
+}
+
+// Permissive fallback: when strict YAML rejects frontmatter that Claude itself
+// accepts (bracket values, multi-line description blocks with embedded XML, etc.),
+// scan top-level `key: value` lines so we still surface the skill's metadata.
+const YAML_LONE_INDICATORS = new Set([
+  "[",
+  "]",
+  "{",
+  "}",
+  "&",
+  "*",
+  ">",
+  "|",
+  ":",
+  "-",
+  "?",
+  "!"
+]);
+
+function recoverFrontmatterFields(yamlText: string): Record<string, string> {
+  const result: Record<string, string> = {};
+  const keyValue = /^([A-Za-z_][\w-]*)\s*:\s*(.*)$/;
+
+  for (const line of yamlText.split("\n")) {
+    const match = keyValue.exec(line);
+
+    if (!match) {
+      continue;
+    }
+
+    const [, key, rawValue] = match;
+    const trimmed = rawValue.trim();
+
+    if (trimmed.length === 0) {
+      continue;
+    }
+
+    if (trimmed.length === 1 && YAML_LONE_INDICATORS.has(trimmed)) {
+      continue;
+    }
+
+    const quoted = /^"(.*)"$|^'(.*)'$/.exec(trimmed);
+
+    result[key] = quoted ? (quoted[1] ?? quoted[2] ?? "") : trimmed;
+  }
+
+  return result;
 }
 
 export function extractFirstHeading(text: string): string | undefined {
