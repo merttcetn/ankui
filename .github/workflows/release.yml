@@ -31,5 +31,9 @@ jobs:
       - run: npm test
       - run: npm run build
 
+      # Node 22 ships npm 10.x; OIDC trusted publishing needs npm 11.5+.
+      - name: Upgrade npm for OIDC trusted publishing
+        run: npm install -g npm@11
+
       - name: Publish to npm with provenance
         run: npm publish --provenance --access public
