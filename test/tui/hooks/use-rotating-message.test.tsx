@@ -25,16 +25,28 @@ test("useRotatingMessage returns 'Remembering...' on first render", () => {
 
 test("useRotatingMessage advances to 'Anghkooey.' after one interval", async () => {
   const inst = render(<Probe active={true} intervalMs={50} />);
-  await new Promise((r) => setTimeout(r, 75));
-  assert.match(inst.lastFrame() ?? "", /Anghkooey\./);
-  inst.unmount();
+  try {
+    // Poll up to 2s — CI runners can starve a 50ms interval, and a one-shot
+    // sleep races with scheduler jitter. We just need to see the message
+    // advance once, not catch the exact moment.
+    const deadline = Date.now() + 2_000;
+    while (Date.now() < deadline && !/Anghkooey\./.test(inst.lastFrame() ?? "")) {
+      await new Promise((r) => setTimeout(r, 25));
+    }
+    assert.match(inst.lastFrame() ?? "", /Anghkooey\./);
+  } finally {
+    inst.unmount();
+  }
 });
 
 test("useRotatingMessage holds at 'Remembering...' when active is false", async () => {
   const inst = render(<Probe active={false} intervalMs={10} />);
-  await new Promise((r) => setTimeout(r, 25));
-  assert.match(inst.lastFrame() ?? "", /Remembering\.\.\./);
-  inst.unmount();
+  try {
+    await new Promise((r) => setTimeout(r, 50));
+    assert.match(inst.lastFrame() ?? "", /Remembering\.\.\./);
+  } finally {
+    inst.unmount();
+  }
 });
 
 test("useRotatingMessage clears its interval on unmount (no throws after unmount)", async () => {

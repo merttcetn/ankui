@@ -1,6 +1,6 @@
 {
   "name": "ankui",
-  "version": "0.2.2",
+  "version": "0.2.3",
   "description": "Local-first TUI/CLI for inspecting AI coding tool configurations.",
   "type": "module",
   "bin": {
