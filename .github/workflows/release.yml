@@ -35,8 +35,19 @@ jobs:
       - name: Upgrade npm for OIDC trusted publishing
         run: npm install -g npm@11
 
-      # No --provenance: npm requires a public source repo to verify the
-      # Sigstore attestation. OIDC trusted publishing still authenticates
-      # the publish; we just skip the public attestation step.
+      # --provenance auto-enables when the source repo is public.
+      # npm refuses to publish provenance bundles for private repos
+      # (the Sigstore attestation must be independently verifiable),
+      # so we skip the flag while ankui is private and pick it up the
+      # moment the repo flips to public — no manual workflow edit needed.
       - name: Publish to npm
-        run: npm publish --access public
+        env:
+          IS_PRIVATE: ${{ github.event.repository.private }}
+        run: |
+          if [ "$IS_PRIVATE" = "true" ]; then
+            echo "Source repo is private — publishing without --provenance"
+            npm publish --access public
+          else
+            echo "Source repo is public — publishing with --provenance"
+            npm publish --provenance --access public
+          fi
