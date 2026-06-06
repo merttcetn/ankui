@@ -6,7 +6,12 @@ import type { DetectedBundle } from "../../bundles/detect.js";
 import { DotLeaderRow } from "../components/DotLeaderRow.js";
 import { EmptyStateWhisper } from "../components/EmptyStateWhisper.js";
 import { SectionHeader } from "../components/SectionHeader.js";
-import { usePanelWidth } from "../util/panel-width.js";
+import {
+  clipHint,
+  useAvailableContentRows,
+  usePanelWidth
+} from "../util/panel-width.js";
+import { clampCursor, windowStart } from "../util/viewport.js";
 
 /**
  * Per-bundle counts the screen needs to render the `● n ○ m` pair: how many
@@ -49,7 +54,32 @@ export function BundlesScreen({
   const panelWidth = usePanelWidth();
   const tracked = registry.bundles;
   const totalRows = tracked.length + detected.length;
-  const active = totalRows === 0 ? -1 : Math.max(0, Math.min(cursor, totalRows - 1));
+  const active = totalRows === 0 ? -1 : clampCursor(cursor, totalRows);
+
+  // Fixed overhead: 2 SectionHeader (label + underline) + 1 summary Text
+  // + 1 hint row, plus the group-label blocks ("Tracked"/"Detected" with
+  // marginTop = 2 rows each).  Headers are only rendered when their slice
+  // is non-empty, but to keep the budget stable as the window scrolls we
+  // always reserve for both when they *exist on disk* — a cursor scrolling
+  // off the tracked list shouldn't make an extra row pop into view and
+  // re-overflow the terminal.
+  const reserveTrackedHeader = tracked.length > 0 ? 2 : 0;
+  const reserveDetectedHeader = detected.length > 0 ? 2 : 0;
+  const fixedOverhead = 2 + 1 + 1 + reserveTrackedHeader + reserveDetectedHeader;
+  const rowsBudget = useAvailableContentRows(fixedOverhead);
+  const visibleCount = Math.max(1, rowsBudget);
+  const start = totalRows === 0 ? 0 : windowStart(active, totalRows, visibleCount);
+  const end = Math.min(totalRows, start + visibleCount);
+
+  const visTrackedStart = Math.min(start, tracked.length);
+  const visTrackedEnd = Math.min(end, tracked.length);
+  const visDetectedStart = Math.max(0, start - tracked.length);
+  const visDetectedEnd = Math.max(0, end - tracked.length);
+
+  const visTracked = tracked.slice(visTrackedStart, visTrackedEnd);
+  const visDetected = detected.slice(visDetectedStart, visDetectedEnd);
+  const hidden = totalRows - (end - start);
+  const bundlesHint = clipHint(hidden);
 
   return (
     <Box flexDirection="column">
@@ -67,10 +97,11 @@ export function BundlesScreen({
         </Box>
       ) : (
         <>
-          {tracked.length > 0 && (
+          {visTracked.length > 0 && (
             <Box marginTop={1} flexDirection="column">
               <Text bold>Tracked (ankui add)</Text>
-              {tracked.map((b, i) => {
+              {visTracked.map((b, i) => {
+                const navIndex = visTrackedStart + i;
                 const distinctSkills = new Set(b.installs.map((inst) => inst.skillName)).size;
                 const distinctTools = new Set(b.installs.map((inst) => inst.toolId)).size;
                 const c = counts?.get(`tracked:${b.name}`);
@@ -84,7 +115,7 @@ export function BundlesScreen({
                     label={b.name}
                     metadata={meta}
                     width={panelWidth}
-                    active={i === active}
+                    active={navIndex === active}
                     originLabel={origin}
                   />
                 );
@@ -92,11 +123,11 @@ export function BundlesScreen({
             </Box>
           )}
 
-          {detected.length > 0 && (
+          {visDetected.length > 0 && (
             <Box marginTop={1} flexDirection="column">
               <Text bold>Detected (manually managed)</Text>
-              {detected.map((d, i) => {
-                const navIndex = tracked.length + i;
+              {visDetected.map((d, i) => {
+                const navIndex = tracked.length + visDetectedStart + i;
                 const c = counts?.get(`detected:${d.name}`);
                 const liveCounts = c ? ` ● ${c.enabled}  ○ ${c.disabled}` : "";
                 const meta = `${d.totalSkills}sk × ${d.perTool.length}tl${liveCounts}`;
@@ -113,6 +144,8 @@ export function BundlesScreen({
               })}
             </Box>
           )}
+
+          {bundlesHint !== null && <Text dimColor>{bundlesHint}</Text>}
         </>
       )}
     </Box>

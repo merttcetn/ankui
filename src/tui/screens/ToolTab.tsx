@@ -10,7 +10,11 @@ import type {
 import type { TuiAction } from "../state/tui-state.js";
 import { SectionHeader } from "../components/SectionHeader.js";
 import { DotLeaderRow } from "../components/DotLeaderRow.js";
-import { usePanelWidth } from "../util/panel-width.js";
+import {
+  clipHint,
+  useAvailableContentRows,
+  usePanelWidth
+} from "../util/panel-width.js";
 
 export interface ToolTabProps {
   toolId: ToolId;
@@ -37,6 +41,22 @@ export function ToolTab({ toolId, result, dispatch }: ToolTabProps): React.React
     return projectTool && projectTool.skills.length > 0;
   });
 
+  const visibleStats = Object.entries(tool.stats).filter(
+    ([, count]) => typeof count === "number" && (count as number) > 0
+  );
+
+  // Fixed-overhead rows this screen renders before the projects list.
+  // SectionHeader renders TWO rows (label + underline), not one.
+  //   2 tool SectionHeader + 1 summary Text
+  // + 1 marginTop + 2 USER SCOPE SectionHeader + 1 detectedPaths + N stats
+  // + 1 marginTop + 2 PROJECTS SectionHeader
+  // + 1 reserved for the "+N more" hint
+  const fixedOverhead = 3 + (4 + visibleStats.length) + 3 + 1;
+  const projectsBudget = useAvailableContentRows(fixedOverhead);
+  const visibleProjects = projectsWithSkills.slice(0, Math.max(0, projectsBudget));
+  const hiddenProjects = projectsWithSkills.length - visibleProjects.length;
+  const projectsHint = clipHint(hiddenProjects);
+
   return (
     <Box flexDirection="column">
       <SectionHeader label={toolId.toUpperCase()} underlineWidth={panelWidth} />
@@ -45,22 +65,20 @@ export function ToolTab({ toolId, result, dispatch }: ToolTabProps): React.React
       <Box marginTop={1} flexDirection="column">
         <SectionHeader label="USER SCOPE" underlineWidth={panelWidth} />
         <Text dimColor>{tool.detectedPaths.join(" · ")}</Text>
-        {Object.entries(tool.stats)
-          .filter(([, count]) => typeof count === "number" && (count as number) > 0)
-          .map(([kind, count]) => (
-            <DotLeaderRow
-              key={kind}
-              label={kind}
-              metadata={String(count)}
-              width={panelWidth}
-            />
-          ))}
+        {visibleStats.map(([kind, count]) => (
+          <DotLeaderRow
+            key={kind}
+            label={kind}
+            metadata={String(count)}
+            width={panelWidth}
+          />
+        ))}
       </Box>
 
       {projectsWithSkills.length > 0 && (
         <Box marginTop={1} flexDirection="column">
           <SectionHeader label="PROJECTS" underlineWidth={panelWidth} />
-          {projectsWithSkills.map((project) => (
+          {visibleProjects.map((project) => (
             <DotLeaderRow
               key={project.projectPath}
               label={project.displayPath}
@@ -68,6 +86,7 @@ export function ToolTab({ toolId, result, dispatch }: ToolTabProps): React.React
               width={panelWidth}
             />
           ))}
+          {projectsHint !== null && <Text dimColor>{projectsHint}</Text>}
         </Box>
       )}
     </Box>

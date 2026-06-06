@@ -14,7 +14,11 @@ import {
   formatCapabilityTag,
   type McpGroup
 } from "../util/mcp-grouping.js";
-import { usePanelWidth } from "../util/panel-width.js";
+import {
+  clipHint,
+  useAvailableContentRows,
+  usePanelWidth
+} from "../util/panel-width.js";
 
 export interface McpsTabProps {
   result: MultiProjectScanResult;
@@ -42,6 +46,22 @@ export function McpsTab({ result }: McpsTabProps): React.ReactElement {
     for (const config of group.configurations) toolSet.add(config.toolId);
   }
 
+  // Fixed overhead: 2 SectionHeader (label + underline) + 1 summary Text
+  // + 1 reserved hint row. Per-group height varies, so we clip whole groups
+  // (splitting a group mid-render is ugly) — accumulate until the next
+  // group would overflow.
+  const fixedOverhead = 2 + 1 + 1;
+  const groupsBudget = useAvailableContentRows(fixedOverhead);
+  let usedRows = 0;
+  const visibleGroups: McpGroup[] = [];
+  for (const group of groups) {
+    if (usedRows + groupRows(group) > groupsBudget) break;
+    usedRows += groupRows(group);
+    visibleGroups.push(group);
+  }
+  const hiddenGroups = groups.length - visibleGroups.length;
+  const groupsHint = clipHint(hiddenGroups);
+
   return (
     <Box flexDirection="column">
       <SectionHeader label="MCPS" underlineWidth={panelWidth} />
@@ -49,7 +69,7 @@ export function McpsTab({ result }: McpsTabProps): React.ReactElement {
         {groups.length} unique · {totalConfigs} configurations · {toolSet.size} tools
       </Text>
 
-      {groups.map((group) => (
+      {visibleGroups.map((group) => (
         <McpGroupBlock
           key={group.name.toLowerCase()}
           group={group}
@@ -57,7 +77,18 @@ export function McpsTab({ result }: McpsTabProps): React.ReactElement {
           rowWidth={panelWidth}
         />
       ))}
+      {groupsHint !== null && <Text dimColor>{groupsHint}</Text>}
     </Box>
+  );
+}
+
+function groupRows(group: McpGroup): number {
+  return (
+    1 + // marginTop
+    1 + // name + capability pill
+    group.configurations.length +
+    (group.duplicatedAcrossTools ? 1 : 0) +
+    (group.secretEnvKeys.length > 0 ? 1 : 0)
   );
 }
 

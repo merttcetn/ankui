@@ -12,7 +12,11 @@ import {
   type DoctorToolRow,
   type WarningGroup
 } from "../util/doctor-grouping.js";
-import { usePanelWidth } from "../util/panel-width.js";
+import {
+  clipHint,
+  useAvailableContentRows,
+  usePanelWidth
+} from "../util/panel-width.js";
 
 export interface DoctorTabProps {
   result: MultiProjectScanResult;
@@ -23,6 +27,28 @@ export function DoctorTab({ result }: DoctorTabProps): React.ReactElement {
   const warningGroups = groupWarningsByReason(result);
   const detectedCount = board.filter((row) => row.detected).length;
   const panelWidth = usePanelWidth();
+
+  const toolBoardRows = board.reduce((n, row) => n + toolRowHeight(row), 0);
+
+  // Fixed overhead before the warnings list:
+  //   2 DOCTOR SectionHeader + 1 summary
+  // + 1 marginTop + 2 TOOLS SectionHeader + toolBoardRows
+  // + 1 marginTop + 2 WARNINGS SectionHeader
+  // + 1 hint reservation
+  const fixedOverhead = 3 + (3 + toolBoardRows) + 3 + 1;
+  const warningsBudget = useAvailableContentRows(fixedOverhead);
+
+  // Clip whole warning groups (don't split a group's children mid-render).
+  let usedRows = 0;
+  const visibleGroups: WarningGroup[] = [];
+  for (const group of warningGroups) {
+    const groupRows = 1 + 1 + group.warnings.length; // marginTop + bold header + N warnings
+    if (usedRows + groupRows > warningsBudget) break;
+    usedRows += groupRows;
+    visibleGroups.push(group);
+  }
+  const hiddenGroups = warningGroups.length - visibleGroups.length;
+  const warningsHint = clipHint(hiddenGroups);
 
   return (
     <Box flexDirection="column">
@@ -47,15 +73,26 @@ export function DoctorTab({ result }: DoctorTabProps): React.ReactElement {
             </Box>
           </Box>
         ) : (
-          <WarningsSection
-            groups={warningGroups}
-            homeDir={result.homeDir}
-            underlineWidth={panelWidth}
-          />
+          <>
+            <WarningsSection
+              groups={visibleGroups}
+              homeDir={result.homeDir}
+              underlineWidth={panelWidth}
+            />
+            {warningsHint !== null && <Text dimColor>{warningsHint}</Text>}
+          </>
         )}
       </Box>
     </Box>
   );
+}
+
+function toolRowHeight(row: DoctorToolRow): number {
+  if (!row.detected) return 1;
+  let h = 1; // header row
+  if (row.userPaths.length > 0) h += 1 + row.userPaths.length;
+  if (row.projectPaths.length > 0) h += 1 + row.projectPaths.length;
+  return h;
 }
 
 function ToolBoardRow({ row }: { row: DoctorToolRow }): React.ReactElement {
