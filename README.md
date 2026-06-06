@@ -2,6 +2,8 @@
 
 > Local-only inventory of what your AI coding tools can access.
 
+Landing page: [ankui.vercel.app](https://ankui.vercel.app)
+
 ## What Ankui is
 
 AI coding tools accumulate configuration, skills, rules, and MCP servers across your filesystem, and it is easy to lose track of what each one can access. Ankui is a local-first scanner and terminal UI that inventories those resources and surfaces access findings — it never executes user code, follows remote URLs, or sends data anywhere. The one thing it can write is reversible: from the TUI or the `ankui web` browser UI you can disable or re-enable an individual skill, which only moves its directory into or out of a sibling `.disabled/` folder — no file is read, modified, or deleted. Supported tools: Claude, Codex, Cursor, Gemini, OpenCode, Antigravity, and skills.sh.
