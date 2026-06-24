@@ -14,13 +14,13 @@ test("LoadingSplash renders the initial message 'Remembering...'", () => {
   inst.unmount();
 });
 
-test("LoadingSplash renders scan signal rows and read-only hint", () => {
+test("LoadingSplash renders scan signal rows and read-only scans hint", () => {
   const inst = render(<LoadingSplash active={true} intervalMs={1_000_000} />);
   const frame = inst.lastFrame() ?? "";
   assert.match(frame, /locating config roots/);
   assert.match(frame, /reading tool manifests/);
   assert.match(frame, /linking MCP access/);
-  assert.match(frame, /read-only scan/);
+  assert.match(frame, /read-only scans/);
   inst.unmount();
 });
 

@@ -7,6 +7,10 @@ dist/
 npm-debug.log*
 *.md
 !README.md
+!CHANGELOG.md
+!SECURITY.md
+!CONTRIBUTING.md
+!BRAND.md
 !.github/**/*.md
 .claude/
 .gstack/

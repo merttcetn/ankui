@@ -6,7 +6,13 @@ Landing page: [ankui.vercel.app](https://ankui.vercel.app)
 
 ## What Ankui is
 
-AI coding tools accumulate configuration, skills, rules, and MCP servers across your filesystem, and it is easy to lose track of what each one can access. Ankui is a local-first scanner and terminal UI that inventories those resources and surfaces access findings — it never executes user code, follows remote URLs, or sends data anywhere. The one thing it can write is reversible: from the TUI or the `ankui web` browser UI you can disable or re-enable an individual skill, which only moves its directory into or out of a sibling `.disabled/` folder — no file is read, modified, or deleted. Supported tools: Claude, Codex, Cursor, Gemini, OpenCode, Antigravity, and skills.sh.
+AI coding tools accumulate configuration, skills, rules, and MCP servers across your filesystem, and it is easy to lose track of what each one can access. Ankui is a local-first scanner and terminal UI that inventories those resources and surfaces access findings. It never executes user code, follows remote URLs, or sends scan data anywhere. Scans are read-only. The only optional mutation is a user-confirmed, reversible skill enable/disable action: from the TUI or the `ankui web` browser UI you can move an individual skill directory into or out of a sibling `.disabled/` folder. Supported tools: Claude, Codex, Cursor, Gemini, OpenCode, Antigravity, and skills.sh.
+
+## Community edition scope
+
+This public open-source repository contains the local, single-device, local-first Ankui scanner/UI. It does not include a hosted control plane, centralized org inventory, endpoint fleet management, remote policy management, centralized audit/evidence retention, SSO, SIEM integrations, or runtime enforcement.
+
+See [SECURITY.md](SECURITY.md), [CONTRIBUTING.md](CONTRIBUTING.md), and [BRAND.md](BRAND.md) for project policy details.
 
 ## Try it
 
@@ -86,7 +92,7 @@ The **Settings** tab — in the TUI (bottom row, alongside Actions) and the `ank
 
 Ankui sends no data anywhere and calls no external APIs.
 
-**The only write Ankui makes is the explicit skill enable/disable, and it only happens when you save staged changes.** Triggered only from the Actions tab — in the TUI (`[s]`) or the `ankui web` browser UI — it moves a skill directory into or out of a sibling `.disabled/` folder via a single rename — reversible, never a delete or overwrite, and refused if it would escape `$HOME`/`$CWD`, clobber an existing directory, or act on a missing source. Everything else Ankui does is strictly read-only.
+**Scans are read-only. The only optional mutation is a user-confirmed, reversible skill enable/disable action.** Triggered only from the Actions tab — in the TUI (`[s]`) or the `ankui web` browser UI — it moves a skill directory into or out of a sibling `.disabled/` folder via a single rename — reversible, never a delete or overwrite, and refused if it would escape `$HOME`/`$CWD`, clobber an existing directory, or act on a missing source. Everything else Ankui does is strictly read-only.
 
 **The `ankui web` server is loopback-only.** It binds `127.0.0.1`, generates a fresh per-session token, and rejects any `/api/*` request without it; write requests additionally require an `Origin` header matching the server's own origin, and every request must carry a `Host` header pointing at a loopback alias of the bound origin (any mismatch is rejected with `421 Misdirected Request`, which defeats DNS-rebinding attacks). It serves only local files and calls no external APIs.
 
@@ -202,7 +208,7 @@ Starts a loopback HTTP server bound to `127.0.0.1` and opens your default browse
 $ ankui web
 
   Ankui web UI  http://127.0.0.1:7373
-  local files only · read-only scan · Ctrl+C to stop
+  local files only · scans are read-only · saved skill toggles are reversible · Ctrl+C to stop
 ```
 
 The server binds `127.0.0.1` only and generates a fresh per-session token. Every `/api/*` request must carry that token in an `x-ankui-token` header, and write requests (`POST /api/actions`, `POST /api/config`) additionally require an `Origin` header matching the server's own origin — this defeats localhost CSRF from other browser tabs. A DNS-rebinding guard rejects any request whose `Host` header isn't a loopback alias of the bound origin (`421 Misdirected Request`). It serves only local files; nothing is sent anywhere.
@@ -427,15 +433,5 @@ Invariants for any new adapter:
 - Add the adapter to `src/scanner/adapters/index.ts` so the scanner runner picks it up.
 
 The scanner invariant is: every file or directory access goes through `src/scanner/safety.ts`. No adapter should call `fs.readFile` or `fs.readdir` directly.
-
-## v1.1 roadmap
-
-These items are deferred from the v1 MVP and are not scheduled:
-
-**Similar-skill search.** Fuzzy match and token-overlap grouping across skill names, summaries, categories, and source paths. Would surface cases where the same conceptual skill (e.g. a GitHub MCP server, or a "careful" rule) is configured under multiple tools with slightly different names. No network calls; local only using the `fuse.js` dependency already present.
-
-**Manual custom tools storage.** An Ankui-managed store (`~/.ankui/manual-tools.json`) for tracking tools that are not disk-detected. OpenCode custom tools are already in v1 because they come from real files; this deferred phase covers Ankui-managed entries only. Manual tools would be clearly marked as custom and kept separate from adapter-detected results.
-
----
 
 MIT

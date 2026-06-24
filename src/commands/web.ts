@@ -99,7 +99,7 @@ function renderBanner(url: string, color: boolean): string {
     `  ${dim("remember what your agents can access")}\n` +
     `\n` +
     `     ${cyan("→")}  ${bold(url)}\n` +
-    `     ${dim(`local files · read-only scan · ${stopKey} to stop`)}\n` +
+    `     ${dim(`local files · read-only scans · ${stopKey} to stop`)}\n` +
     `\n`
   );
 }

@@ -20,8 +20,15 @@
 - [ ] Markdown-backed skill paths call `await buildLinkDetails(filePath, context)` so symlink metadata (`linked`, `linkTarget`) is recorded on every skill
 - [ ] New adapters are registered in `src/scanner/adapters/index.ts`
 
+## Safety and privacy
+
+- [ ] No employer, client, confidential, or proprietary code is included
+- [ ] No secrets, credentials, tokens, keys, or private config values are included
+- [ ] Safety and privacy invariants were reviewed for this change
+
 ## Validation
 
+- [ ] Added or updated tests where applicable
 - [ ] `npm run build` succeeds
 - [ ] `npm test` passes
 - [ ] `npm run typecheck` passes

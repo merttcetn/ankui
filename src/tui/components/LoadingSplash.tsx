@@ -105,7 +105,7 @@ export function LoadingSplash(props: LoadingSplashProps): React.ReactElement {
       </Box>
 
       <Box marginTop={1}>
-        <Text dimColor>local files only · read-only scan</Text>
+        <Text dimColor>local files only · read-only scans</Text>
       </Box>
     </Box>
   );

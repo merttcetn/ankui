@@ -32,7 +32,7 @@ export function LoadingSplash({ phase }: Props): React.ReactElement {
       <div key={index} className="splash-message">
         {message}
       </div>
-      <div className="splash-hint">local files only · read-only scan</div>
+      <div className="splash-hint">local files only · read-only scans</div>
     </div>
   );
 }
