@@ -44,7 +44,7 @@
   },
   "dependencies": {
     "@fontsource-variable/plus-jakarta-sans": "^5.2.8",
-    "chokidar": "^4.0.3",
+    "chokidar": "^5.0.0",
     "commander": "^13.1.0",
     "fuse.js": "^7.1.0",
     "ink": "^5.2.1",
