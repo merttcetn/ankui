@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { formatDoctor } from "../../src/utils/format-doctor.js";
+import { stripAnsi } from "../../src/utils/format-ui.js";
 import { createScanSummary, createAllEmptyTools, type ScanResult } from "../../src/types.js";
 
 function emptyResult(): ScanResult {
@@ -21,13 +22,15 @@ test("formatDoctor renders header with zero counts when nothing is detected", ()
   const output = formatDoctor(emptyResult());
   assert.match(
     output.split("\n")[0],
-    /^Ankui doctor — 0 detected tools, 0 warnings$/
+    /^Ankui Doctor$/
   );
+  assert.match(output, /Detected\s+0 tools/);
+  assert.match(output, /Warnings\s+0/);
 });
 
-test("formatDoctor ends with 'No warnings.' when warnings is empty", () => {
+test("formatDoctor ends with a clean warnings state when warnings is empty", () => {
   const output = formatDoctor(emptyResult());
-  assert.match(output, /\nNo warnings\.\s*$/);
+  assert.match(output, /\n✓ No warnings\.\s*$/);
 });
 
 import { type ToolId } from "../../src/types.js";
@@ -60,21 +63,22 @@ test("formatDoctor groups detected paths by scope (user vs project)", () => {
 
   const output = formatDoctor(result);
 
-  assert.match(output.split("\n")[0], /^Ankui doctor — 2 detected tools, 0 warnings$/);
+  assert.match(output, /^Ankui Doctor\n/);
+  assert.match(output, /Detected\s+2 tools/);
+  assert.match(output, /Warnings\s+0/);
 
-  // Claude block: both scope labels, indented paths
+  // Claude rows: both scope labels, path column
   assert.match(
     output,
-    /✓ Claude\n    user:\n      ~\/\.claude\n      ~\/\.claude\.json\n    project:\n      \.\/\.claude\n      \.\/\.claude\/settings\.local\.json/
+    /✓\s+Claude\s+user\s+~\/\.claude\n\s+user\s+~\/\.claude\.json\n\s+project\s+\.\/\.claude\n\s+project\s+\.\/\.claude\/settings\.local\.json/
   );
 
-  // Codex block: only user label
-  assert.match(output, /✓ Codex\n    user:\n      ~\/\.codex/);
-  assert.doesNotMatch(output, /Codex[\s\S]*?project:/);
+  // Codex row: only user scope
+  assert.match(output, /✓\s+Codex\s+user\s+~\/\.codex/);
 
   // not-detected stays single-line
-  assert.match(output, /\n- Cursor     not detected\b/);
-  assert.match(output, /\n- skills\.sh  not detected\b/);
+  assert.match(output, /\n○\s+Cursor\s+not detected\b/);
+  assert.match(output, /\n○\s+skills\.sh\s+not detected\b/);
 });
 
 test("formatDoctor preserves the canonical tool order: claude, codex, cursor, gemini, opencode, antigravity, skills-sh", () => {
@@ -114,14 +118,16 @@ test("formatDoctor renders warnings grouped by reason with relativized paths", (
 
   const output = formatDoctor(result);
 
-  assert.match(output.split("\n")[0], /^Ankui doctor — 0 detected tools, 3 warnings$/);
+  assert.match(output, /^Ankui Doctor\n/);
+  assert.match(output, /Detected\s+0 tools/);
+  assert.match(output, /Warnings\s+3/);
   assert.match(output, /\nWarnings \(3\)\n────────────\n/);
   assert.match(
     output,
-    /sensitive_file_skipped \(2\)\n  ~\/\.claude\/\.env\n  ~\/projects\/p\/\.claude\/\.env\.local/
+    /sensitive_file_skipped \(2\)\n  ! ~\/\.claude\/\.env\n  ! ~\/projects\/p\/\.claude\/\.env\.local/
   );
-  assert.match(output, /parse_failed \(1\)\n  ~\/\.codex\/config\.toml/);
-  assert.doesNotMatch(output, /No warnings\./);
+  assert.match(output, /parse_failed \(1\)\n  ! ~\/\.codex\/config\.toml/);
+  assert.doesNotMatch(output, /✓ No warnings\./);
 });
 
 test("formatDoctor falls back to warning.message when path is absent", () => {
@@ -134,7 +140,15 @@ test("formatDoctor falls back to warning.message when path is absent", () => {
   ]);
 
   const output = formatDoctor(result);
-  assert.match(output, /adapter_timeout \(1\)\n  Claude adapter timed out after 1000ms/);
+  assert.match(output, /adapter_timeout \(1\)\n  ! Claude adapter timed out after 1000ms/);
+});
+
+test("formatDoctor can render ANSI color and strip back to the plain contract", () => {
+  const colored = formatDoctor(emptyResult(), { color: true });
+
+  assert.match(colored, /\u001b\[[0-9;]*m/);
+  assert.match(stripAnsi(colored), /^Ankui Doctor\n/);
+  assert.match(stripAnsi(colored), /Detected\s+0 tools/);
 });
 
 test("formatDoctor warning reason groups are sorted by descending count, then alphabetical", () => {

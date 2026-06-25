@@ -1,19 +1,34 @@
 import type { AITool, ScanResult } from "../types.js";
+import {
+  metricRow,
+  sectionTitle,
+  sectionUnderline,
+  statusIcon,
+  style,
+  tableHeader,
+  tableRow,
+  type FormatOptions
+} from "./format-ui.js";
 
-export function formatScanSummary(result: ScanResult): string {
+const TOOL_TABLE_WIDTHS = [2, 12, 72] as const;
+
+export function formatScanSummary(result: ScanResult, options: FormatOptions = {}): string {
   const lines = [
-    "Ankui scan complete",
+    sectionTitle("Ankui Scan", options),
+    sectionUnderline("Ankui Scan", options),
+    metricRow("Status", style("complete", options, "green"), options),
+    metricRow("Detected", plural(result.summary.detectedTools, "tool"), options),
+    metricRow("MCP servers", `${result.summary.totalMcpServers} configured · ${result.summary.uniqueMcpServers} unique`, options),
+    metricRow("Agent skills", String(result.summary.agentSkills + result.summary.skillsShSkills), options),
+    metricRow("Actions", String(countCommandLikeItems(result.tools)), options),
+    metricRow("Memory files", String(result.summary.memoryFiles), options),
+    metricRow("Findings", colorCount(result.summary.totalFindings, "findings", options), options),
+    metricRow("Warnings", colorCount(result.warnings.length, "warnings", options), options),
     "",
-    `Detected tools: ${result.summary.detectedTools}`,
-    `MCP servers: ${result.summary.totalMcpServers} configured, ${result.summary.uniqueMcpServers} unique`,
-    `Agent skills: ${result.summary.agentSkills + result.summary.skillsShSkills}`,
-    `Commands/prompts/agents/rules/tools: ${countCommandLikeItems(result.tools)}`,
-    `Memory files: ${result.summary.memoryFiles}`,
-    `Access findings: ${result.summary.totalFindings}`,
-    `Warnings: ${result.warnings.length}`,
-    "",
-    "Tools:",
-    ...result.tools.map(formatToolSummary)
+    sectionTitle("Tools", options),
+    sectionUnderline("Tools", options),
+    tableHeader(["", "Tool", "Details"], TOOL_TABLE_WIDTHS, options),
+    ...result.tools.map((tool) => formatToolSummary(tool, options))
   ];
 
   return lines.join("\n");
@@ -23,8 +38,9 @@ export function formatJson(result: ScanResult): string {
   return `${JSON.stringify(result, null, 2)}\n`;
 }
 
-function formatToolSummary(tool: AITool): string {
-  const status = tool.detected ? "✓" : "-";
+function formatToolSummary(tool: AITool, options: FormatOptions): string {
+  const status = tool.detected ? statusIcon("ok", options) : statusIcon("muted", options);
+  const name = tool.detected ? tool.name : style(tool.name, options, "dim");
   const details = [
     countLabel(tool.stats.mcpServers, "MCP"),
     countLabel(tool.stats.agentSkills, "agent skills"),
@@ -39,9 +55,8 @@ function formatToolSummary(tool: AITool): string {
     countLabel(tool.stats.findings, "findings")
   ].filter(Boolean);
 
-  return `${status} ${tool.name.padEnd(9)} ${
-    details.length > 0 ? details.join(" · ") : tool.detected ? "detected" : "not detected"
-  }`;
+  const detailText = details.length > 0 ? details.join(" · ") : tool.detected ? "detected" : style("not detected", options, "dim");
+  return tableRow([status, name, detailText], TOOL_TABLE_WIDTHS);
 }
 
 function countCommandLikeItems(tools: AITool[]): number {
@@ -64,4 +79,13 @@ function countLabel(count: number, label: string): string | undefined {
   }
 
   return `${count} ${label}`;
+}
+
+function plural(n: number, noun: string): string {
+  return `${n} ${noun}${n === 1 ? "" : "s"}`;
+}
+
+function colorCount(count: number, kind: "findings" | "warnings", options: FormatOptions): string {
+  if (count === 0) return style(String(count), options, "green");
+  return style(String(count), options, kind === "findings" ? "red" : "yellow");
 }

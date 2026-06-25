@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { formatAccessReview } from "../../src/utils/format-access.js";
+import { stripAnsi } from "../../src/utils/format-ui.js";
 import { createScanSummary, createAllEmptyTools, type ScanResult } from "../../src/types.js";
 
 function emptyResult(): ScanResult {
@@ -19,7 +20,8 @@ function emptyResult(): ScanResult {
 
 test("formatAccessReview returns a 'no findings' message when findings is empty", () => {
   const output = formatAccessReview(emptyResult());
-  assert.match(output, /^Ankui access review — no findings\.\s*$/);
+  assert.match(output, /^Ankui Access Review\n/);
+  assert.match(output, /✓ No findings\.\s*$/);
 });
 
 import { createFinding } from "../../src/types.js";
@@ -44,13 +46,16 @@ test("formatAccessReview renders a single duplicate_mcp finding with header and 
 
   const output = formatAccessReview(result);
 
-  assert.match(output, /^Ankui access review — 1 findings? \(1 duplicate_mcp\)/);
+  assert.match(output, /^Ankui Access Review\n/);
+  assert.match(output, /Findings\s+1/);
+  assert.match(output, /Mix\s+1 duplicate_mcp/);
   assert.match(output, /Duplicate MCP servers \(1\)/);
   assert.match(output, /shadcn MCP is configured in 2 tools/);
-  assert.match(output, /Scope: cross_tool · Tools: codex, cursor/);
+  assert.match(output, /Scope\s+cross_tool/);
+  assert.match(output, /Tools\s+codex, cursor/);
   assert.match(output, /\/elsewhere\/\.codex\/config\.toml/);
   assert.match(output, /\/elsewhere\/\.cursor\/mcp\.json/);
-  assert.match(output, /Recommendation: Verify each instance/);
+  assert.match(output, /Recommendation Verify each instance/);
 });
 
 test("formatAccessReview rewrites homeDir prefixes as ~", () => {
@@ -181,10 +186,21 @@ test("formatAccessReview header lists categories in descending count order", () 
   };
 
   const output = formatAccessReview(result);
-  assert.match(
-    output.split("\n")[0],
-    /^Ankui access review — 6 findings \(3 dangerous_pattern · 2 duplicate_mcp · 1 secret_reference\)$/
-  );
+  assert.match(output, /Findings\s+6/);
+  assert.match(output, /Mix\s+3 dangerous_pattern · 2 duplicate_mcp · 1 secret_reference/);
+});
+
+test("formatAccessReview can render ANSI color and strip back to the plain contract", () => {
+  const result: ScanResult = {
+    ...emptyResult(),
+    findings: [mkFinding("broad_access_capability", "broad thing")]
+  };
+
+  const colored = formatAccessReview(result, { color: true });
+
+  assert.match(colored, /\u001b\[[0-9;]*m/);
+  assert.match(stripAnsi(colored), /^Ankui Access Review\n/);
+  assert.match(stripAnsi(colored), /Findings\s+1/);
 });
 
 import { formatAccessReviewJson } from "../../src/utils/format-access.js";

@@ -1,4 +1,12 @@
 import type { Finding, ScanResult } from "../types.js";
+import {
+  metricRow,
+  sectionTitle,
+  sectionUnderline,
+  statusIcon,
+  style,
+  type FormatOptions
+} from "./format-ui.js";
 import { relativizeHome } from "./paths.js";
 
 type Category = Finding["category"];
@@ -16,57 +24,67 @@ const CATEGORY_ORDER: ReadonlyArray<CategorySpec> = [
   { category: "dangerous_pattern", label: "Review-worthy command patterns" }
 ];
 
-export function formatAccessReview(result: ScanResult): string {
+export function formatAccessReview(result: ScanResult, options: FormatOptions = {}): string {
   if (result.findings.length === 0) {
-    return "Ankui access review — no findings.";
+    return [
+      sectionTitle("Ankui Access Review", options),
+      sectionUnderline("Ankui Access Review", options),
+      `${statusIcon("ok", options)} No findings.`
+    ].join("\n");
   }
 
   const grouped = groupByCategory(result.findings);
-  const header = formatHeader(result.findings);
+  const header = formatHeader(result.findings, options);
   const sections: string[] = [];
 
   for (const spec of CATEGORY_ORDER) {
     const findings = grouped.get(spec.category) ?? [];
     if (findings.length === 0) continue;
 
-    sections.push(formatSection(spec, findings, result.homeDir));
+    sections.push(formatSection(spec, findings, result.homeDir, options));
   }
 
   return [header, "", ...sections].join("\n");
 }
 
-function formatHeader(findings: readonly Finding[]): string {
+function formatHeader(findings: readonly Finding[], options: FormatOptions): string {
   const counts = countByCategory(findings);
   const parts: string[] = [];
   for (const [category, count] of counts) {
     parts.push(`${count} ${category}`);
   }
   const tail = parts.length > 0 ? ` (${parts.join(" · ")})` : "";
-  return `Ankui access review — ${findings.length} findings${tail}`;
+  return [
+    sectionTitle("Ankui Access Review", options),
+    sectionUnderline("Ankui Access Review", options),
+    metricRow("Findings", style(String(findings.length), options, "red"), options),
+    metricRow("Mix", tail.length > 0 ? tail.slice(2, -1) : "none", options)
+  ].join("\n");
 }
 
 function formatSection(
   spec: CategorySpec,
   findings: readonly Finding[],
-  homeDir: string
+  homeDir: string,
+  options: FormatOptions
 ): string {
   const heading = `${spec.label} (${findings.length})`;
-  const underline = "─".repeat(heading.length);
   const bullets = [...findings]
     .sort((a, b) => a.title.localeCompare(b.title))
-    .map((finding) => formatFinding(finding, homeDir));
-  return [heading, underline, ...bullets].join("\n");
+    .map((finding) => formatFinding(finding, homeDir, options));
+  return [sectionTitle(heading, options), sectionUnderline(heading, options), ...bullets].join("\n");
 }
 
-function formatFinding(finding: Finding, homeDir: string): string {
+function formatFinding(finding: Finding, homeDir: string, options: FormatOptions): string {
   const sourcesLabel = finding.sourcePaths.length === 1 ? "Source" : "Sources";
-  const sources = finding.sourcePaths.map((p) => `    ${relativizeHome(p, homeDir)}`);
+  const sources = finding.sourcePaths.map((p) => `    ${style(relativizeHome(p, homeDir), options, "dim")}`);
   const lines = [
-    `• ${finding.title}`,
-    `  Scope: ${finding.scope} · Tools: ${finding.toolIds.join(", ")}`,
-    `  ${sourcesLabel}:`,
+    `${statusIcon(finding.accessLevel === "broad" ? "danger" : "warn", options)} ${style(finding.title, options, finding.accessLevel === "broad" ? "red" : "yellow")}`,
+    `  ${style("Scope", options, "dim")}          ${finding.scope}`,
+    `  ${style("Tools", options, "dim")}          ${finding.toolIds.join(", ")}`,
+    `  ${style(sourcesLabel, options, "dim")}:`,
     ...sources,
-    `  Recommendation: ${finding.recommendation}`,
+    `  ${style("Recommendation", options, "dim")} ${finding.recommendation}`,
     ""
   ];
   return lines.join("\n");

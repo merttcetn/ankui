@@ -1,55 +1,78 @@
 import type { AITool, ScanResult, Warning } from "../types.js";
+import {
+  metricRow,
+  sectionTitle,
+  sectionUnderline,
+  statusIcon,
+  style,
+  tableHeader,
+  tableRow,
+  type FormatOptions
+} from "./format-ui.js";
 import { relativizeHome } from "./paths.js";
 
-const TOOL_NAME_COLUMN_WIDTH = 11;
+const TOOL_TABLE_WIDTHS = [2, 13, 8, 72] as const;
 
-export function formatDoctor(result: ScanResult): string {
-  const header = formatHeader(result);
-  const toolsSection = formatToolsSection(result.tools, result.cwd, result.homeDir);
+export function formatDoctor(result: ScanResult, options: FormatOptions = {}): string {
+  const header = formatHeader(result, options);
+  const toolsSection = formatToolsSection(result.tools, result.cwd, result.homeDir, options);
   const warningsSection =
     result.warnings.length === 0
-      ? "No warnings."
-      : formatWarningsSection(result.warnings, result.homeDir);
+      ? [sectionTitle("Warnings", options), sectionUnderline("Warnings", options), `${statusIcon("ok", options)} No warnings.`].join("\n")
+      : formatWarningsSection(result.warnings, result.homeDir, options);
 
   return [header, "", toolsSection, "", warningsSection].join("\n").replace(/\n+$/, "");
 }
 
-function formatHeader(result: ScanResult): string {
+function formatHeader(result: ScanResult, options: FormatOptions): string {
   const detectedCount = result.tools.filter((t) => t.detected).length;
-  return (
-    `Ankui doctor — ${plural(detectedCount, "detected tool")}, ` +
-    `${plural(result.warnings.length, "warning")}`
-  );
+  return [
+    sectionTitle("Ankui Doctor", options),
+    sectionUnderline("Ankui Doctor", options),
+    metricRow("Detected", plural(detectedCount, "tool"), options),
+    metricRow("Warnings", result.warnings.length === 0 ? style("0", options, "green") : style(String(result.warnings.length), options, "yellow"), options)
+  ].join("\n");
 }
 
-function formatToolsSection(tools: ReadonlyArray<AITool>, cwd: string, homeDir: string): string {
-  const rows = tools.map((tool) => formatToolRow(tool, cwd, homeDir));
-  return ["Tools", "─────", ...rows].join("\n");
+function formatToolsSection(tools: ReadonlyArray<AITool>, cwd: string, homeDir: string, options: FormatOptions): string {
+  const rows = tools.flatMap((tool) => formatToolRows(tool, cwd, homeDir, options));
+  return [
+    sectionTitle("Tools", options),
+    sectionUnderline("Tools", options),
+    tableHeader(["", "Tool", "Scope", "Path"], TOOL_TABLE_WIDTHS, options),
+    ...rows
+  ].join("\n");
 }
 
-function formatToolRow(tool: AITool, cwd: string, homeDir: string): string {
+function formatToolRows(tool: AITool, cwd: string, homeDir: string, options: FormatOptions): string[] {
   if (!tool.detected) {
-    const name = tool.name.padEnd(TOOL_NAME_COLUMN_WIDTH);
-    return `- ${name}not detected`;
+    return [
+      tableRow([
+        statusIcon("muted", options),
+        style(tool.name, options, "dim"),
+        "",
+        style("not detected", options, "dim")
+      ], TOOL_TABLE_WIDTHS)
+    ];
   }
 
-  const userPaths: string[] = [];
-  const projectPaths: string[] = [];
+  const rows: string[] = [];
+  let first = true;
   for (const path of tool.detectedPaths) {
     const classified = classifyAndRelativize(path, cwd, homeDir);
-    (classified.scope === "project" ? projectPaths : userPaths).push(classified.display);
+    rows.push(tableRow([
+      first ? statusIcon("ok", options) : "",
+      first ? tool.name : "",
+      classified.scope,
+      classified.display
+    ], TOOL_TABLE_WIDTHS));
+    first = false;
   }
 
-  const lines: string[] = [`✓ ${tool.name}`];
-  if (userPaths.length > 0) {
-    lines.push("    user:");
-    for (const p of userPaths) lines.push(`      ${p}`);
+  if (rows.length === 0) {
+    rows.push(tableRow([statusIcon("ok", options), tool.name, "", "detected"], TOOL_TABLE_WIDTHS));
   }
-  if (projectPaths.length > 0) {
-    lines.push("    project:");
-    for (const p of projectPaths) lines.push(`      ${p}`);
-  }
-  return lines.join("\n");
+  return rows;
 }
 
 function classifyAndRelativize(
@@ -64,9 +87,8 @@ function classifyAndRelativize(
   return { scope: "user", display: relativizeHome(filePath, homeDir) };
 }
 
-function formatWarningsSection(warnings: ReadonlyArray<Warning>, homeDir: string): string {
+function formatWarningsSection(warnings: ReadonlyArray<Warning>, homeDir: string, options: FormatOptions): string {
   const heading = `Warnings (${warnings.length})`;
-  const underline = "─".repeat(heading.length);
 
   const grouped = groupWarningsByReason(warnings);
   const sorted = [...grouped.entries()].sort((a, b) => {
@@ -76,15 +98,15 @@ function formatWarningsSection(warnings: ReadonlyArray<Warning>, homeDir: string
 
   const blocks: string[] = [];
   for (const [reason, group] of sorted) {
-    const lines = [`${reason} (${group.length})`];
+    const lines = [style(`${reason} (${group.length})`, options, "yellow")];
     for (const warning of group) {
       const rhs = warning.path ? relativizeHome(warning.path, homeDir) : warning.message;
-      lines.push(`  ${rhs}`);
+      lines.push(`  ${statusIcon("warn", options)} ${rhs}`);
     }
     blocks.push(lines.join("\n"));
   }
 
-  return [heading, underline, blocks.join("\n\n")].join("\n");
+  return [sectionTitle(heading, options), sectionUnderline(heading, options), blocks.join("\n\n")].join("\n");
 }
 
 function groupWarningsByReason(warnings: ReadonlyArray<Warning>): Map<string, Warning[]> {

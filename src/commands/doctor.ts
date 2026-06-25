@@ -6,11 +6,12 @@ import { formatDoctor, formatDoctorJson } from "../utils/format-doctor.js";
 
 export interface DoctorCommandOptions extends ScanOptions {
   json: boolean;
+  color?: boolean;
   write: (chunk: string) => void;
 }
 
 export async function runDoctorCommand(options: DoctorCommandOptions): Promise<void> {
-  const { json, write, ...scanOptions } = options;
+  const { json, color, write, ...scanOptions } = options;
   const result = await scan(scanOptions);
   const resolvedHomeDir = scanOptions.homeDir ?? os.homedir();
   const bundleWarnings = await checkBundleIntegrity(resolvedHomeDir);
@@ -24,5 +25,5 @@ export async function runDoctorCommand(options: DoctorCommandOptions): Promise<v
     return;
   }
 
-  write(`${formatDoctor(merged)}\n`);
+  write(`${formatDoctor(merged, { color })}\n`);
 }

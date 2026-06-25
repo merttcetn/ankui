@@ -6,6 +6,7 @@ import test from "node:test";
 
 import { runDoctorCommand } from "../../src/commands/doctor.js";
 import { writeRegistry } from "../../src/bundles/registry.js";
+import { stripAnsi } from "../../src/utils/format-ui.js";
 
 async function makeTempWorkspace(prefix: string): Promise<string> {
   return fs.mkdtemp(path.join(os.tmpdir(), prefix));
@@ -26,9 +27,31 @@ test("runDoctorCommand prints the human output with header and Tools section", a
     env: {}
   });
 
-  assert.match(captured, /^Ankui doctor — 0 detected tools, 0 warnings/);
+  assert.match(captured, /^Ankui Doctor\n/);
+  assert.match(captured, /Detected\s+0 tools/);
+  assert.match(captured, /Warnings\s+0/);
   assert.match(captured, /Tools\n─────\n/);
-  assert.match(captured, /No warnings\./);
+  assert.match(captured, /✓ No warnings\./);
+});
+
+test("runDoctorCommand supports ANSI color for human output", async () => {
+  const cwd = await makeTempWorkspace("ankui-doctor-color-cwd-");
+  const homeDir = await makeTempWorkspace("ankui-doctor-color-home-");
+
+  let captured = "";
+  await runDoctorCommand({
+    json: false,
+    color: true,
+    write: (chunk) => {
+      captured += chunk;
+    },
+    cwd,
+    homeDir,
+    env: {}
+  });
+
+  assert.match(captured, /\u001b\[[0-9;]*m/);
+  assert.match(stripAnsi(captured), /^Ankui Doctor\n/);
 });
 
 test("runDoctorCommand emits parseable JSON when json is true", async () => {

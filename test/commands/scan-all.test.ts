@@ -23,7 +23,7 @@ test("runScanAllCommand prints human summary with header when no dev roots are c
     env: {}
   });
 
-  assert.match(captured, /^Ankui multi-project scan — /);
+  assert.match(captured, /^Ankui Multi-project Scan\n/);
   assert.match(captured, /No dev roots registered\./);
 });
 

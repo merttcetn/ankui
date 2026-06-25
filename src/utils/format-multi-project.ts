@@ -38,12 +38,13 @@ export function formatMultiProjectJson(result: MultiProjectScanResult): string {
 }
 
 function formatHeader(result: MultiProjectScanResult): string {
-  return (
-    `Ankui multi-project scan — ` +
-    `${plural(result.totals.projectCount, "project")} across ` +
-    `${plural(result.devRoots.length, "dev root")}, ` +
-    `${plural(result.totals.userScopeSkills, "user-scope skill")}`
-  );
+  return [
+    "Ankui Multi-project Scan",
+    "────────────────────────",
+    `Projects           ${plural(result.totals.projectCount, "project")}`,
+    `Dev roots          ${result.devRoots.length}`,
+    `User-scope skills  ${result.totals.userScopeSkills}`
+  ].join("\n");
 }
 
 function formatUserScopeBlock(tools: ReadonlyArray<AITool>): string {
@@ -52,7 +53,7 @@ function formatUserScopeBlock(tools: ReadonlyArray<AITool>): string {
 }
 
 function formatUserScopeRow(tool: AITool): string {
-  const icon = tool.detected ? "✓" : "-";
+  const icon = tool.detected ? "✓" : "○";
   const name = tool.name.padEnd(TOOL_NAME_COLUMN_WIDTH);
   const rhs = tool.detected ? `${tool.skills.length} skills` : "not detected";
   return `${icon} ${name}${rhs}`;
@@ -82,7 +83,7 @@ function formatProjectRow(project: MultiProjectScanResult["projects"][number]): 
   const skills = project.scan.tools.reduce((n, t) => n + t.skills.length, 0);
   const findings = project.scan.findings.length;
   const left = project.displayPath.padEnd(PROJECT_DISPLAY_COLUMN_WIDTH);
-  return `${left} ${skills} skills · ${findings} findings`;
+  return `• ${left} ${skills} skills · ${findings} findings`;
 }
 
 function formatWarningsSection(warnings: ReadonlyArray<Warning>, homeDir: string): string {
@@ -99,7 +100,7 @@ function formatWarningsSection(warnings: ReadonlyArray<Warning>, homeDir: string
     const lines = [`${reason} (${group.length})`];
     for (const warning of group) {
       const rhs = warning.path ? relativizeHome(warning.path, homeDir) : warning.message;
-      lines.push(`  ${rhs}`);
+      lines.push(`  • ${rhs}`);
     }
     blocks.push(lines.join("\n"));
   }

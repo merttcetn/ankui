@@ -35,6 +35,7 @@ import os from "node:os";
 
 interface GlobalOptions {
   json?: boolean;
+  color?: boolean;
 }
 
 const program = new Command();
@@ -43,6 +44,7 @@ program
   .name("ankui")
   .description("Remember what your AI agents can access.")
   .option("--json", "print the full sanitized scan result as JSON")
+  .option("--color", "force ANSI colors")
   .option("--no-color", "disable ANSI colors")
   .action(async () => {
     const globalOptions = program.opts<GlobalOptions>();
@@ -108,6 +110,7 @@ program
     const globalOptions = program.opts<GlobalOptions>();
     await runAccessCommand({
       json: Boolean(globalOptions.json),
+      color: shouldUseColor(),
       write: (chunk) => process.stdout.write(chunk)
     });
   });
@@ -130,6 +133,7 @@ program
     const globalOptions = program.opts<GlobalOptions>();
     await runDoctorCommand({
       json: Boolean(globalOptions.json),
+      color: shouldUseColor(),
       write: (chunk) => process.stdout.write(chunk)
     });
   });
@@ -324,7 +328,16 @@ async function runScanCommand(
     process.stdout.write("Ankui TUI is not implemented yet. Showing scan summary instead.\n\n");
   }
 
-  process.stdout.write(`${formatScanSummary(result)}\n`);
+  process.stdout.write(`${formatScanSummary(result, { color: shouldUseColor() })}\n`);
+}
+
+function shouldUseColor(): boolean {
+  const globalOptions = program.opts<GlobalOptions>();
+  if (globalOptions.color === false) return false;
+  if (globalOptions.color === true && program.getOptionValueSource("color") === "cli") return true;
+  if (process.env.NO_COLOR !== undefined) return false;
+  if (process.env.TERM === "dumb") return false;
+  return Boolean(process.stdout.isTTY);
 }
 
 async function launchTui(): Promise<void> {

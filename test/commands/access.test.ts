@@ -5,6 +5,7 @@ import path from "node:path";
 import test from "node:test";
 
 import { runAccessCommand } from "../../src/commands/access.js";
+import { stripAnsi } from "../../src/utils/format-ui.js";
 
 async function makeTempWorkspace(prefix: string): Promise<string> {
   return fs.mkdtemp(path.join(os.tmpdir(), prefix));
@@ -36,9 +37,29 @@ test("runAccessCommand writes the human formatter output when json is false", as
     env: {}
   });
 
-  assert.match(captured, /Ankui access review/);
+  assert.match(captured, /Ankui Access Review/);
   assert.match(captured, /Duplicate MCP servers/);
   assert.match(captured, /shadcn/);
+});
+
+test("runAccessCommand supports ANSI color for human output", async () => {
+  const cwd = await makeTempWorkspace("ankui-access-color-cwd-");
+  const homeDir = await makeTempWorkspace("ankui-access-color-home-");
+
+  let captured = "";
+  await runAccessCommand({
+    json: false,
+    color: true,
+    write: (chunk) => {
+      captured += chunk;
+    },
+    cwd,
+    homeDir,
+    env: {}
+  });
+
+  assert.match(captured, /\u001b\[[0-9;]*m/);
+  assert.match(stripAnsi(captured), /^Ankui Access Review\n/);
 });
 
 test("runAccessCommand emits parseable JSON when json is true", async () => {

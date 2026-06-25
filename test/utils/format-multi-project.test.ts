@@ -44,8 +44,11 @@ test("formatMultiProjectSummary header reports projects, dev roots, and user-sco
   const output = formatMultiProjectSummary(result);
   assert.match(
     output.split("\n")[0]!,
-    /^Ankui multi-project scan — 0 projects across 0 dev roots, 0 user-scope skills$/
+    /^Ankui Multi-project Scan$/
   );
+  assert.match(output, /Projects           0 projects/);
+  assert.match(output, /Dev roots          0/);
+  assert.match(output, /User-scope skills  0/);
 });
 
 test("formatMultiProjectSummary shows empty-dev-root message when no devRoots registered", () => {
@@ -128,7 +131,7 @@ test("formatMultiProjectSummary renders warnings grouped by reason", () => {
   const output = formatMultiProjectSummary(result);
 
   assert.match(output, /Warnings \(2\)/);
-  assert.match(output, /adapter_timeout \(1\)\n  ~\/Developer\/slow-proj/);
+  assert.match(output, /adapter_timeout \(1\)\n  • ~\/Developer\/slow-proj/);
   assert.match(output, /permission_denied \(1\)/);
 });
 
@@ -176,6 +179,9 @@ test("formatMultiProjectSummary plural — one project, one dev root, one user-s
   const output = formatMultiProjectSummary(result);
   assert.match(
     output.split("\n")[0]!,
-    /^Ankui multi-project scan — 1 project across 1 dev root, 1 user-scope skill$/
+    /^Ankui Multi-project Scan$/
   );
+  assert.match(output, /Projects           1 project/);
+  assert.match(output, /Dev roots          1/);
+  assert.match(output, /User-scope skills  1/);
 });

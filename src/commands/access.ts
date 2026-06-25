@@ -3,11 +3,12 @@ import { formatAccessReview, formatAccessReviewJson } from "../utils/format-acce
 
 export interface AccessCommandOptions extends ScanOptions {
   json: boolean;
+  color?: boolean;
   write: (chunk: string) => void;
 }
 
 export async function runAccessCommand(options: AccessCommandOptions): Promise<void> {
-  const { json, write, ...scanOptions } = options;
+  const { json, color, write, ...scanOptions } = options;
   const result = await scan(scanOptions);
 
   if (json) {
@@ -15,5 +16,5 @@ export async function runAccessCommand(options: AccessCommandOptions): Promise<v
     return;
   }
 
-  write(`${formatAccessReview(result)}\n`);
+  write(`${formatAccessReview(result, { color })}\n`);
 }
