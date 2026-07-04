@@ -48,8 +48,10 @@ test("formatAccessReview renders a single duplicate_mcp finding with header and 
 
   assert.match(output, /^Ankui Access Review\n/);
   assert.match(output, /Findings\s+1/);
+  assert.match(output, /Severity\s+1 low/);
   assert.match(output, /Mix\s+1 duplicate_mcp/);
   assert.match(output, /Duplicate MCP servers \(1\)/);
+  assert.match(output, /\[LOW\] shadcn MCP is configured in 2 tools/);
   assert.match(output, /shadcn MCP is configured in 2 tools/);
   assert.match(output, /Scope\s+cross_tool/);
   assert.match(output, /Tools\s+codex, cursor/);
@@ -122,7 +124,7 @@ function mkFinding(category: Finding["category"], title: string): Finding {
   });
 }
 
-test("formatAccessReview orders sections: broad > duplicate > secret > unknown > dangerous", () => {
+test("formatAccessReview orders sections by severity, then category priority", () => {
   const result: ScanResult = {
     ...emptyResult(),
     homeDir: "/Users/test",
@@ -139,10 +141,10 @@ test("formatAccessReview orders sections: broad > duplicate > secret > unknown >
 
   const sectionOrder = [
     "Broad-access MCP servers",
-    "Duplicate MCP servers",
+    "Review-worthy command patterns",
     "Secret-bearing env keys",
     "Uncatalogued MCP servers",
-    "Review-worthy command patterns"
+    "Duplicate MCP servers"
   ];
 
   const indices = sectionOrder.map((heading) => output.indexOf(heading));
@@ -187,6 +189,7 @@ test("formatAccessReview header lists categories in descending count order", () 
 
   const output = formatAccessReview(result);
   assert.match(output, /Findings\s+6/);
+  assert.match(output, /Severity\s+3 high · 1 medium · 2 low/);
   assert.match(output, /Mix\s+3 dangerous_pattern · 2 duplicate_mcp · 1 secret_reference/);
 });
 
@@ -225,6 +228,9 @@ test("formatAccessReviewJson returns metadata + findings + grouped summary", () 
   assert.equal(json.homeDir, "/h");
   assert.equal(json.findings.length, 3);
   assert.equal(json.summary.totalFindings, 3);
+  assert.equal(json.summary.bySeverity.high, 1);
+  assert.equal(json.summary.bySeverity.medium, 0);
+  assert.equal(json.summary.bySeverity.low, 2);
   assert.equal(json.summary.byCategory.duplicate_mcp, 2);
   assert.equal(json.summary.byCategory.dangerous_pattern, 1);
   assert.equal(json.summary.byCategory.broad_access_capability, 0);
@@ -239,6 +245,9 @@ test("formatAccessReviewJson returns zero-everywhere shape on empty findings", (
   const json = JSON.parse(formatAccessReviewJson(emptyResult()));
   assert.equal(json.findings.length, 0);
   assert.equal(json.summary.totalFindings, 0);
+  for (const severity of ["high", "medium", "low"] as const) {
+    assert.equal(json.summary.bySeverity[severity], 0);
+  }
   for (const cat of [
     "broad_access_capability",
     "duplicate_mcp",

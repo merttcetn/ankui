@@ -99,8 +99,7 @@ test("aggregateFindings emits sections in priority order", () => {
     })
   );
   const order = sections.map((s) => s.category);
-  // broad_access_capability before secret_reference before dangerous_pattern
-  assert.deepEqual(order, ["broad_access_capability", "secret_reference", "dangerous_pattern"]);
+  assert.deepEqual(order, ["broad_access_capability", "dangerous_pattern", "secret_reference"]);
 });
 
 test("aggregateFindings omits sections that have zero findings", () => {
@@ -126,10 +125,23 @@ test("aggregateFindings sorts findings within a section by title (case-insensiti
   );
 });
 
-test("FINDING_CATEGORY_ORDER starts with broad_access_capability and ends with dangerous_pattern", () => {
+test("aggregateFindings sorts findings within a section by severity, then title", () => {
+  const low = f("dangerous_pattern", "alpha");
+  low.severity = "low";
+  const high = f("dangerous_pattern", "zulu");
+
+  const sections = aggregateFindings(resultWith({ user: [low, high] }));
+
+  assert.deepEqual(
+    sections[0].findings.map((x) => x.title),
+    ["zulu", "alpha"]
+  );
+});
+
+test("FINDING_CATEGORY_ORDER starts with broad_access_capability and ends with duplicate_mcp", () => {
   assert.equal(FINDING_CATEGORY_ORDER[0].category, "broad_access_capability");
   assert.equal(
     FINDING_CATEGORY_ORDER[FINDING_CATEGORY_ORDER.length - 1].category,
-    "dangerous_pattern"
+    "duplicate_mcp"
   );
 });

@@ -225,16 +225,22 @@ Usage: ankui access [options]
 Print findings and review recommendations from the scan.
 ```
 
-Findings are grouped by category in priority order: `duplicate_mcp` (the same MCP server configured across multiple tools), `secret_reference` (MCP servers with secret-bearing env keys), `dangerous_pattern` (skills containing `curl | sh`, `rm -rf`, or similar patterns), `unknown_capability` (MCP servers not in the built-in catalog).
+Findings are grouped by category and ordered by severity: `broad_access_capability` (broad-access MCP servers), `dangerous_pattern` (skills containing `curl | sh`, `rm -rf`, or similar patterns), `secret_reference` (MCP servers with secret-bearing env keys), `unknown_capability` (MCP servers not in the built-in catalog), and `duplicate_mcp` (the same MCP server configured across multiple tools).
+
+Every finding also carries a `high`, `medium`, or `low` severity so Access views can put the most review-worthy items first. High covers dangerous command patterns and broad-access MCPs; medium covers secret references and uncatalogued MCPs; low covers duplicate MCP configurations.
 
 Example output structure:
 
 ```
-Ankui access review — 10 findings (6 dangerous_pattern · 2 duplicate_mcp · 1 secret_reference · 1 unknown_capability)
+Ankui Access Review
+───────────────────
+Findings      10
+Severity      6 high · 2 medium · 2 low
+Mix           6 dangerous_pattern · 2 duplicate_mcp · 1 secret_reference · 1 unknown_capability
 
 Duplicate MCP servers (2)
 ─────────────────────────
-• Reddit MCP is configured in 2 tools
+○ [LOW] Reddit MCP is configured in 2 tools
   Scope: cross_tool · Tools: codex, gemini
   ...
 ```

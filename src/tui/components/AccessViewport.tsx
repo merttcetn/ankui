@@ -2,6 +2,7 @@ import React from "react";
 import { Box, Text } from "ink";
 
 import type { Finding } from "../../types.js";
+import { severityLabel } from "../../utils/finding-order.js";
 import { relativizeHome } from "../../utils/paths.js";
 import { ACCENT } from "../theme/colors.js";
 import { ACTIVE_PREFIX } from "../theme/icons.js";
@@ -105,13 +106,27 @@ function FindingCard({ finding, homeDir, active }: FindingCardProps): React.Reac
     <Box marginTop={1} flexDirection="column">
       <Box>
         <Text color={active ? ACCENT : undefined}>{`${prefix} `}</Text>
-        <Text color={active ? ACCENT : undefined}>{`• ${finding.title}`}</Text>
+        <Text color={colorForSeverity(finding.severity)}>
+          {`[${severityLabel(finding.severity)}]`}
+        </Text>
+        <Text color={active ? ACCENT : undefined}>{` • ${finding.title}`}</Text>
       </Box>
       <Text dimColor>{`    Scope: ${finding.scope} · Tools: ${finding.toolIds.join(", ")}`}</Text>
       <Text dimColor>{`    ${sourceLabel}: ${sources}`}</Text>
       <Text>{`    Recommendation: ${finding.recommendation}`}</Text>
     </Box>
   );
+}
+
+function colorForSeverity(severity: Finding["severity"]): string | undefined {
+  switch (severity) {
+    case "high":
+      return "red";
+    case "medium":
+      return "yellow";
+    case "low":
+      return "cyan";
+  }
 }
 
 function flattenSections(

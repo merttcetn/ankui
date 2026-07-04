@@ -1,25 +1,18 @@
 import type { Finding, MultiProjectScanResult } from "../../types.js";
+import {
+  ACCESS_FINDING_CATEGORY_SPECS,
+  compareFindingsForAccess,
+  type FindingCategorySpec
+} from "../../utils/finding-order.js";
 
 export type FindingCategory = Finding["category"];
 
-export interface FindingCategorySpec {
-  category: FindingCategory;
-  label: string;
-}
-
 /**
- * Priority order for cross-tool access findings — matches
- * `src/utils/format-access.ts`'s `CATEGORY_ORDER`. Categories not present
- * here (`skipped_sensitive_file`, `parse_issue`) are surfaced in Doctor,
- * not Access.
+ * Priority order for cross-tool access findings. Categories not present here
+ * (`skipped_sensitive_file`, `parse_issue`) are surfaced in Doctor, not Access.
  */
-export const FINDING_CATEGORY_ORDER: ReadonlyArray<FindingCategorySpec> = [
-  { category: "broad_access_capability", label: "Broad-access MCP servers" },
-  { category: "duplicate_mcp", label: "Duplicate MCP servers" },
-  { category: "secret_reference", label: "Secret-bearing env keys" },
-  { category: "unknown_capability", label: "Uncatalogued MCP servers" },
-  { category: "dangerous_pattern", label: "Review-worthy command patterns" }
-];
+export const FINDING_CATEGORY_ORDER: ReadonlyArray<FindingCategorySpec> =
+  ACCESS_FINDING_CATEGORY_SPECS;
 
 export interface FindingSection {
   category: FindingCategory;
@@ -28,9 +21,9 @@ export interface FindingSection {
 }
 
 /**
- * Aggregates findings from user-scope + every project. Groups by category
- * in priority order. Returns only sections that have at least one finding.
- * Within a section, findings are sorted by title (case-insensitive).
+ * Aggregates findings from user-scope + every project. Groups by category in
+ * severity-first priority order. Returns only sections that have at least one
+ * finding. Within a section, findings are sorted by severity, then title.
  */
 export function aggregateFindings(
   result: MultiProjectScanResult
@@ -53,9 +46,7 @@ export function aggregateFindings(
   for (const spec of FINDING_CATEGORY_ORDER) {
     const list = grouped.get(spec.category);
     if (!list || list.length === 0) continue;
-    const sorted = [...list].sort((a, b) =>
-      a.title.localeCompare(b.title, undefined, { sensitivity: "base" })
-    );
+    const sorted = [...list].sort(compareFindingsForAccess);
     sections.push({ category: spec.category, label: spec.label, findings: sorted });
   }
   return sections;

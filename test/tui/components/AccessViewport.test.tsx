@@ -115,9 +115,25 @@ test("AccessViewport marks the active card with the ▶ prefix and leaves inacti
   );
   const frame = inst.lastFrame() ?? "";
 
-  assert.match(frame, /▶\s+• bravo/);
-  assert.doesNotMatch(frame, /▶\s+• alpha/);
-  assert.doesNotMatch(frame, /▶\s+• charlie/);
+  assert.match(frame, /▶\s+\[HIGH\]\s+• bravo/);
+  assert.doesNotMatch(frame, /▶\s+\[HIGH\]\s+• alpha/);
+  assert.doesNotMatch(frame, /▶\s+\[HIGH\]\s+• charlie/);
+  inst.unmount();
+});
+
+test("AccessViewport renders a severity label on each finding card", () => {
+  const findings = [f("duplicate_mcp", "shadcn")];
+  const inst = render(
+    <AccessViewport
+      sections={sectionsFor(findings)}
+      homeDir="/home"
+      cursor={0}
+      visibleCount={1}
+    />
+  );
+  const frame = inst.lastFrame() ?? "";
+
+  assert.match(frame, /\[LOW\]\s+• shadcn/);
   inst.unmount();
 });
 
@@ -164,7 +180,7 @@ test("AccessViewport renders the section header for the first visible finding of
   assert.match(frame, /S E C R E T/);
   const dupIdx = frame.indexOf("D U P L I C A T E");
   const secretIdx = frame.indexOf("S E C R E T");
-  assert.ok(dupIdx > -1 && secretIdx > dupIdx, "duplicate section appears before secret");
+  assert.ok(secretIdx > -1 && dupIdx > secretIdx, "secret section appears before duplicate");
   inst.unmount();
 });
 

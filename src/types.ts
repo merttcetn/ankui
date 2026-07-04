@@ -23,6 +23,7 @@ export type SkillSource = "config" | "directory" | "builtin";
 export type Scope = "user" | "project";
 export type FindingScope = Scope | "cross_tool";
 export type AccessLevel = "limited" | "moderate" | "broad" | "unknown";
+export type FindingSeverity = "high" | "medium" | "low";
 
 export type CapabilityCategory =
   | "filesystem"
@@ -35,6 +36,15 @@ export type CapabilityCategory =
   | "memory"
   | "automation"
   | "unknown";
+
+export type FindingCategory =
+  | "broad_access_capability"
+  | "unknown_capability"
+  | "secret_reference"
+  | "duplicate_mcp"
+  | "dangerous_pattern"
+  | "skipped_sensitive_file"
+  | "parse_issue";
 
 export interface Skill {
   id: string;
@@ -55,14 +65,8 @@ export interface Finding {
   toolIds: ToolId[];
   title: string;
   message: string;
-  category:
-    | "broad_access_capability"
-    | "unknown_capability"
-    | "secret_reference"
-    | "duplicate_mcp"
-    | "dangerous_pattern"
-    | "skipped_sensitive_file"
-    | "parse_issue";
+  category: FindingCategory;
+  severity: FindingSeverity;
   accessLevel: AccessLevel;
   scope: FindingScope;
   sourcePaths: string[];
@@ -274,7 +278,9 @@ export function createWarning(input: Omit<Warning, "id"> & { id?: string }): War
   };
 }
 
-export function createFinding(input: Omit<Finding, "id"> & { id?: string }): Finding {
+export function createFinding(
+  input: Omit<Finding, "id" | "severity"> & { id?: string; severity?: FindingSeverity }
+): Finding {
   return {
     id:
       input.id ??
@@ -288,12 +294,46 @@ export function createFinding(input: Omit<Finding, "id"> & { id?: string }): Fin
     title: input.title,
     message: input.message,
     category: input.category,
+    severity: input.severity ?? defaultFindingSeverity(input.category),
     accessLevel: input.accessLevel,
     scope: input.scope,
     sourcePaths: input.sourcePaths,
     relatedSkillIds: input.relatedSkillIds,
     recommendation: input.recommendation
   };
+}
+
+export const FINDING_SEVERITY_ORDER: ReadonlyArray<FindingSeverity> = [
+  "high",
+  "medium",
+  "low"
+];
+
+export function defaultFindingSeverity(
+  category: FindingCategory
+): FindingSeverity {
+  switch (category) {
+    case "dangerous_pattern":
+    case "broad_access_capability":
+      return "high";
+    case "secret_reference":
+    case "unknown_capability":
+      return "medium";
+    case "duplicate_mcp":
+      return "low";
+    case "skipped_sensitive_file":
+    case "parse_issue":
+      return "medium";
+  }
+}
+
+export function compareFindingSeverity(a: Finding, b: Finding): number {
+  return severityRank(a.severity) - severityRank(b.severity);
+}
+
+function severityRank(severity: FindingSeverity): number {
+  const index = FINDING_SEVERITY_ORDER.indexOf(severity);
+  return index === -1 ? FINDING_SEVERITY_ORDER.length : index;
 }
 
 export function createSkillId(input: {

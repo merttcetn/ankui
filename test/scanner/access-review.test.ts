@@ -52,6 +52,7 @@ test("reviewTools emits a broad_access_capability finding for broad-access MCPs"
 
   const broad = findings.filter((f) => f.category === "broad_access_capability");
   assert.equal(broad.length, 1);
+  assert.equal(broad[0].severity, "high");
   assert.equal(broad[0].accessLevel, "broad");
   assert.deepEqual(broad[0].toolIds, ["claude"]);
   assert.equal(broad[0].scope, "user");
@@ -97,6 +98,7 @@ test("reviewTools emits an unknown_capability finding for unrecognized MCP serve
   const findings = reviewTools(tools);
   const unknown = findings.filter((f) => f.category === "unknown_capability");
   assert.equal(unknown.length, 1);
+  assert.equal(unknown[0].severity, "medium");
   assert.equal(unknown[0].accessLevel, "unknown");
   assert.deepEqual(unknown[0].toolIds, ["codex"]);
   assert.match(unknown[0].title, /internal-mystery/);
@@ -144,6 +146,7 @@ test("reviewTools emits a duplicate_mcp finding when the same MCP appears in mul
   const dupes = findings.filter((f) => f.category === "duplicate_mcp");
 
   assert.equal(dupes.length, 1, "expected exactly one duplicate finding for GitHub");
+  assert.equal(dupes[0].severity, "low");
   assert.equal(dupes[0].scope, "cross_tool");
   assert.deepEqual(dupes[0].toolIds.sort(), ["claude", "codex"]);
   assert.equal(dupes[0].sourcePaths.length, 2);
@@ -182,6 +185,7 @@ test("reviewTools emits a secret_reference finding when MCP env keys look secret
   const secrets = findings.filter((f) => f.category === "secret_reference");
 
   assert.equal(secrets.length, 1);
+  assert.equal(secrets[0].severity, "medium");
   assert.deepEqual(secrets[0].toolIds, ["claude"]);
   assert.match(secrets[0].message, /GITHUB_TOKEN/);
   assert.doesNotMatch(secrets[0].message, /DEBUG/);
@@ -246,6 +250,7 @@ test("reviewTools emits a dangerous_pattern finding when preview contains 'rm -r
   const findings = reviewTools(tools);
   const dangerous = findings.filter((f) => f.category === "dangerous_pattern");
   assert.equal(dangerous.length, 1);
+  assert.equal(dangerous[0].severity, "high");
   assert.match(dangerous[0].message, /rm -rf/);
 });
 

@@ -97,9 +97,9 @@ test("AccessTab emits sections in priority order", () => {
   const dupIdx     = frame.indexOf("D U P L I C A T E");
   const secretIdx  = frame.indexOf("S E C R E T");
   const dangerIdx  = frame.indexOf("R E V I E W");
-  assert.ok(broadIdx > 0 && broadIdx < dupIdx, "broad before duplicate");
-  assert.ok(dupIdx   < secretIdx, "duplicate before secret");
-  assert.ok(secretIdx < dangerIdx, "secret before dangerous");
+  assert.ok(broadIdx > 0 && broadIdx < dangerIdx, "broad before dangerous");
+  assert.ok(dangerIdx < secretIdx, "dangerous before secret");
+  assert.ok(secretIdx < dupIdx, "secret before duplicate");
   inst.unmount();
 });
 

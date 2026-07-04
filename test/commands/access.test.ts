@@ -81,4 +81,7 @@ test("runAccessCommand emits parseable JSON when json is true", async () => {
   assert.equal(typeof parsed.scannedAt, "string");
   assert.ok(Array.isArray(parsed.findings));
   assert.equal(parsed.summary.totalFindings, parsed.findings.length);
+  assert.equal(typeof parsed.summary.bySeverity.high, "number");
+  assert.equal(typeof parsed.summary.bySeverity.medium, "number");
+  assert.equal(typeof parsed.summary.bySeverity.low, "number");
 });
