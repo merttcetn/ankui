@@ -320,6 +320,32 @@ Projects (16)
 
 ---
 
+### `ankui report`
+
+Export a shareable sanitized Markdown report.
+
+```
+Usage: ankui report [options]
+
+Export a shareable sanitized Markdown report.
+
+Options:
+  --output <file>  write the report to a new file instead of stdout
+```
+
+The report uses the same multi-project scan path as `ankui scan-all`, then renders an executive Markdown summary with tool counts, MCP counts, finding severity totals, access findings, grouped warnings, and recommendations. It is designed for sharing: absolute paths, home/cwd/dev-root/project names, raw skill previews/details, and secret-like environment variable names are omitted or replaced with stable placeholders such as `<HOME>`, `<PROJECT_1>`, and `<PATH_1>`.
+
+Pass global `--json` to emit the sanitized report model instead of raw scan JSON:
+
+```bash
+ankui --json report
+ankui report --output ankui-report.md
+```
+
+The `ankui web` Overview screen also includes an **Export report** button that downloads the same Markdown format from the currently loaded scan.
+
+---
+
 ### `ankui list`
 
 List skills, optionally filtered by `--kind` and `--tool`.
@@ -415,7 +441,7 @@ Note: `Tab` is reserved for future focus navigation and does not cycle tabs in t
 ```bash
 npm install
 npm run typecheck      # TypeScript strict-mode check (no emit)
-npm test               # runs 567 tests via node:test + tsx
+npm test               # runs the node:test + tsx suite
 npm run build          # two-stage build (see below)
 node dist/cli.js scan  # smoke test against your real local config
 ```

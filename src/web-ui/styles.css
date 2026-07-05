@@ -1116,6 +1116,35 @@ code {
   margin-top: 6px;
 }
 
+/* ── Overview report export ───────────────────────────────── */
+
+.overview-report {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 12px 0;
+  margin: 0 0 16px;
+  border-top: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+}
+
+.overview-report-title {
+  font: var(--weight-bold) var(--size-body)/var(--lh-body) var(--font-sans);
+  color: var(--text);
+}
+
+.overview-report-copy {
+  max-width: 560px;
+  color: var(--text-mute);
+  font-size: var(--size-small);
+  line-height: var(--lh-body);
+}
+
+.overview-report-button {
+  flex: 0 0 auto;
+}
+
 /* ── SkillRow ──────────────────────────────────────────────── */
 
 .ank-row {
@@ -1172,4 +1201,11 @@ code {
   .ank-stats { grid-template-columns: repeat(2, 1fr) !important; }
   .ank-detail-title { font-size: 24px; }
   .ank-stat-n { font-size: 28px; }
+  .overview-report {
+    align-items: stretch;
+    flex-direction: column;
+  }
+  .overview-report-button {
+    width: 100%;
+  }
 }

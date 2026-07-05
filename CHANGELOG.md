@@ -12,6 +12,7 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 - Added public repository boundary documentation, security reporting policy, contribution guidance, and brand usage policy.
 - Added CI checks for Node 20 and 22, Dependabot configuration for npm and GitHub Actions, and CODEOWNERS ownership for all paths.
 - Added high/medium/low severity labels for access findings across CLI, TUI, web UI, and access JSON summaries.
+- Added `ankui report` and a web Overview export action for shareable sanitized Markdown reports.
 
 ### Changed
 

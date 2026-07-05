@@ -10,6 +10,7 @@ import { runDoctorCommand } from "./commands/doctor.js";
 import { runListCommand } from "./commands/list.js";
 import { runMcpCommand } from "./commands/mcp.js";
 import { runRemoveCommand } from "./commands/remove.js";
+import { runReportCommand } from "./commands/report.js";
 import { runScanAllCommand } from "./commands/scan-all.js";
 import { runShowCommand } from "./commands/show.js";
 import { runUpdateCommand } from "./commands/update.js";
@@ -145,6 +146,19 @@ program
     const globalOptions = program.opts<GlobalOptions>();
     await runScanAllCommand({
       json: Boolean(globalOptions.json),
+      write: (chunk) => process.stdout.write(chunk)
+    });
+  });
+
+program
+  .command("report")
+  .description("Export a shareable sanitized Markdown report.")
+  .option("--output <file>", "write the report to a new file instead of stdout")
+  .action(async (cmdOpts: { output?: string }) => {
+    const globalOptions = program.opts<GlobalOptions>();
+    await runReportCommand({
+      json: Boolean(globalOptions.json),
+      output: cmdOpts.output,
       write: (chunk) => process.stdout.write(chunk)
     });
   });

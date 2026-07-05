@@ -3,6 +3,7 @@ import React from "react";
 import type { MultiProjectScanResult } from "../../types.js";
 import { DetailHeader } from "../components/DetailHeader.js";
 import { StatGrid } from "../components/StatGrid.js";
+import { downloadReport } from "../report-download.js";
 
 export function Overview(props: { scan: MultiProjectScanResult }): {
   rail: undefined;
@@ -28,6 +29,21 @@ export function Overview(props: { scan: MultiProjectScanResult }): {
         <DetailHeader crumb="OVERVIEW" title="ankui" meta={meta} />
         <div className="ank-view-body">
           <StatGrid items={items} />
+          <div className="overview-report">
+            <div>
+              <div className="overview-report-title">Shareable sanitized report</div>
+              <div className="overview-report-copy">
+                Markdown export with strict path anonymization and no raw skill previews.
+              </div>
+            </div>
+            <button
+              type="button"
+              className="action overview-report-button"
+              onClick={() => downloadReport(props.scan)}
+            >
+              Export report
+            </button>
+          </div>
           <p className="ank-detail-meta">
             {props.scan.totals.skillsAcrossProjects} skills across projects
           </p>
