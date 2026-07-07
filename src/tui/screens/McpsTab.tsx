@@ -27,6 +27,10 @@ export interface McpsTabProps {
 export function McpsTab({ result }: McpsTabProps): React.ReactElement {
   const groups = aggregateMcps(result);
   const panelWidth = usePanelWidth();
+  // Fixed overhead: 2 SectionHeader (label + underline) + 1 summary Text
+  // + 1 reserved hint row. Called before any early return to keep hook order
+  // stable (Rules of Hooks).
+  const groupsBudget = useAvailableContentRows(2 + 1 + 1);
 
   if (groups.length === 0) {
     return (
@@ -46,12 +50,8 @@ export function McpsTab({ result }: McpsTabProps): React.ReactElement {
     for (const config of group.configurations) toolSet.add(config.toolId);
   }
 
-  // Fixed overhead: 2 SectionHeader (label + underline) + 1 summary Text
-  // + 1 reserved hint row. Per-group height varies, so we clip whole groups
-  // (splitting a group mid-render is ugly) — accumulate until the next
-  // group would overflow.
-  const fixedOverhead = 2 + 1 + 1;
-  const groupsBudget = useAvailableContentRows(fixedOverhead);
+  // Per-group height varies, so we clip whole groups (splitting a group
+  // mid-render is ugly) — accumulate until the next group would overflow.
   let usedRows = 0;
   const visibleGroups: McpGroup[] = [];
   for (const group of groups) {

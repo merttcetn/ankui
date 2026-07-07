@@ -2,7 +2,7 @@ import path from "node:path";
 
 import { countTextLines, createSanitizedPreview } from "../preview.js";
 import { readJsoncFile, readMarkdownFile } from "../parsing.js";
-import { maskSecretText, safeReadDirectory } from "../safety.js";
+import { maskSecretText } from "../safety.js";
 import {
   addSkillToState,
   addWarningsToState,

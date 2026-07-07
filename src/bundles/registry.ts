@@ -35,7 +35,7 @@ export async function readRegistry(homeDir: string): Promise<BundleRegistry> {
   const p = getRegistryPath(homeDir);
   try {
     const raw = await fs.readFile(p, "utf8");
-    const parsed = JSON.parse(raw);
+    const parsed: unknown = JSON.parse(raw);
     if (!isBundleRegistry(parsed)) {
       throw new Error(`unexpected registry shape in ${p}`);
     }

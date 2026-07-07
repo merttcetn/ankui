@@ -235,7 +235,7 @@ export async function runWatchCommand(
   return { exitPromise, shutdown };
 }
 
-async function defaultMountTui(dataSource: DataSource): Promise<{
+function defaultMountTui(dataSource: DataSource): Promise<{
   waitUntilExit: () => Promise<void>;
   unsubscribe: () => void;
 }> {
@@ -251,10 +251,10 @@ async function defaultMountTui(dataSource: DataSource): Promise<{
     }
   };
   const waitUntilExit = defaultRenderTui(wrapped);
-  return {
+  return Promise.resolve({
     waitUntilExit: () => waitUntilExit,
     unsubscribe: () => {
       appUnsubscribe?.();
     }
-  };
+  });
 }

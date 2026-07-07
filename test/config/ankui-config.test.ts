@@ -53,7 +53,7 @@ test("readAnkuiConfig emits parse_failed warning on malformed JSON", async () =>
   const result = await readAnkuiConfig(home);
   assert.deepEqual(result.config, { version: 1, devRoots: [] });
   assert.equal(result.warnings.length, 1);
-  assert.equal(result.warnings[0]!.reason, "parse_failed");
+  assert.equal(result.warnings[0].reason, "parse_failed");
 });
 
 test("readAnkuiConfig emits parse_failed warning when devRoots is not an array", async () => {
@@ -68,7 +68,7 @@ test("readAnkuiConfig emits parse_failed warning when devRoots is not an array",
   const result = await readAnkuiConfig(home);
   assert.deepEqual(result.config, { version: 1, devRoots: [] });
   assert.equal(result.warnings.length, 1);
-  assert.equal(result.warnings[0]!.reason, "parse_failed");
+  assert.equal(result.warnings[0].reason, "parse_failed");
 });
 
 test("writeAnkuiConfig creates the directory and writes JSON atomically", async () => {

@@ -182,7 +182,6 @@ test("ankui bundles lists detected bundles from the scanner when registry is emp
 test("ankui bundles --json includes detected bundle records", async () => {
   const home = await tmpHome();
   await writeRegistry(home, { version: 1, bundles: [] });
-  const stamp = "2026-05-25T00:00:00.000Z";
   const r = await runBundlesCommand({
     homeDir: home,
     flags: { json: true },
@@ -225,7 +224,6 @@ test("ankui bundles hides detected bundles that are also tracked (no duplicates)
       scope: "user", installs: []
     }]
   });
-  const stamp = "2026-05-25T00:00:00.000Z";
   const r = await runBundlesCommand({
     homeDir: home,
     flags: { json: true },

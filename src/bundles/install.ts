@@ -78,10 +78,10 @@ export async function buildPlan(input: PlanInput): Promise<Plan> {
 export function detectInstalledTools(homeDir: string): Promise<ToolId[]> {
   // Returns ToolIds whose user-scope config dir exists.
   return Promise.all([
-    fs.access(path.join(homeDir, ".claude")).then(() => "claude" as ToolId).catch(() => null),
+    fs.access(path.join(homeDir, ".claude")).then(() => "claude").catch(() => null),
     Promise.any([
       fs.access(path.join(homeDir, ".skills")),
       fs.access(path.join(homeDir, ".config", "skills"))
-    ]).then(() => "skills-sh" as ToolId).catch(() => null)
+    ]).then(() => "skills-sh").catch(() => null)
   ]).then((arr) => arr.filter((x): x is ToolId => x !== null));
 }

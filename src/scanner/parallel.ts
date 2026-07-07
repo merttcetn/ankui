@@ -18,7 +18,7 @@ export async function parallelMap<T, R>(
     return [];
   }
 
-  const results: R[] = new Array(items.length);
+  const results: R[] = new Array<R>(items.length);
   let nextIndex = 0;
   let firstError: unknown = undefined;
 
@@ -29,7 +29,7 @@ export async function parallelMap<T, R>(
       nextIndex += 1;
       if (i >= items.length) return;
       try {
-        results[i] = await mapper(items[i] as T, i);
+        results[i] = await mapper(items[i], i);
       } catch (error) {
         if (firstError === undefined) firstError = error;
         return;
@@ -45,6 +45,9 @@ export async function parallelMap<T, R>(
   await Promise.all(workers);
 
   if (firstError !== undefined) {
+    // Re-throw the value caught from mapper() verbatim to preserve the original
+    // error; its narrowed type trips only-throw-error.
+    // eslint-disable-next-line @typescript-eslint/only-throw-error
     throw firstError;
   }
 

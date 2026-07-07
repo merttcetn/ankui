@@ -107,7 +107,7 @@ test("crawlForProjects records the marker basenames that matched", async () => {
   const result = await crawlForProjects({ rootDir: root, maxDepth: 1 });
 
   assert.equal(result.projects.length, 1);
-  const project = result.projects[0]!;
+  const project = result.projects[0];
   assert.equal(project.projectPath, path.join(root, "multi"));
   assert.equal(project.parentPath, root);
   assert.equal(project.depth, 1);
@@ -185,7 +185,7 @@ test("crawlForProjects DOES record the parent when a hidden subdir IS a marker",
 
   // Exactly one project: 'ankui'. We must NOT also report 'skills' or anything inside .claude.
   assert.equal(result.projects.length, 1);
-  assert.equal(path.basename(result.projects[0]!.projectPath), "ankui");
+  assert.equal(path.basename(result.projects[0].projectPath), "ankui");
 });
 
 test("crawlForProjects does not recurse INTO a marker directory", async () => {
@@ -201,7 +201,7 @@ test("crawlForProjects does not recurse INTO a marker directory", async () => {
   const result = await crawlForProjects({ rootDir: root, maxDepth: 6 });
 
   assert.equal(result.projects.length, 1);
-  assert.equal(path.basename(result.projects[0]!.projectPath), "outer");
+  assert.equal(path.basename(result.projects[0].projectPath), "outer");
 });
 
 test("crawlForProjects detects symlink loops via fs.realpath + visited set", async () => {
@@ -231,7 +231,7 @@ test("crawlForProjects records a permission_denied warning when a directory is u
     const result = await crawlForProjects({ rootDir: root, maxDepth: 6 });
     const warning = result.warnings.find((w) => w.path === unreadable);
     assert.ok(warning, "expected a warning for the unreadable directory");
-    assert.equal(warning!.reason, "permission_denied");
+    assert.equal(warning.reason, "permission_denied");
   } finally {
     await fs.chmod(unreadable, 0o700).catch(() => undefined);
   }

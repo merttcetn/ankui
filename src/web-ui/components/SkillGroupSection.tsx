@@ -100,7 +100,7 @@ export function SkillGroupSection(
         )}
         {showBulk && (
           <BulkActionButtons
-            available={bulkAvailable as "disable-all" | "enable-all" | "both"}
+            available={bulkAvailable}
             onAction={onBulkAction}
           />
         )}

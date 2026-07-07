@@ -52,8 +52,8 @@ test("discoverProjects emits a warning when a devRoot does not exist", async () 
 
   assert.deepEqual(result.projects, []);
   assert.equal(result.warnings.length, 1);
-  assert.equal(result.warnings[0]!.reason, "permission_denied");
-  assert.ok(result.warnings[0]!.message.includes(missing));
+  assert.equal(result.warnings[0].reason, "permission_denied");
+  assert.ok(result.warnings[0].message.includes(missing));
 });
 
 test("discoverProjects skips dotfile and non-directory children of a devRoot", async () => {
@@ -79,7 +79,7 @@ test("discoverProjects produces home-relative displayPath", async () => {
   const result = await discoverProjects([root], home);
 
   assert.equal(result.projects.length, 1);
-  assert.equal(result.projects[0]!.displayPath, "~/Developer/ankui");
+  assert.equal(result.projects[0].displayPath, "~/Developer/ankui");
 });
 
 test("discoverProjects deduplicates projects when devRoots overlap", async () => {
@@ -221,8 +221,8 @@ test("readDevRootsConfig returns empty devRoots + not_found warning when file mi
   const result = await readDevRootsConfig(home);
   assert.deepEqual(result.devRoots, []);
   assert.equal(result.warnings.length, 1);
-  assert.equal(result.warnings[0]!.reason, "not_found");
-  assert.match(result.warnings[0]!.message, /config\.json/);
+  assert.equal(result.warnings[0].reason, "not_found");
+  assert.match(result.warnings[0].message, /config\.json/);
 });
 
 test("readDevRootsConfig still emits permission_denied for EACCES", async () => {
@@ -238,7 +238,7 @@ test("readDevRootsConfig still emits permission_denied for EACCES", async () => 
     const result = await readDevRootsConfig(home);
     assert.deepEqual(result.devRoots, []);
     if (result.warnings.length > 0) {
-      assert.equal(result.warnings[0]!.reason, "permission_denied");
+      assert.equal(result.warnings[0].reason, "permission_denied");
     }
   } finally {
     await fs.chmod(configPath, 0o644).catch(() => undefined);
@@ -268,7 +268,7 @@ test("readDevRootsConfig emits parse_failed warning on malformed JSON", async ()
   const result = await readDevRootsConfig(home);
   assert.deepEqual(result.devRoots, []);
   assert.equal(result.warnings.length, 1);
-  assert.equal(result.warnings[0]!.reason, "parse_failed");
+  assert.equal(result.warnings[0].reason, "parse_failed");
 });
 
 test("readDevRootsConfig ignores non-string entries in devRoots array", async () => {

@@ -38,7 +38,7 @@ function skill(
     capabilityCategories: [],
     accessLevel: "moderate",
     ...(opts.disabled ? { details: { disabled: true } } : {})
-  } as Skill;
+  };
 }
 
 function resultWith(

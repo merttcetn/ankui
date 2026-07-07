@@ -27,6 +27,23 @@ export function ToolTab({ toolId, result, dispatch }: ToolTabProps): React.React
   const panelWidth = usePanelWidth();
 
   const tool = result.userScope.tools.find((t) => t.id === toolId);
+
+  const visibleStats = tool
+    ? Object.entries(tool.stats).filter(
+        ([, count]) => typeof count === "number" && count > 0
+      )
+    : [];
+
+  // Fixed-overhead rows this screen renders before the projects list.
+  // SectionHeader renders TWO rows (label + underline), not one.
+  //   2 tool SectionHeader + 1 summary Text
+  // + 1 marginTop + 2 USER SCOPE SectionHeader + 1 detectedPaths + N stats
+  // + 1 marginTop + 2 PROJECTS SectionHeader
+  // + 1 reserved for the "+N more" hint
+  // Computed before the early return so hook order stays stable (Rules of Hooks).
+  const fixedOverhead = 3 + (4 + visibleStats.length) + 3 + 1;
+  const projectsBudget = useAvailableContentRows(fixedOverhead);
+
   if (!tool || !tool.detected) {
     return (
       <Box flexDirection="column">
@@ -41,18 +58,6 @@ export function ToolTab({ toolId, result, dispatch }: ToolTabProps): React.React
     return projectTool && projectTool.skills.length > 0;
   });
 
-  const visibleStats = Object.entries(tool.stats).filter(
-    ([, count]) => typeof count === "number" && (count as number) > 0
-  );
-
-  // Fixed-overhead rows this screen renders before the projects list.
-  // SectionHeader renders TWO rows (label + underline), not one.
-  //   2 tool SectionHeader + 1 summary Text
-  // + 1 marginTop + 2 USER SCOPE SectionHeader + 1 detectedPaths + N stats
-  // + 1 marginTop + 2 PROJECTS SectionHeader
-  // + 1 reserved for the "+N more" hint
-  const fixedOverhead = 3 + (4 + visibleStats.length) + 3 + 1;
-  const projectsBudget = useAvailableContentRows(fixedOverhead);
   const visibleProjects = projectsWithSkills.slice(0, Math.max(0, projectsBudget));
   const hiddenProjects = projectsWithSkills.length - visibleProjects.length;
   const projectsHint = clipHint(hiddenProjects);

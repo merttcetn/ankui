@@ -68,7 +68,7 @@ test("runListCommand throws InvalidFilterError on unknown --kind", async () => {
       homeDir,
       env: {}
     }),
-    (err: unknown) => err instanceof InvalidFilterError && /kind/.test((err as Error).message)
+    (err: unknown) => err instanceof InvalidFilterError && /kind/.test((err).message)
   );
 });
 
@@ -82,6 +82,6 @@ test("runListCommand throws InvalidFilterError on unknown --tool", async () => {
       homeDir: "/tmp",
       env: {}
     }),
-    (err: unknown) => err instanceof InvalidFilterError && /tool/.test((err as Error).message)
+    (err: unknown) => err instanceof InvalidFilterError && /tool/.test((err).message)
   );
 });
