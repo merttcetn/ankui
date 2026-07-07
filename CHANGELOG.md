@@ -7,6 +7,8 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-07-07
+
 ### Added
 
 - Added explicit semantic inventory snapshots and field-level drift comparison across CLI, TUI, and web UI.
@@ -16,6 +18,7 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 - Added CI checks for Node 20 and 22, Dependabot configuration for npm and GitHub Actions, and CODEOWNERS ownership for all paths.
 - Added high/medium/low severity labels for access findings across CLI, TUI, web UI, and access JSON summaries.
 - Added `ankui report` and a web Overview export action for shareable sanitized Markdown reports.
+- Added a flat ESLint configuration and enforced `eslint --max-warnings=0` as a CI gate.
 
 ### Changed
 
@@ -27,6 +30,7 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 - Linked the README to the hosted Ankui landing page.
 - Clarified read-only wording so scans remain read-only while the optional confirmed skill enable/disable action is described as reversible.
 - Expanded the pull request template with provenance, safety/privacy, and test reminders.
+- Skipped npm publish for versions already on the registry so tagged release re-runs stay idempotent.
 
 ## [0.2.3] - 2026-06-06
 
