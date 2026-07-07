@@ -1,4 +1,10 @@
 import type { MultiProjectScanResult } from "../types.js";
+import type {
+  SnapshotDiffResult,
+  SnapshotDocument,
+  SnapshotMetadata,
+  SnapshotStoreWarning
+} from "../snapshots/types.js";
 
 export interface ActionRequest {
   skillId: string;
@@ -18,6 +24,48 @@ export interface ActionsResponse {
 
 export interface ConfigResponse {
   scan: MultiProjectScanResult;
+}
+
+export interface SnapshotStateResponse {
+  scan: MultiProjectScanResult;
+  current: SnapshotDocument;
+  latest?: SnapshotDocument;
+  snapshots: SnapshotMetadata[];
+  warnings: SnapshotStoreWarning[];
+  diff?: SnapshotDiffResult;
+}
+
+export async function fetchSnapshotState(): Promise<SnapshotStateResponse> {
+  return fetchSnapshotJson("/api/snapshot-state");
+}
+
+export async function fetchSnapshot(id: string): Promise<SnapshotDocument> {
+  return fetchSnapshotJson(`/api/snapshots/${encodeURIComponent(id)}`);
+}
+
+export async function createSnapshot(label?: string): Promise<SnapshotStateResponse> {
+  return fetchSnapshotJson("/api/snapshots", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ ...(label?.trim() ? { label: label.trim() } : {}) })
+  });
+}
+
+export async function removeSnapshot(id: string): Promise<SnapshotStateResponse> {
+  return fetchSnapshotJson(`/api/snapshots/${encodeURIComponent(id)}`, {
+    method: "DELETE"
+  });
+}
+
+async function fetchSnapshotJson<T>(url: string, init: RequestInit = {}): Promise<T> {
+  const headers = new Headers(init.headers);
+  headers.set("x-ankui-token", token());
+  const res = await fetch(url, { ...init, headers });
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({})) as { error?: string };
+    throw new Error(data.error ?? `snapshot request failed (${res.status})`);
+  }
+  return (await res.json()) as T;
 }
 
 function token(): string {
@@ -79,7 +127,8 @@ export async function applyConfig(
     throw err;
   }
   if (!res.ok) {
-    throw new Error(`config request failed (${res.status})`);
+    const data = await res.json().catch(() => ({})) as { error?: string };
+    throw new Error(data.error ?? `config request failed (${res.status})`);
   }
   return (await res.json()) as ConfigResponse;
 }

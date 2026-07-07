@@ -6,7 +6,7 @@ Landing page: [ankui.vercel.app](https://ankui.vercel.app)
 
 ## What Ankui is
 
-AI coding tools accumulate configuration, skills, rules, and MCP servers across your filesystem, and it is easy to lose track of what each one can access. Ankui is a local-first scanner and terminal UI that inventories those resources and surfaces access findings. It never executes user code, follows remote URLs, or sends scan data anywhere. Scans are read-only. The only optional mutation is a user-confirmed, reversible skill enable/disable action: from the TUI or the `ankui web` browser UI you can move an individual skill directory into or out of a sibling `.disabled/` folder. Supported tools: Claude, Codex, Cursor, Gemini, OpenCode, Antigravity, and skills.sh.
+AI coding tools accumulate configuration, skills, rules, and MCP servers across your filesystem, and it is easy to lose track of what each one can access. Ankui is a local-first scanner and terminal UI that inventories those resources and surfaces access findings. It never executes user code, follows remote URLs, or sends scan data anywhere. Scans are read-only. Writes happen only after an explicit user action: managing Ankui-owned snapshots/bundles/settings, or applying a confirmed reversible skill enable/disable action. Supported tools: Claude, Codex, Cursor, Gemini, OpenCode, Antigravity, and skills.sh.
 
 ## Community edition scope
 
@@ -92,7 +92,7 @@ The **Settings** tab — in the TUI (bottom row, alongside Actions) and the `ank
 
 Ankui sends no data anywhere and calls no external APIs.
 
-**Scans are read-only. The only optional mutation is a user-confirmed, reversible skill enable/disable action.** Triggered only from the Actions tab — in the TUI (`[s]`) or the `ankui web` browser UI — it moves a skill directory into or out of a sibling `.disabled/` folder via a single rename — reversible, never a delete or overwrite, and refused if it would escape `$HOME`/`$CWD`, clobber an existing directory, or act on a missing source. Everything else Ankui does is strictly read-only.
+**Scans are read-only.** Ankui writes only after an explicit user action: its own settings, tracked bundle state, and semantic snapshots live under `~/.config/ankui/` or `~/.ankui/`; confirmed Actions-tab changes move an eligible skill directory into or out of a sibling `.disabled/` folder. Snapshot files never contain raw previews or secret values. Skill moves remain reversible, never overwrite, and are refused if they would escape `$HOME`/`$CWD`, clobber an existing directory, or act on a missing source.
 
 **The `ankui web` server is loopback-only.** It binds `127.0.0.1`, generates a fresh per-session token, and rejects any `/api/*` request without it; write requests additionally require an `Origin` header matching the server's own origin, and every request must carry a `Host` header pointing at a loopback alias of the bound origin (any mismatch is rejected with `421 Misdirected Request`, which defeats DNS-rebinding attacks). It serves only local files and calls no external APIs.
 
@@ -202,7 +202,7 @@ Options:
   --no-open      do not open the browser automatically
 ```
 
-Starts a loopback HTTP server bound to `127.0.0.1` and opens your default browser at it. The single-page app has seven tabs mirroring the TUI — Overview, Tools, MCPs, Access, Doctor, Actions, Settings — backed by `GET /api/scan` and `POST /api/actions` (Settings additionally calls `POST /api/config` to update the dev-root list). The Actions tab applies skill enable/disable to disk through the same staged-changes + save flow as the TUI Actions tab. `--port` sets the preferred port; if it is taken the server tries the next free port up to +20. `--no-open` skips launching the browser. Runs until `Ctrl-C`.
+Starts a loopback HTTP server bound to `127.0.0.1` and opens your default browser at it. The single-page app has eight tabs — Overview, Changes, Tools, MCPs, Access, Doctor, Actions, Settings. Changes manages local semantic snapshots; Actions applies skill enable/disable through the same staged-changes + save flow as the TUI. `--port` sets the preferred port; if it is taken the server tries the next free port up to +20. `--no-open` skips launching the browser. Runs until `Ctrl-C`.
 
 ```
 $ ankui web
@@ -320,6 +320,26 @@ Projects (16)
 
 ---
 
+### `ankui snapshot` and `ankui diff`
+
+Capture and compare local semantic inventory baselines.
+
+```bash
+ankui snapshot --label "before tool upgrade"
+ankui snapshot list
+ankui diff
+ankui diff --from <snapshot-id> --to <snapshot-id-or-current>
+ankui snapshot delete <snapshot-id> --yes
+```
+
+Snapshots cover user scope and every project under registered dev roots. They are explicit — normal scans, watch mode, and UI refreshes never move the baseline. `ankui diff` defaults to the latest snapshot versus a fresh current scan and reports added, removed, and field-level modified tools, skills, MCPs, findings, and warnings. IDs may be supplied in full or as an unambiguous prefix.
+
+Snapshot files live under `~/.ankui/snapshots/`; only the newest 30 valid snapshots are retained. They store normalized semantic fields and masked MCP configuration details, but never raw skill previews, raw file contents, or secret values. Adapter timeouts and other transient warnings are reported separately as scan-health changes and do not count as configuration drift. Pass global `--json` for machine-readable metadata or diff output.
+
+The TUI and `ankui web` Changes views expose the same baseline picker and semantic diff. TUI shortcuts are `Tab` to switch From/To, `↑`/`↓` to select, `[n]` to capture, and `[d]` followed by `[y]` to delete.
+
+---
+
 ### `ankui report`
 
 Export a shareable sanitized Markdown report.
@@ -420,21 +440,23 @@ Crawls your home directory (max depth 6, concurrency 16) for directories that co
 
 ## TUI keybindings
 
-Tab structure: the top row is **Overview** plus one tab per detected tool; the bottom row is `MCPs · Access · Doctor · Actions · Settings`. `←` / `→` cycles between them.
+The sidebar has a **Tools** section (Overview plus one entry per tool) and a **Views** section containing `MCPs · Access · Doctor · Actions · Bundles · Settings · Changes`. Use `↑` / `↓` while the sidebar is focused, then `→` or `Enter` to focus the selected panel.
 
 | Key | Action |
 |-----|--------|
-| `←` / `→` | Cycle between tabs |
+| `←` / `→` | Move between sidebar and active panel |
 | `↑` / `↓` | Scroll the skill list in a drill-in screen |
 | `Enter` | Drill into the selected item |
 | `Esc` / `Backspace` | Drill out (return to the previous screen) |
 | `/` | Open incremental search (drill-in screens only) |
 | `[d]` / `[e]` | Stage a disable / enable for the selected skill — UI only until `[s]` (Actions tab) |
 | `[s]` | Save staged skill changes to disk (Actions tab) |
+| `Tab` | Switch From/To selector (Changes tab) |
+| `[n]` / `[d]` | Create / request deletion of a snapshot (Changes tab) |
 | `r` | Rescan (refresh data from disk) |
 | `q` | Quit (if there are unsaved staged changes, prompts `[s]` save / `[q]` discard / `[esc]` cancel; prints the net saved-this-session summary) |
 
-Note: `Tab` is reserved for future focus navigation and does not cycle tabs in this version.
+`Tab` is scoped to the Changes panel and does not cycle application tabs.
 
 ## Local development
 

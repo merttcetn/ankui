@@ -7,12 +7,18 @@ import { runBundlesCommand } from "./commands/bundles.js";
 import { runCapsCommand } from "./commands/caps.js";
 import { runDiscoverCommand } from "./commands/discover.js";
 import { runDoctorCommand } from "./commands/doctor.js";
+import { runDiffCommand } from "./commands/diff.js";
 import { runListCommand } from "./commands/list.js";
 import { runMcpCommand } from "./commands/mcp.js";
 import { runRemoveCommand } from "./commands/remove.js";
 import { runReportCommand } from "./commands/report.js";
 import { runScanAllCommand } from "./commands/scan-all.js";
 import { runShowCommand } from "./commands/show.js";
+import {
+  runSnapshotCreateCommand,
+  runSnapshotDeleteCommand,
+  runSnapshotListCommand
+} from "./commands/snapshot.js";
 import { runUpdateCommand } from "./commands/update.js";
 import { runWatchCommand } from "./commands/watch.js";
 import { runWebCommand } from "./commands/web.js";
@@ -161,6 +167,64 @@ program
       output: cmdOpts.output,
       write: (chunk) => process.stdout.write(chunk)
     });
+  });
+
+const snapshotCommand = program
+  .command("snapshot")
+  .description("Capture and manage local semantic inventory snapshots.")
+  .option("--label <label>", "optional label for the new snapshot")
+  .action(async (cmdOpts: { label?: string }) => {
+    const globalOptions = program.opts<GlobalOptions>();
+    const code = await runSnapshotCreateCommand({
+      json: Boolean(globalOptions.json),
+      label: cmdOpts.label,
+      write: (chunk) => process.stdout.write(chunk),
+      writeError: (chunk) => process.stderr.write(chunk)
+    });
+    if (code !== 0) process.exitCode = code;
+  });
+
+snapshotCommand
+  .command("list")
+  .description("List local snapshots.")
+  .action(async () => {
+    const code = await runSnapshotListCommand({
+      json: Boolean(program.opts<GlobalOptions>().json),
+      write: (chunk) => process.stdout.write(chunk),
+      writeError: (chunk) => process.stderr.write(chunk)
+    });
+    if (code !== 0) process.exitCode = code;
+  });
+
+snapshotCommand
+  .command("delete <id>")
+  .description("Delete a local snapshot.")
+  .option("--yes", "confirm deletion")
+  .action(async (id: string, cmdOpts: { yes?: boolean }) => {
+    const code = await runSnapshotDeleteCommand({
+      id,
+      yes: Boolean(cmdOpts.yes),
+      json: Boolean(program.opts<GlobalOptions>().json),
+      write: (chunk) => process.stdout.write(chunk),
+      writeError: (chunk) => process.stderr.write(chunk)
+    });
+    if (code !== 0) process.exitCode = code;
+  });
+
+program
+  .command("diff")
+  .description("Compare a snapshot with the current inventory or another snapshot.")
+  .option("--from <id>", "baseline snapshot id or prefix (default: latest)")
+  .option("--to <id>", "target snapshot id, prefix, or current (default: current)")
+  .action(async (cmdOpts: { from?: string; to?: string }) => {
+    const code = await runDiffCommand({
+      from: cmdOpts.from,
+      to: cmdOpts.to,
+      json: Boolean(program.opts<GlobalOptions>().json),
+      write: (chunk) => process.stdout.write(chunk),
+      writeError: (chunk) => process.stderr.write(chunk)
+    });
+    if (code !== 0) process.exitCode = code;
   });
 
 program

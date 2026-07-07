@@ -1,7 +1,7 @@
 import type { MultiProjectScanResult, ToolId } from "../../types.js";
 import { cycleTabId } from "./navigation.js";
 
-export type TabId = "overview" | ToolId | "mcps" | "access" | "doctor" | "actions" | "bundles" | "settings";
+export type TabId = "overview" | ToolId | "changes" | "mcps" | "access" | "doctor" | "actions" | "bundles" | "settings";
 
 export type FocusPane = "sidebar" | "panel";
 

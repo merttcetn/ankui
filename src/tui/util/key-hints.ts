@@ -61,6 +61,10 @@ export function deriveKeyHints(
     return ["↑↓ select", back, "[d] disable", "[e] enable", ...r, "q quit"];
   }
 
+  if (state.activeTab === "changes") {
+    return ["tab from/to", "↑↓ select", "[n] snapshot", "[d] delete", back, ...r, "q quit"];
+  }
+
   if (
     state.activeTab === "mcps" ||
     state.activeTab === "doctor" ||

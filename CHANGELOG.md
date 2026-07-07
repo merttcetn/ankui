@@ -9,6 +9,9 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ### Added
 
+- Added explicit semantic inventory snapshots and field-level drift comparison across CLI, TUI, and web UI.
+- Added local snapshot retention, optional labels, JSON output, and authenticated snapshot web APIs.
+- Separated transient scan-health warnings from semantic drift and suppressed inventory conclusions for timed-out contexts.
 - Added public repository boundary documentation, security reporting policy, contribution guidance, and brand usage policy.
 - Added CI checks for Node 20 and 22, Dependabot configuration for npm and GitHub Actions, and CODEOWNERS ownership for all paths.
 - Added high/medium/low severity labels for access findings across CLI, TUI, web UI, and access JSON summaries.
@@ -16,6 +19,11 @@ and this project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ### Changed
 
+- Web Settings now expands `~/...` dev-root input and surfaces server validation messages.
+
+### Fixed
+
+- Treat skill enable/disable directory moves as one modified entity without added/removed entity or finding churn.
 - Linked the README to the hosted Ankui landing page.
 - Clarified read-only wording so scans remain read-only while the optional confirmed skill enable/disable action is described as reversible.
 - Expanded the pull request template with provenance, safety/privacy, and test reminders.

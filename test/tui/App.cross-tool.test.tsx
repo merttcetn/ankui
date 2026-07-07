@@ -140,3 +140,16 @@ test("App routes activeTab='doctor' to DoctorTab screen", async () => {
   assert.match(frame, /1 warnings/);
   inst.unmount();
 });
+
+test("App routes activeTab='changes' to the local snapshot ledger", async () => {
+  const inst = render(<App result={fixture()} />);
+  try {
+    await pressDownArrows(inst.stdin, 14);
+    const frame = inst.lastFrame() ?? "";
+    assert.match(frame, /C H A N G E S/);
+    assert.match(frame, /L O C A L.*L E D G E R/);
+    assert.match(frame, /No baseline yet/);
+  } finally {
+    inst.unmount();
+  }
+});

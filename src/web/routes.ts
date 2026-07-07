@@ -16,6 +16,15 @@ import { serveStatic } from "./static.js";
 import { readRegistry } from "../bundles/registry.js";
 import { checkBundleUpdate } from "../bundles/check.js";
 import { runUpdateCommand } from "../commands/update.js";
+import { diffSnapshots } from "../snapshots/diff.js";
+import { buildSnapshotDocument } from "../snapshots/model.js";
+import { createSnapshotFromScan } from "../snapshots/service.js";
+import {
+  deleteSnapshot,
+  listSnapshots,
+  readSnapshot,
+  validateSnapshotLabel
+} from "../snapshots/store.js";
 
 export interface RouteContext {
   token: string;
@@ -81,6 +90,77 @@ export async function handleRequest(
     return sendJson(res, 200, await loadScan(ctx));
   }
 
+  if (pathOnly === "/api/snapshot-state") {
+    const auth = authorize(req, ctx);
+    if (!auth.ok) return sendJson(res, auth.status, { error: auth.message });
+    if (method !== "GET") return sendJson(res, 405, { error: "method not allowed" });
+    return sendJson(res, 200, await buildSnapshotState(ctx));
+  }
+
+  if (pathOnly === "/api/snapshots") {
+    const auth = authorize(req, ctx);
+    if (!auth.ok) return sendJson(res, auth.status, { error: auth.message });
+    if (method === "GET") return sendJson(res, 200, await listSnapshots(ctx.homeDir));
+    if (method !== "POST") return sendJson(res, 405, { error: "method not allowed" });
+    let parsed: unknown;
+    try {
+      parsed = JSON.parse(await readBody(req));
+    } catch {
+      return sendJson(res, 400, { error: "invalid JSON body" });
+    }
+    const rawLabel = (parsed as { label?: unknown } | null)?.label;
+    if (rawLabel !== undefined && typeof rawLabel !== "string") {
+      return sendJson(res, 400, { error: "label must be a string" });
+    }
+    let label: string | undefined;
+    try {
+      label = validateSnapshotLabel(rawLabel as string | undefined);
+    } catch (error) {
+      return sendJson(res, 400, { error: formatRouteError(error) });
+    }
+    try {
+      const state = await withSnapshotLock(async () => {
+        const scan = await loadScan(ctx);
+        await createSnapshotFromScan(scan, { homeDir: ctx.homeDir, label });
+        return buildSnapshotState(ctx, scan);
+      });
+      return sendJson(res, 201, state);
+    } catch (error) {
+      return sendJson(res, 500, { error: formatRouteError(error) });
+    }
+  }
+
+  const snapshotMatch = pathOnly.match(/^\/api\/snapshots\/([^/]+)$/);
+  if (snapshotMatch) {
+    const auth = authorize(req, ctx);
+    if (!auth.ok) return sendJson(res, auth.status, { error: auth.message });
+    let id: string;
+    try {
+      id = decodeURIComponent(snapshotMatch[1]);
+    } catch {
+      return sendJson(res, 400, { error: "invalid snapshot id" });
+    }
+    if (method === "GET") {
+      try {
+        return sendJson(res, 200, await readSnapshot(ctx.homeDir, id));
+      } catch (error) {
+        return sendJson(res, 404, { error: formatRouteError(error) });
+      }
+    }
+    if (method === "DELETE") {
+      try {
+        const state = await withSnapshotLock(async () => {
+          await deleteSnapshot(ctx.homeDir, id);
+          return buildSnapshotState(ctx);
+        });
+        return sendJson(res, 200, state);
+      } catch (error) {
+        return sendJson(res, 404, { error: formatRouteError(error) });
+      }
+    }
+    return sendJson(res, 405, { error: "method not allowed" });
+  }
+
   if (pathOnly === "/api/actions") {
     const auth = authorize(req, ctx);
     if (!auth.ok) return sendJson(res, auth.status, { error: auth.message });
@@ -131,7 +211,7 @@ export async function handleRequest(
     // strings with control characters, etc.). Discovery downstream calls
     // fs.readdir on each devRoot without going through the scanner safety
     // layer, so any string accepted here gets enumerated.
-    const desiredNormalized = normalizeDevRoots(payload.desired);
+    const desiredNormalized = normalizeRequestedDevRoots(payload.desired, ctx.homeDir);
     const validation = validateDevRoots(desiredNormalized);
     if (!validation.ok) {
       return sendJson(res, 400, {
@@ -146,10 +226,11 @@ export async function handleRequest(
     // scan endpoint returns the raw on-disk list while readAnkuiConfig
     // returns a normalized one — without this both would always disagree
     // for any config that contains whitespace-padded entries or dupes.
-    const expectedNormalized = normalizeDevRoots(payload.expected);
+    const expectedNormalized = normalizeRequestedDevRoots(payload.expected, ctx.homeDir);
     return await withConfigLock(async () => {
       const existing = await readAnkuiConfig(ctx.homeDir);
-      if (!sameDevRoots(existing.config.devRoots, expectedNormalized)) {
+      const existingNormalized = normalizeRequestedDevRoots(existing.config.devRoots, ctx.homeDir);
+      if (!sameDevRoots(existingNormalized, expectedNormalized)) {
         const scan = await loadScan(ctx);
         return sendJson(res, 409, {
           error: "config changed on disk; refresh and try again",
@@ -241,6 +322,39 @@ async function loadScan(
   return { ...scan, warnings: [...config.warnings, ...scan.warnings] };
 }
 
+async function buildSnapshotState(
+  ctx: RouteContext,
+  providedScan?: MultiProjectScanResult
+): Promise<{
+  scan: MultiProjectScanResult;
+  current: ReturnType<typeof buildSnapshotDocument>;
+  latest?: Awaited<ReturnType<typeof readSnapshot>>;
+  snapshots: Awaited<ReturnType<typeof listSnapshots>>["snapshots"];
+  warnings: Awaited<ReturnType<typeof listSnapshots>>["warnings"];
+  diff?: ReturnType<typeof diffSnapshots>;
+}> {
+  const scan = providedScan ?? await loadScan(ctx);
+  const current = buildSnapshotDocument(scan, {
+    id: "current",
+    createdAt: scan.scannedAt
+  });
+  const listed = await listSnapshots(ctx.homeDir);
+  const latest = listed.snapshots[0]
+    ? await readSnapshot(ctx.homeDir, listed.snapshots[0].id)
+    : undefined;
+  return {
+    scan,
+    current,
+    ...(latest ? { latest, diff: diffSnapshots(latest, current, { toCurrent: true }) } : {}),
+    snapshots: listed.snapshots,
+    warnings: listed.warnings
+  };
+}
+
+function formatRouteError(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
+}
+
 function parseConfigPayload(
   body: unknown
 ): { expected: string[]; desired: string[] } | null {
@@ -259,6 +373,16 @@ function parseStringArray(value: unknown): string[] | null {
     out.push(entry);
   }
   return out;
+}
+
+function normalizeRequestedDevRoots(values: readonly string[], homeDir: string): string[] {
+  const expanded = normalizeDevRoots(values).map((value) => {
+    if (value === "~") return path.resolve(homeDir);
+    if (value.startsWith("~/")) return path.resolve(homeDir, value.slice(2));
+    if (path.isAbsolute(value)) return path.normalize(value);
+    return value;
+  });
+  return normalizeDevRoots(expanded);
 }
 
 const MAX_DEV_ROOT_CHARS = 4096;
@@ -311,6 +435,15 @@ function withActionsLock<T>(fn: () => Promise<T>): Promise<T> {
   const previous = actionsLock;
   const next = previous.then(fn, fn);
   actionsLock = next.catch(() => undefined);
+  return next;
+}
+
+let snapshotLock: Promise<unknown> = Promise.resolve();
+
+function withSnapshotLock<T>(fn: () => Promise<T>): Promise<T> {
+  const previous = snapshotLock;
+  const next = previous.then(fn, fn);
+  snapshotLock = next.catch(() => undefined);
   return next;
 }
 

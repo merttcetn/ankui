@@ -433,7 +433,7 @@ test("POST /api/config writes config and returns a fresh scan", async () => {
         "content-type": "application/json",
         origin: handle.url
       },
-      body: JSON.stringify({ expected: [], desired: ["/tmp/dev-root-x"] })
+      body: JSON.stringify({ expected: [], desired: ["/tmp/dev-root-x", "~/Developer/"] })
     });
     assert.equal(res.status, 200);
     const json = await res.json();
@@ -444,7 +444,7 @@ test("POST /api/config writes config and returns a fresh scan", async () => {
       "utf8"
     );
     const parsed = JSON.parse(written);
-    assert.deepEqual(parsed.devRoots, ["/tmp/dev-root-x"]);
+    assert.deepEqual(parsed.devRoots, ["/tmp/dev-root-x", path.join(home, "Developer")]);
   } finally {
     await handle.close();
   }

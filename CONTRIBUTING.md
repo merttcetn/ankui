@@ -26,7 +26,7 @@ Use `npm run dev` for the CLI entrypoint and `npm run dev:web` for the Vite web 
 
 Keep these invariants intact unless the code change and tests prove a stronger safety model:
 
-- Scans are read-only. The only optional mutation is a user-confirmed, reversible skill enable/disable action.
+- Scans are read-only. Writes require an explicit user action and are limited to Ankui-owned settings/bundles/snapshots or a confirmed reversible skill enable/disable action.
 - Scanner adapters must use the shared safe read helpers instead of direct filesystem reads.
 - Sensitive files and directories must be skipped, not partially parsed.
 - Secret-like values must be masked before scan data is returned or rendered.
@@ -58,5 +58,5 @@ Be concrete and conservative. Describe what the code does today. Do not promise 
 When describing safety, use wording consistent with:
 
 ```text
-Scans are read-only. The only optional mutation is a user-confirmed, reversible skill enable/disable action.
+Scans are read-only. Writes require an explicit user action and are limited to Ankui-owned settings/bundles/snapshots or a confirmed reversible skill enable/disable action.
 ```

@@ -16,7 +16,8 @@ export const CROSS_TOOL_TABS: ReadonlyArray<TabItem> = [
   { id: "doctor", label: "Doctor" },
   { id: "actions", label: "Actions" },
   { id: "bundles", label: "Bundles" },
-  { id: "settings", label: "Settings" }
+  { id: "settings", label: "Settings" },
+  { id: "changes", label: "Changes" }
 ];
 
 /**
@@ -26,6 +27,7 @@ export const CROSS_TOOL_TABS: ReadonlyArray<TabItem> = [
  */
 export const NON_DRILLABLE_TAB_IDS: ReadonlySet<TabId> = new Set<TabId>([
   "overview",
+  "changes",
   "mcps",
   "access",
   "doctor",

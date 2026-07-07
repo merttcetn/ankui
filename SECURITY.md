@@ -14,7 +14,7 @@ This repository does not include a hosted control plane, centralized org invento
 
 Ankui is an inventory and review tool, not a security boundary or enforcement agent.
 
-- Scans are read-only. The only optional mutation is a user-confirmed, reversible skill enable/disable action.
+- Scans are read-only. Writes require an explicit user action and are limited to Ankui-owned settings/bundles/snapshots or a confirmed reversible skill enable/disable action.
 - Skill enable/disable moves a markdown-backed skill directory into or out of a sibling `.disabled/` directory. It is refused if the source is missing, the target exists, or the rename would leave the allowed `$HOME`/`$CWD` roots.
 - Scanner reads go through the safety layer, which skips sensitive paths, caps file reads at 1 MB, records warnings instead of throwing on ordinary filesystem failures, and masks secret-like values in returned scan data.
 - The local web UI binds to loopback, requires a per-session token for API requests, requires same-origin writes, and rejects non-loopback `Host` headers.

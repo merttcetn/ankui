@@ -14,6 +14,7 @@ import { AccessView } from "./views/AccessView.js";
 import { DoctorView } from "./views/DoctorView.js";
 import { ActionsView } from "./views/ActionsView.js";
 import { SettingsView } from "./views/SettingsView.js";
+import { ChangesPanel } from "./views/ChangesView.js";
 
 const DONE_FLASH_MS = 600;
 
@@ -43,6 +44,7 @@ export function App(): React.ReactElement {
   const [justLoaded, setJustLoaded] = useState(false);
   const [selections, setSelections] = useState<Record<TabId, string | null>>({
     overview: null,
+    changes: null,
     tools: null,
     mcps: null,
     access: null,
@@ -242,6 +244,10 @@ function Body(props: {
 }): { rail: React.ReactNode; detail: React.ReactNode } {
   switch (props.tab) {
     case "overview":  return Overview({ scan: props.scan });
+    case "changes": return {
+      rail: undefined,
+      detail: <ChangesPanel scan={props.scan} onScan={props.onScan} />
+    };
     case "tools":     return ToolsView({
       scan: props.scan,
       selectedId: props.selections.tools,

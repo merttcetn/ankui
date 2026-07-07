@@ -31,7 +31,7 @@ Modified distributions should use a clearly differentiated name and visual ident
 When using Ankui safety claims, keep them tied to the current repository behavior:
 
 ```text
-Scans are read-only. The only optional mutation is a user-confirmed, reversible skill enable/disable action.
+Scans are read-only. Writes require an explicit user action and are limited to Ankui-owned settings/bundles/snapshots or a confirmed reversible skill enable/disable action.
 ```
 
 Do not weaken this claim unless the code no longer supports it, and do not expand it into promises about runtime blocking, fleet enforcement, centralized retention, or hosted administration.

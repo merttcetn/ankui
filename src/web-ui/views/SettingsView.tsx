@@ -135,7 +135,7 @@ function DevRootsPanel(props: DevRootsPanelProps): React.ReactElement {
           <input
             type="text"
             value={input}
-            placeholder="/Users/you/Developer"
+            placeholder="~/Developer or /Users/you/Developer"
             spellCheck={false}
             autoCorrect="off"
             autoCapitalize="off"
@@ -152,6 +152,10 @@ function DevRootsPanel(props: DevRootsPanelProps): React.ReactElement {
           >
             {busy ? "saving…" : "add"}
           </button>
+        </div>
+
+        <div className="settings-footer">
+          Paths beginning with <code>~</code> are expanded to your home directory.
         </div>
 
         {error && (

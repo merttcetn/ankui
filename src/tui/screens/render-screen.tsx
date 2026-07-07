@@ -28,6 +28,7 @@ import { DoctorTab } from "./DoctorTab.js";
 import { BundlesScreen } from "./BundlesScreen.js";
 import { Settings } from "./Settings.js";
 import { ActionsTab } from "./ActionsTab.js";
+import { ChangesTab } from "./ChangesTab.js";
 
 export function renderScreen(
   state: TuiState,
@@ -68,6 +69,14 @@ export function renderScreen(
   switch (state.activeTab) {
     case "overview":
       return <Overview result={result} />;
+    case "changes":
+      return (
+        <ChangesTab
+          result={result}
+          active={state.focus === "panel"}
+          onResult={(next) => dispatch({ type: "setResult", result: next })}
+        />
+      );
     case "mcps":
       return <McpsTab result={result} />;
     case "access":

@@ -6,6 +6,7 @@ import { aggregateFindings } from "../../tui/util/finding-grouping.js";
 
 export type TabId =
   | "overview"
+  | "changes"
   | "tools"
   | "mcps"
   | "access"
@@ -56,6 +57,7 @@ export function Sidebar({ scan, activeTab, onSelect, onRefresh, refreshing, just
 
   const items: NavItem[] = [
     { id: "overview", label: "Overview" },
+    { id: "changes", label: "Changes" },
     {
       id: "tools",
       label: "Tools",
