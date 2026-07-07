@@ -67,7 +67,7 @@ export function App(props: AppProps): React.ReactElement {
     return <FirstRunShell {...props} />;
   }
 
-  return <MainShell {...(props as MainShellProps)} />;
+  return <MainShell {...(props)} />;
 }
 
 function FirstRunShell(props: Extract<AppProps, { mode: "firstRun" }>): React.ReactElement {

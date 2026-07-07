@@ -17,6 +17,8 @@
     "build": "npm run build:cli && npm run build:web",
     "build:cli": "tsc -p tsconfig.json",
     "build:web": "tsc -p src/web-ui/tsconfig.json && vite build",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
     "typecheck": "tsc -p tsconfig.json --noEmit && tsc -p src/web-ui/tsconfig.json",
     "test": "node --import tsx --test test/scanner/*.test.ts test/scanner/adapters/*.test.ts test/snapshots/*.test.ts test/utils/*.test.ts test/commands/*.test.ts test/config/*.test.ts test/tui/*.test.ts test/tui/*.test.tsx test/tui/**/*.test.ts test/tui/**/*.test.tsx test/writer/*.test.ts test/bundles/*.test.ts test/web/*.test.ts",
     "start": "node dist/cli.js",
@@ -58,10 +60,15 @@
     "@types/react": "^18.3.18",
     "@types/react-dom": "^18.3.7",
     "@vitejs/plugin-react": "^4.7.0",
+    "eslint": "^10.6.0",
+    "eslint-plugin-react-hooks": "^7.1.1",
+    "eslint-plugin-react-refresh": "^0.5.3",
+    "globals": "^17.7.0",
     "ink-testing-library": "^4.0.0",
     "react-dom": "^18.3.1",
     "tsx": "^4.19.3",
     "typescript": "^5.8.2",
+    "typescript-eslint": "^8.63.0",
     "vite": "^5.4.21"
   }
 }

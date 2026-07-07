@@ -115,7 +115,7 @@ function reviewSecretEnvKeys(skill: Skill): Finding | undefined {
 
 function readEnvKeys(details: Skill["details"]): string[] {
   if (!details || typeof details !== "object") return [];
-  const raw = (details as Record<string, unknown>).envKeys;
+  const raw = (details).envKeys;
   if (!Array.isArray(raw)) return [];
   return raw.filter((k): k is string => typeof k === "string");
 }
@@ -161,7 +161,7 @@ function reviewDangerousPatterns(skill: Skill): Finding | undefined {
 
 function readPreviewText(details: Skill["details"]): string | undefined {
   if (!details || typeof details !== "object") return undefined;
-  const preview = (details as Record<string, unknown>).preview;
+  const preview = (details).preview;
   if (!preview || typeof preview !== "object") return undefined;
   const lines = (preview as Record<string, unknown>).lines;
   if (!Array.isArray(lines)) return undefined;

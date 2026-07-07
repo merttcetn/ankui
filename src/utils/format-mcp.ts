@@ -126,7 +126,7 @@ function groupMcpSkills(tools: ReadonlyArray<AITool>): McpGroup[] {
 
 function readEnvKeys(details: Skill["details"]): ReadonlyArray<string> {
   if (!details || typeof details !== "object") return [];
-  const raw = (details as Record<string, unknown>).envKeys;
+  const raw = (details).envKeys;
   if (!Array.isArray(raw)) return [];
   return raw.filter((k): k is string => typeof k === "string");
 }

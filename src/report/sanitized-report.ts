@@ -404,7 +404,7 @@ function collectAllTools(result: MultiProjectScanResult): AITool[] {
 
 function readEnvKeys(details: Skill["details"]): string[] {
   if (!details || typeof details !== "object") return [];
-  const envKeys = (details as Record<string, unknown>).envKeys;
+  const envKeys = (details).envKeys;
   if (!Array.isArray(envKeys)) return [];
   return envKeys.filter((key): key is string => typeof key === "string");
 }

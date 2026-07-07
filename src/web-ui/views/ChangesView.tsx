@@ -42,6 +42,8 @@ export function ChangesPanel(props: {
       .catch((reason) => { if (!cancelled) setError(formatError(reason)); })
       .finally(() => { if (!cancelled) setBusy(null); });
     return () => { cancelled = true; };
+    // Mount-only: capture the initial snapshot once.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {

@@ -127,14 +127,14 @@ function addSkill(
 
 function readEnvKeys(details: Skill["details"]): ReadonlyArray<string> {
   if (!details || typeof details !== "object") return [];
-  const raw = (details as Record<string, unknown>).envKeys;
+  const raw = (details).envKeys;
   if (!Array.isArray(raw)) return [];
   return raw.filter((k): k is string => typeof k === "string");
 }
 
 function readBundleOrigin(details: Skill["details"]): BundleOrigin | undefined {
   if (!details || typeof details !== "object") return undefined;
-  const candidate = (details as Record<string, unknown>).bundleOrigin;
+  const candidate = (details).bundleOrigin;
   if (candidate === null || typeof candidate !== "object") return undefined;
   const record = candidate as { kind?: unknown; name?: unknown; rootPath?: unknown };
   if (typeof record.kind !== "string" || typeof record.name !== "string") return undefined;

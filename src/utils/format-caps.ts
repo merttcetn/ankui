@@ -1,4 +1,4 @@
-import type { AccessLevel, AITool, CapabilityCategory, ScanResult, Skill } from "../types.js";
+import type { AccessLevel, AITool, CapabilityCategory, ScanResult } from "../types.js";
 
 interface CategorizedMcp {
   name: string;

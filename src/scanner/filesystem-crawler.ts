@@ -249,7 +249,7 @@ async function runWithConcurrency<T>(
       const i = nextIndex;
       nextIndex += 1;
       if (i >= items.length) return;
-      await worker(items[i] as T);
+      await worker(items[i]);
     }
   }
 

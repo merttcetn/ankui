@@ -202,7 +202,7 @@ test("aggregateMcps propagates bundleOrigin onto each configuration row", () => 
     (c) => c.sourcePath === "/home/gstack/mcps/shadcn.json"
   );
   assert.ok(bundleCfg, "bundle configuration should be present");
-  assert.deepEqual(bundleCfg!.bundleOrigin, {
+  assert.deepEqual(bundleCfg.bundleOrigin, {
     kind: "bundle",
     name: "gstack",
     rootPath: "~/gstack"
@@ -212,7 +212,7 @@ test("aggregateMcps propagates bundleOrigin onto each configuration row", () => 
     (c) => c.sourcePath === "/p/ankui/.mcp.json"
   );
   assert.ok(yoursCfg, "yours configuration should be present");
-  assert.deepEqual(yoursCfg!.bundleOrigin, {
+  assert.deepEqual(yoursCfg.bundleOrigin, {
     kind: "yours",
     name: "yours",
     rootPath: undefined

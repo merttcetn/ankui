@@ -262,7 +262,7 @@ export function useSkillActions(args: UseSkillActionsArgs): SkillActions {
       );
       const nextActions = [
         ...sessionActionsRef.current,
-        { toolId: target.toolId, name: target.name, action: item.action } as SessionAction
+        { toolId: target.toolId, name: target.name, action: item.action }
       ];
       sessionActionsRef.current = nextActions;
       setSessionActions(nextActions);

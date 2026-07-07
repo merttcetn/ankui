@@ -43,7 +43,7 @@ test("formatMultiProjectSummary header reports projects, dev roots, and user-sco
   const result = emptyMulti();
   const output = formatMultiProjectSummary(result);
   assert.match(
-    output.split("\n")[0]!,
+    output.split("\n")[0],
     /^Ankui Multi-project Scan$/
   );
   assert.match(output, /Projects           0 projects/);
@@ -178,7 +178,7 @@ test("formatMultiProjectSummary plural — one project, one dev root, one user-s
 
   const output = formatMultiProjectSummary(result);
   assert.match(
-    output.split("\n")[0]!,
+    output.split("\n")[0],
     /^Ankui Multi-project Scan$/
   );
   assert.match(output, /Projects           1 project/);

@@ -150,6 +150,9 @@ export function useScanSession(args: UseScanSessionArgs): ScanSession {
     if (!resultProp) return;
     if (resultProp === state.result) return;
     setCurrentResult(dispatch, resultRef, resultProp);
+    // Only re-sync when the incoming resultProp changes; state.result is read
+    // for comparison, not as a trigger.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [resultProp]);
 
   const result = state.result;

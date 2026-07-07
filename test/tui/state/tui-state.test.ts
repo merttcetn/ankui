@@ -4,7 +4,6 @@ import test from "node:test";
 import {
   createInitialState,
   tuiReducer,
-  type DrillFrame,
   type TuiState
 } from "../../../src/tui/state/tui-state.js";
 import { cycleTabId } from "../../../src/tui/state/navigation.js";
@@ -118,8 +117,8 @@ test("drillOut pops the top of drillStack", () => {
   const state: TuiState = {
     activeTab: "claude",
     drillStack: [
-      { kind: "userScope", toolId: "claude" } as DrillFrame,
-      { kind: "project", toolId: "claude", projectPath: "/p" } as DrillFrame
+      { kind: "userScope", toolId: "claude" },
+      { kind: "project", toolId: "claude", projectPath: "/p" }
     ],
     result: makeResult([]),
     searchOpen: false,

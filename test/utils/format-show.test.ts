@@ -61,7 +61,7 @@ function withSkill(result: ScanResult, skill: Skill): ScanResult {
 test("formatShow throws ToolNotFoundError on unknown tool id", () => {
   assert.throws(
     () => formatShow(emptyResult(), "foo"),
-    (err: unknown) => err instanceof ToolNotFoundError && /foo/.test((err as Error).message)
+    (err: unknown) => err instanceof ToolNotFoundError && /foo/.test((err).message)
   );
 });
 

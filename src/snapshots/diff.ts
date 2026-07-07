@@ -206,7 +206,12 @@ function normalizeDiffValue(value: unknown): SnapshotValue | undefined {
     return value.map(normalizeDiffValue).filter((entry): entry is SnapshotValue => entry !== undefined);
   }
   if (typeof value === "object") return stableJson(value);
-  return String(value);
+  // Remaining exotic types (bigint/symbol/function) don't occur in JSON
+  // snapshots; stringify defensively without tripping no-base-to-string.
+  if (typeof value === "bigint" || typeof value === "symbol" || typeof value === "function") {
+    return String(value);
+  }
+  return undefined;
 }
 
 function stableJson(value: unknown): string {

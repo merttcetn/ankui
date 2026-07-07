@@ -99,8 +99,8 @@ test("FirstRunScan shows live 'N paths · M projects' counters during crawl", as
         new Promise<CrawlResult>((resolve) => {
           resolveCrawl = resolve;
           // Emit two projects mid-crawl.
-          opts.onProject?.(SAMPLE_PROJECTS[0]!);
-          opts.onProject?.(SAMPLE_PROJECTS[1]!);
+          opts.onProject?.(SAMPLE_PROJECTS[0]);
+          opts.onProject?.(SAMPLE_PROJECTS[1]);
         })
       }
     />

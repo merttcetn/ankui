@@ -114,7 +114,7 @@ export async function handleRequest(
     }
     let label: string | undefined;
     try {
-      label = validateSnapshotLabel(rawLabel as string | undefined);
+      label = validateSnapshotLabel(rawLabel);
     } catch (error) {
       return sendJson(res, 400, { error: formatRouteError(error) });
     }

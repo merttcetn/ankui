@@ -45,7 +45,7 @@ function loadFromStorage(key: string): Set<string> {
   try {
     const raw = window.localStorage.getItem(key);
     if (!raw) return new Set();
-    const parsed = JSON.parse(raw);
+    const parsed: unknown = JSON.parse(raw);
     return Array.isArray(parsed)
       ? new Set(parsed.filter((v): v is string => typeof v === "string"))
       : new Set();
