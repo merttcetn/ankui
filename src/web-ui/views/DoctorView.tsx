@@ -47,6 +47,9 @@ export function DoctorView(props: {
       sections={sections}
       selectedId={selectedId}
       onSelect={props.onSelectId}
+      segmented
+      searchable
+      searchPlaceholder="Filter scan health…"
     />
   );
 

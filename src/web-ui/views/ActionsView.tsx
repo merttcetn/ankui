@@ -9,6 +9,7 @@ import { EMPTY_STATE_WHISPERS } from "../../tui/messages.js";
 import { isMarkdownSkill } from "../../tui/util/actions-items.js";
 import { groupSkillsByOrigin, type SkillGroup } from "../../utils/skill-groups.js";
 import { DetailHeader } from "../components/DetailHeader.js";
+import { DotMatrixCoreSpiral } from "../components/DotMatrixCoreSpiral.js";
 import { EntityRail } from "../components/EntityRail.js";
 import {
   SkillGroupSection,
@@ -101,6 +102,8 @@ export function ActionsView(props: ActionsViewProps): {
       ]}
       selectedId={selectedId}
       onSelect={props.onSelectId}
+      searchable
+      searchPlaceholder="Filter tools…"
     />
   );
 
@@ -229,7 +232,11 @@ function ActionsToolPanel(props: ActionsToolPanelProps): React.ReactElement {
                   <div className={`skill-line${staged ? " is-pending" : ""}`} key={skill.id}>
                     <span className="name">{skill.name}</span>
                     {staged && <span className="ank-pill ank-pill-staged">STAGED</span>}
-                    <MagneticToggle enabled={!isDisabled} onToggle={() => toggle(skill)} />
+                    <MagneticToggle
+                      enabled={!isDisabled}
+                      label={skill.name}
+                      onToggle={() => toggle(skill)}
+                    />
                   </div>
                 );
               })}
@@ -256,9 +263,11 @@ function ActionsToolPanel(props: ActionsToolPanelProps): React.ReactElement {
 
 function MagneticToggle({
   enabled,
+  label,
   onToggle
 }: {
   enabled: boolean;
+  label: string;
   onToggle: () => void;
 }): React.ReactElement {
   return (
@@ -268,6 +277,7 @@ function MagneticToggle({
       onClick={onToggle}
       role="switch"
       aria-checked={enabled}
+      aria-label={`${enabled ? "Disable" : "Enable"} ${label}`}
     >
       <span className="ank-toggle-seg ank-toggle-seg-on">on</span>
       <span className="ank-toggle-seg ank-toggle-seg-off">off</span>
@@ -299,7 +309,9 @@ function ActionsFloatBar(props: {
         onClick={props.onSave}
         disabled={props.saving}
       >
-        {props.saving ? "saving…" : "save"}
+        {props.saving ? (
+          <><DotMatrixCoreSpiral size={16} dotSize={1.8} decorative /> saving</>
+        ) : "save"}
       </button>
       {props.status && <span className="dim">{props.status}</span>}
       {props.saving && <span className="actions-float-shimmer" aria-hidden />}

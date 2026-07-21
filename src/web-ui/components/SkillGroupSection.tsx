@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 
 import type { SkillGroup } from "../../utils/skill-groups.js";
 import type { UpdateStatus } from "../hooks/useBundleStatus.js";
+import { DotMatrixCoreSpiral } from "./DotMatrixCoreSpiral.js";
 
 export type BulkAction = "enable-all" | "disable-all";
 
@@ -138,7 +139,9 @@ function UpdateAffordance(props: {
   }
   if (status.state === "checking") {
     return (
-      <span className="skill-group-update dim">checking…</span>
+      <span className="skill-group-update dim" role="status">
+        <DotMatrixCoreSpiral size={16} dotSize={1.8} decorative /> checking
+      </span>
     );
   }
   if (status.state === "up_to_date") {
@@ -229,7 +232,7 @@ function BulkActionButtons(props: {
           Enable all
         </button>
         <button
-          className="action"
+          className="action is-danger"
           onClick={() => props.onAction("disable-all")}
         >
           Disable all
@@ -241,7 +244,7 @@ function BulkActionButtons(props: {
   const label = action === "disable-all" ? "Disable all" : "Enable all";
   return (
     <span className="skill-group-bulk">
-      <button className="action" onClick={() => props.onAction(action)}>
+      <button className={`action${action === "disable-all" ? " is-danger" : ""}`} onClick={() => props.onAction(action)}>
         {label}
       </button>
     </span>

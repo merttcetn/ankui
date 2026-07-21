@@ -45,6 +45,8 @@ export function McpsView(props: {
       ]}
       selectedId={selectedId}
       onSelect={props.onSelectId}
+      searchable
+      searchPlaceholder="Filter MCP servers…"
     />
   );
 

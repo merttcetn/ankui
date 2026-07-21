@@ -2,6 +2,7 @@ import React from "react";
 
 import { SCAN_COMPLETE } from "../../tui/messages.js";
 import { useRotatingMessage } from "../../tui/hooks/use-rotating-message.js";
+import { DotMatrixCoreSpiral } from "./DotMatrixCoreSpiral.js";
 
 interface Props {
   phase: "loading" | "done";
@@ -23,12 +24,7 @@ export function LoadingSplash({ phase }: Props): React.ReactElement {
 
   return (
     <div className="splash">
-      <div className="beacon">
-        <div className="beacon-ring" />
-        <div className="beacon-ring" />
-        <div className="beacon-ring" />
-        <span className="beacon-mark">◌</span>
-      </div>
+      <DotMatrixCoreSpiral size={76} dotSize={7} />
       <div key={index} className="splash-message">
         {message}
       </div>
