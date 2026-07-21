@@ -17,8 +17,14 @@ export function SkillRow({ pill, name, source, trailing }: SkillRowProps): React
   return (
     <div className="ank-row">
       {pill && <Pill variant={pill.variant}>{pill.label}</Pill>}
-      <span className="ank-row-name">{name}</span>
-      {source && <span className="ank-row-src">{source}</span>}
+      <span className="ank-row-main">
+        <span className="ank-row-name">{name}</span>
+        {source && (
+          <span className="ank-row-src" title={typeof source === "string" ? source : undefined}>
+            {source}
+          </span>
+        )}
+      </span>
       {trailing}
     </div>
   );

@@ -2,7 +2,11 @@ import React, { useEffect, useState } from "react";
 
 import type { MultiProjectScanResult } from "../../types.js";
 import { aggregateMcps } from "../../tui/util/mcp-grouping.js";
-import { aggregateFindings } from "../../tui/util/finding-grouping.js";
+import {
+  buildFindingPresentation,
+  findingPresentationTotals
+} from "../presentation/findings.js";
+import { DotMatrixCoreSpiral } from "./DotMatrixCoreSpiral.js";
 
 export type TabId =
   | "overview"
@@ -19,6 +23,11 @@ interface NavItem {
   label: string;
   badge?: number;
   warn?: boolean;
+}
+
+interface NavGroup {
+  label: string;
+  items: NavItem[];
 }
 
 export interface SidebarProps {
@@ -52,55 +61,77 @@ export function Sidebar({ scan, activeTab, onSelect, onRefresh, refreshing, just
   const lastScanAt = Number.isFinite(parsedScanAt) ? parsedScanAt : null;
   const mcpCount = scan ? aggregateMcps(scan).length : undefined;
   const findingCount = scan
-    ? aggregateFindings(scan).reduce((sum, s) => sum + s.findings.length, 0)
+    ? findingPresentationTotals(buildFindingPresentation(scan)).unique
     : undefined;
 
-  const items: NavItem[] = [
-    { id: "overview", label: "Overview" },
-    { id: "changes", label: "Changes" },
+  const groups: NavGroup[] = [
     {
-      id: "tools",
-      label: "Tools",
-      badge: scan?.userScope.tools.filter((t) => t.detected).length
+      label: "Workspace",
+      items: [
+        { id: "overview", label: "Overview" },
+        { id: "changes", label: "Changes" }
+      ]
     },
     {
-      id: "mcps",
-      label: "MCPs",
-      badge: mcpCount
+      label: "Inventory",
+      items: [
+        {
+          id: "tools",
+          label: "Tools",
+          badge: scan?.userScope.tools.filter((t) => t.detected).length
+        },
+        { id: "mcps", label: "MCPs", badge: mcpCount },
+        {
+          id: "access",
+          label: "Access",
+          badge: findingCount,
+          warn: (findingCount ?? 0) > 0
+        },
+        { id: "doctor", label: "Doctor" }
+      ]
     },
     {
-      id: "access",
-      label: "Access",
-      badge: findingCount,
-      warn: (findingCount ?? 0) > 0
-    },
-    { id: "doctor", label: "Doctor" },
-    { id: "actions", label: "Actions" },
-    { id: "settings", label: "Settings" }
+      label: "Control",
+      items: [
+        { id: "actions", label: "Actions" },
+        { id: "settings", label: "Settings" }
+      ]
+    }
   ];
 
   return (
     <>
       <div className="ank-side-brand">
-        <div className="ank-side-name">ankui</div>
+        <div className="ank-side-eyebrow">LOCAL AGENT INDEX</div>
+        <div className="ank-side-brand-row">
+          <div className="ank-side-name">ankui</div>
+          <span className="ank-side-status" aria-label="Local scan ready" />
+        </div>
         <div className="ank-side-tag">remember what your agents can access</div>
       </div>
-      <nav className="ank-side-nav">
-        {items.map((item) => (
-          <button
-            key={item.id}
-            type="button"
-            className={`ank-side-link${item.id === activeTab ? " is-active" : ""}${item.warn ? " has-warn" : ""}`}
-            onClick={() => onSelect(item.id)}
-          >
-            <span>{item.label}</span>
-            {item.badge !== undefined && item.badge > 0 && (
-              <span className="ank-side-badge">{item.badge}</span>
-            )}
-          </button>
+      <nav className="ank-side-nav" aria-label="Primary navigation">
+        {groups.map((group) => (
+          <div className="ank-side-group" key={group.label}>
+            <div className="ank-side-group-label">{group.label}</div>
+            {group.items.map((item) => (
+              <button
+                key={item.id}
+                type="button"
+                className={`ank-side-link${item.id === activeTab ? " is-active" : ""}${item.warn ? " has-warn" : ""}`}
+                onClick={() => onSelect(item.id)}
+                aria-current={item.id === activeTab ? "page" : undefined}
+              >
+                <span className="ank-side-link-text">{item.label}</span>
+                {item.badge !== undefined && item.badge > 0 && (
+                  <span className="ank-side-badge">{item.badge}</span>
+                )}
+              </button>
+            ))}
+          </div>
         ))}
       </nav>
       <div className="ank-side-foot">
+        <div className="ank-side-foot-label">SCAN CONTROL</div>
         <button
           type="button"
           className={`ank-side-refresh${refreshing ? " is-scanning" : ""}${justDone ? " is-done" : ""}`}
@@ -108,7 +139,16 @@ export function Sidebar({ scan, activeTab, onSelect, onRefresh, refreshing, just
           disabled={refreshing}
           aria-keyshortcuts="R"
         >
-          <span className="ank-side-refresh-dot" aria-hidden />
+          {refreshing ? (
+            <DotMatrixCoreSpiral
+              className="ank-side-refresh-loader"
+              size={18}
+              dotSize={2}
+              decorative
+            />
+          ) : (
+            <span className="ank-side-refresh-dot" aria-hidden />
+          )}
           <span className="ank-side-refresh-label">
             {refreshing ? "scanning" : justDone ? "done" : "refresh"}
           </span>

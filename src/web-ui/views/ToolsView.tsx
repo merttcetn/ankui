@@ -69,6 +69,9 @@ export function ToolsView(props: {
       sections={sections}
       selectedId={selectedId}
       onSelect={props.onSelectId}
+      segmented
+      searchable
+      searchPlaceholder="Filter tools or projects…"
     />
   );
 

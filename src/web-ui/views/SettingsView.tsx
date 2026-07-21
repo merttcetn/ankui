@@ -5,6 +5,7 @@ import { relativizeHome } from "../../utils/paths.js";
 import { applyConfig } from "../api.js";
 import { Banner } from "../components/Banner.js";
 import { DetailHeader } from "../components/DetailHeader.js";
+import { DotMatrixCoreSpiral } from "../components/DotMatrixCoreSpiral.js";
 import { EntityRail } from "../components/EntityRail.js";
 import { SectionLabel } from "../components/SectionLabel.js";
 
@@ -109,7 +110,15 @@ function DevRootsPanel(props: DevRootsPanelProps): React.ReactElement {
         meta={`${devRoots.length} CONFIGURED · LAST SCAN ${scanned.toUpperCase()} · ${totalSkills} SKILLS`}
       />
 
-      <div className="ank-view-body">
+      <div className="ank-view-body settings-view">
+        <section className="settings-card" aria-labelledby="settings-dev-roots-title">
+          <div className="settings-card-head">
+            <div>
+              <span>PROJECT DISCOVERY</span>
+              <h4 id="settings-dev-roots-title">Developer roots</h4>
+            </div>
+            <p>Directories Ankui scans for project-level agent configuration.</p>
+          </div>
         {devRoots.length === 0 && (
           <div className="empty-whisper">
             no dev roots yet. add one below, or run <code>ankui discover --apply</code> from a terminal.
@@ -118,15 +127,18 @@ function DevRootsPanel(props: DevRootsPanelProps): React.ReactElement {
 
         <SectionLabel count={devRoots.length}>configured</SectionLabel>
         {devRoots.map((root) => (
-          <div className="ank-row" key={root}>
-            <span className="ank-row-name">{relativizeHome(root, homeDir)}</span>
+          <div className="ank-row settings-root" key={root}>
+            <span className="ank-row-main">
+              <span className="ank-row-name">{relativizeHome(root, homeDir)}</span>
+              <span className="ank-row-src" title={root}>{root}</span>
+            </span>
             <button
               className="action settings-remove"
               onClick={() => removeRoot(root)}
               disabled={busy}
               aria-label={`remove ${root}`}
             >
-              ×
+              Remove
             </button>
           </div>
         ))}
@@ -150,7 +162,9 @@ function DevRootsPanel(props: DevRootsPanelProps): React.ReactElement {
             onClick={addRoot}
             disabled={busy || input.trim() === ""}
           >
-            {busy ? "saving…" : "add"}
+            {busy ? (
+              <><DotMatrixCoreSpiral size={16} dotSize={1.8} decorative /> saving</>
+            ) : "add"}
           </button>
         </div>
 
@@ -161,6 +175,7 @@ function DevRootsPanel(props: DevRootsPanelProps): React.ReactElement {
         {error && (
           <Banner variant="danger" badge="ERROR">{error}</Banner>
         )}
+        </section>
       </div>
     </>
   );

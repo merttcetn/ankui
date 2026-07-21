@@ -39,6 +39,8 @@ function findSkillById(scan: MultiProjectScanResult, id: string): Skill | undefi
 
 export function App(): React.ReactElement {
   const [tab, setTab] = useState<TabId>("overview");
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [railOpen, setRailOpen] = useState(false);
   const [scan, setScan] = useState<MultiProjectScanResult | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [justLoaded, setJustLoaded] = useState(false);
@@ -61,9 +63,16 @@ export function App(): React.ReactElement {
   const selectFor = useCallback(
     (which: TabId) => (id: string) => {
       setSelections((prev) => ({ ...prev, [which]: id }));
+      setRailOpen(false);
     },
     []
   );
+
+  const selectTab = useCallback((nextTab: TabId) => {
+    setTab(nextTab);
+    setSidebarOpen(false);
+    setRailOpen(false);
+  }, []);
 
   const stageAction = useCallback(
     (id: string, action: "disable" | "enable", diskDisabled: boolean) => {
@@ -161,6 +170,16 @@ export function App(): React.ReactElement {
   }, [refresh, scan, error]);
 
   useEffect(() => {
+    function onEscape(event: KeyboardEvent): void {
+      if (event.key !== "Escape") return;
+      setSidebarOpen(false);
+      setRailOpen(false);
+    }
+    window.addEventListener("keydown", onEscape);
+    return () => window.removeEventListener("keydown", onEscape);
+  }, []);
+
+  useEffect(() => {
     if (!scan) return;
     setActionsPending((prev) =>
       prev.filter((p) => {
@@ -182,6 +201,7 @@ export function App(): React.ReactElement {
           tab,
           scan,
           onScan: setScan,
+          onNavigate: selectTab,
           selections,
           selectFor,
           actionsPending,
@@ -214,7 +234,7 @@ export function App(): React.ReactElement {
         <Sidebar
           scan={scan}
           activeTab={tab}
-          onSelect={setTab}
+          onSelect={selectTab}
           onRefresh={() => void refresh()}
           refreshing={loading}
           justDone={showDone}
@@ -222,14 +242,34 @@ export function App(): React.ReactElement {
       }
       rail={view?.rail}
       detail={detail}
+      activeLabel={tabLabel(tab)}
+      sidebarOpen={sidebarOpen}
+      railOpen={railOpen}
+      onToggleSidebar={() => {
+        setSidebarOpen((open) => !open);
+        setRailOpen(false);
+      }}
+      onToggleRail={() => {
+        setRailOpen((open) => !open);
+        setSidebarOpen(false);
+      }}
+      onCloseOverlays={() => {
+        setSidebarOpen(false);
+        setRailOpen(false);
+      }}
     />
   );
+}
+
+function tabLabel(tab: TabId): string {
+  return tab.charAt(0).toUpperCase() + tab.slice(1);
 }
 
 function Body(props: {
   tab: TabId;
   scan: MultiProjectScanResult;
   onScan: (scan: MultiProjectScanResult) => void;
+  onNavigate: (tab: TabId) => void;
   selections: Record<TabId, string | null>;
   selectFor: (which: TabId) => (id: string) => void;
   actionsPending: ActionsPending[];
@@ -243,7 +283,7 @@ function Body(props: {
   saveActions: () => void;
 }): { rail: React.ReactNode; detail: React.ReactNode } {
   switch (props.tab) {
-    case "overview":  return Overview({ scan: props.scan });
+    case "overview":  return Overview({ scan: props.scan, onNavigate: props.onNavigate });
     case "changes": return {
       rail: undefined,
       detail: <ChangesPanel scan={props.scan} onScan={props.onScan} />

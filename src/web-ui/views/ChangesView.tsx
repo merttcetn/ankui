@@ -16,6 +16,7 @@ import {
   type SnapshotStateResponse
 } from "../api.js";
 import { DetailHeader } from "../components/DetailHeader.js";
+import { DotMatrixCoreSpiral } from "../components/DotMatrixCoreSpiral.js";
 
 export function ChangesPanel(props: {
   scan: MultiProjectScanResult;
@@ -147,7 +148,9 @@ export function ChangesPanel(props: {
                 }}
               />
               <button className="changes-primary" type="button" onClick={() => void handleCreate()} disabled={busy !== null}>
-                {busy === "create" ? "capturing…" : "Create snapshot"}
+                {busy === "create" ? (
+                  <><DotMatrixCoreSpiral size={18} dotSize={2} decorative /> Capturing</>
+                ) : "Create snapshot"}
               </button>
             </div>
           </div>
@@ -155,7 +158,12 @@ export function ChangesPanel(props: {
 
         {error && <div className="changes-error" role="alert">{error}</div>}
         <div className="sr-only" aria-live="polite">{announcement}</div>
-        {busy === "load" && <div className="changes-loading"><span /> Reading the local ledger…</div>}
+        {busy === "load" && (
+          <div className="changes-loading" role="status">
+            <DotMatrixCoreSpiral size={28} dotSize={3} decorative />
+            Reading the local ledger…
+          </div>
+        )}
         {state && state.snapshots.length === 0 && busy !== "load" && (
           <div className="changes-empty"><b>NO BASELINE</b><p>Create the first snapshot to make future drift visible.</p></div>
         )}
@@ -229,6 +237,7 @@ function InventoryLedger(props: {
   diff: SnapshotDiffResult;
   changes: SnapshotDiffChange[];
 }): React.ReactElement {
+  const [filter, setFilter] = useState<"all" | SnapshotDiffChange["type"]>("all");
   const groups: Array<{ type: SnapshotDiffChange["type"]; label: string }> = [
     { type: "added", label: "Entered the surface" },
     { type: "modified", label: "Changed in place" },
@@ -238,20 +247,21 @@ function InventoryLedger(props: {
     <section className="changes-ledger" aria-label="Semantic changes">
       <header className="changes-ledger-head">
         <div><span>{props.diff.summary.total}</span><small>total changes</small></div>
-        <div className="changes-totals">
-          <b className="is-added">+{props.diff.summary.added}</b>
-          <b className="is-modified">~{props.diff.summary.modified}</b>
-          <b className="is-removed">−{props.diff.summary.removed}</b>
+        <div className="changes-filter" aria-label="Filter changes">
+          <button type="button" className={filter === "all" ? "is-active" : ""} aria-pressed={filter === "all"} onClick={() => setFilter("all")}>All <b>{props.diff.summary.total}</b></button>
+          <button type="button" className={filter === "added" ? "is-active is-added" : "is-added"} aria-pressed={filter === "added"} onClick={() => setFilter("added")}>Added <b>+{props.diff.summary.added}</b></button>
+          <button type="button" className={filter === "modified" ? "is-active is-modified" : "is-modified"} aria-pressed={filter === "modified"} onClick={() => setFilter("modified")}>Changed <b>~{props.diff.summary.modified}</b></button>
+          <button type="button" className={filter === "removed" ? "is-active is-removed" : "is-removed"} aria-pressed={filter === "removed"} onClick={() => setFilter("removed")}>Removed <b>−{props.diff.summary.removed}</b></button>
         </div>
       </header>
       {groups.map((group) => {
         const changes = props.changes.filter((change) => change.type === group.type);
-        if (changes.length === 0) return null;
+        if (changes.length === 0 || (filter !== "all" && filter !== group.type)) return null;
         return (
-          <div className={`changes-group is-${group.type}`} key={group.type}>
-            <div className="changes-group-title"><span>{group.label}</span><b>{changes.length}</b></div>
+          <details className={`changes-group is-${group.type}`} key={group.type} open>
+            <summary className="changes-group-title"><span>{group.label}</span><b>{changes.length}</b></summary>
             {changes.map((change) => <ChangeRow key={change.key} change={change} />)}
-          </div>
+          </details>
         );
       })}
     </section>
